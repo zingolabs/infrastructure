@@ -4,7 +4,21 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-zcash_primitives = { git = "https://github.com/zingolabs/librustzcash.git", tag = "zcash_client_sqlite-0.11.2_plus_zingolabs_changes-1-g7ad60b5d5-2-g121371a08"  }
+# Zcash
+zcash_primitives = { git = "https://github.com/zingolabs/librustzcash.git", tag = "zcash_client_sqlite-0.11.2_plus_zingolabs_changes-1-g7ad60b5d5-2-g121371a08" }
+
+# File
 tempfile = "3.13.0"
+
+# Network
 portpicker = "0.1.1"
+
+# Error handling
 thiserror = "1.0.64"
+
+# Logging
+tracing = "0.1.40"
+
+[dev-dependencies]
+# Logging
+tracing-subscriber = "0.3.15"

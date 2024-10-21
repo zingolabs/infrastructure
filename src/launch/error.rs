@@ -6,7 +6,7 @@ pub enum LaunchError {
         "Failed to launch Zcashd.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
     )]
     Zcashd {
-        /// Error code
+        /// Exit status
         exit_status: std::process::ExitStatus,
         /// Stdout log
         stdout: String,

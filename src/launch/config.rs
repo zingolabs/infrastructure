@@ -1,21 +1,20 @@
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::network::ActivationHeights;
 
-const ZCASHD_FILENAME: &str = "zcash.conf";
-const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
+pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
+pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
-/// TODO: Add Doc Comment Here!
-pub fn zcashd(
+pub(crate) fn zcashd(
     config_dir: &Path,
     rpcport: u16,
     activation_heights: &ActivationHeights,
     miner_address: Option<&str>,
-) -> std::io::Result<()> {
+) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
-    let mut config_file = File::create(config_file_path)?;
+    let mut config_file = File::create(config_file_path.clone())?;
 
     let overwinter_activation_height = activation_heights.overwinter;
     let sapling_activation_height = activation_heights.sapling;
@@ -66,7 +65,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
         )?;
     }
 
-    Ok(())
+    Ok(config_file_path)
 }
 
 fn lightwalletd(

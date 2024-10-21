@@ -3,12 +3,10 @@ use std::{fs::File, io::Read, path::PathBuf};
 use error::LaunchError;
 use portpicker::Port;
 
-use crate::{network::ActivationHeights, Zcashd};
+use crate::{network::ActivationHeights, Zcashd, ZCASHD_STDOUT_LOG};
 
-mod config;
+pub(crate) mod config;
 mod error;
-
-const ZCASHD_STDOUT_LOG: &str = "stdout.log";
 
 fn pick_unused_port(fixed_port: Option<Port>) -> Port {
     if let Some(port) = fixed_port {
@@ -22,7 +20,8 @@ fn pick_unused_port(fixed_port: Option<Port>) -> Port {
 }
 
 pub fn zcashd(
-    bin: Option<PathBuf>,
+    zcashd_bin: Option<PathBuf>,
+    zcash_cli_bin: Option<PathBuf>,
     fixed_port: Option<Port>,
     activation_heights: &ActivationHeights,
     miner_address: Option<&str>,
@@ -30,7 +29,7 @@ pub fn zcashd(
     let data_dir = tempfile::tempdir().unwrap();
 
     let config_dir = tempfile::tempdir().unwrap();
-    config::zcashd(
+    let config_file_path = config::zcashd(
         config_dir.path(),
         pick_unused_port(fixed_port),
         activation_heights,
@@ -38,7 +37,7 @@ pub fn zcashd(
     )
     .unwrap();
 
-    let mut command = match bin {
+    let mut command = match zcashd_bin {
         Some(path) => std::process::Command::new(path),
         None => std::process::Command::new("zcashd"),
     };
@@ -47,7 +46,7 @@ pub fn zcashd(
             "--printtoconsole",
             format!(
                 "--conf={}",
-                config_dir.path().to_str().expect("should be valid UTF-8")
+                config_file_path.to_str().expect("should be valid UTF-8")
             )
             .as_str(),
             format!(
@@ -75,7 +74,7 @@ pub fn zcashd(
     let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
     let mut stdout = String::new();
 
-    let check_interval = std::time::Duration::from_millis(500);
+    let check_interval = std::time::Duration::from_millis(100);
 
     // wait for string that indicates daemon is ready
     loop {
@@ -116,8 +115,9 @@ pub fn zcashd(
 
     Ok(Zcashd {
         handle,
-        data_dir,
+        _data_dir: data_dir,
         logs_dir,
         config_dir,
+        zcash_cli_bin,
     })
 }
