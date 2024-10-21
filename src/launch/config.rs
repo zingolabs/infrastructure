@@ -5,8 +5,11 @@ use std::path::{Path, PathBuf};
 use crate::network::ActivationHeights;
 
 pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
+#[allow(dead_code)]
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
+/// Writes the Zcashd config file to the specified config directory.
+/// Returns the path to the config file.
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpcport: u16,
@@ -68,12 +71,15 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     Ok(config_file_path)
 }
 
+/// Writes the Lightwalletd config file to the specified config directory.
+/// Returns the path to the config file.
+#[allow(dead_code)]
 fn lightwalletd(
     config_dir: &Path,
     grpc_bind_addr_port: u16
-) -> std::io::Result<()> {
+) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
-    let mut config_file = File::create(config_file_path)?;
+    let mut config_file = File::create(config_file_path.clone())?;
 
     config_file.write_all(format!("\
 grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
@@ -83,7 +89,7 @@ log-level: 10
 zcash-conf-path: ./zcash.conf"
     ).as_bytes())?;
 
-    Ok(())
+    Ok(config_file_path)
 }
 
 #[cfg(test)]

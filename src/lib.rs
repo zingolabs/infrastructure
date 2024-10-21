@@ -7,6 +7,7 @@ pub mod network;
 
 const ZCASHD_STDOUT_LOG: &str = "stdout.log";
 
+/// Struct associated with Zcashd process.
 pub struct Zcashd {
     handle: Child,
     _data_dir: TempDir,
@@ -16,10 +17,16 @@ pub struct Zcashd {
 }
 
 impl Zcashd {
+    /// Returns path to config file.
     pub fn config_path(&self) -> PathBuf {
         self.config_dir.path().join(launch::config::ZCASHD_FILENAME)
     }
 
+    /// Runs a Zcash-cli command with the given `args`.
+    ///
+    /// ```ignore (incomplete)
+    /// self.zcash_cli_command(&["generate", "1"]);
+    /// ```
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut command = match &self.zcash_cli_bin {
             Some(path) => std::process::Command::new(path),
@@ -30,6 +37,7 @@ impl Zcashd {
         command.args(args).output()
     }
 
+    /// Stops the Zcashd process.
     pub fn stop(mut self) {
         match self.zcash_cli_command(&["stop"]) {
             Ok(_) => {
@@ -51,10 +59,12 @@ impl Zcashd {
         }
     }
 
+    /// Generate `num_blocks` blocks.
     pub fn generate_blocks(&self, num_blocks: u32) -> std::io::Result<std::process::Output> {
         self.zcash_cli_command(&["generate", &num_blocks.to_string()])
     }
 
+    /// Prints the stdout log.
     pub fn print_stdout(&self) {
         let stdout_log_path = self.logs_dir.path().join(ZCASHD_STDOUT_LOG);
         let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");

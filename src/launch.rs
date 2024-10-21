@@ -8,6 +8,8 @@ use crate::{network::ActivationHeights, Zcashd, ZCASHD_STDOUT_LOG};
 pub(crate) mod config;
 mod error;
 
+/// Checks `fixed_port` is not in use.
+/// If `fixed_port` is `None`, returns a random free port between 15_000 and 25_000.
 fn pick_unused_port(fixed_port: Option<Port>) -> Port {
     if let Some(port) = fixed_port {
         if !portpicker::is_free(port) {
@@ -19,6 +21,16 @@ fn pick_unused_port(fixed_port: Option<Port>) -> Port {
     }
 }
 
+/// Launches Zcashd and returns a [`crate::Zcashd`] with the handle and associated directories.
+///
+/// Use `zcashd_bin` and `zcash_cli_bin` to specify the paths to the binaries.
+/// If these binaries are in $PATH, `None` can be specified to run "zcashd" / "zcash-cli".
+///
+/// Use `fixed_port` to specify a port for zcashd. Otherwise, a port is picked at random.
+///
+/// Use `activation_heights` to specify custom network upgrade activation heights
+///
+/// Use `miner_address` to specify the target address for the block rewards when blocks are generated.  
 pub fn zcashd(
     zcashd_bin: Option<PathBuf>,
     zcash_cli_bin: Option<PathBuf>,

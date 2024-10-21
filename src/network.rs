@@ -3,12 +3,18 @@ use zcash_primitives::consensus::BlockHeight;
 /// Activation heights for local network upgrades
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivationHeights {
+    /// Overwinter network upgrade activation height
     pub overwinter: BlockHeight,
+    /// Sapling network upgrade activation height
     pub sapling: BlockHeight,
+    /// Blossom network upgrade activation height
     pub blossom: BlockHeight,
+    /// Heartwood network upgrade activation height
     pub heartwood: BlockHeight,
+    /// Canopy network upgrade activation height
     pub canopy: BlockHeight,
-    pub nu5: BlockHeight, // a.k.a. orchard
+    /// Nu5 (a.k.a. Orchard) network upgrade activation height
+    pub nu5: BlockHeight,
 }
 
 impl Default for ActivationHeights {
