@@ -89,7 +89,7 @@ impl Zcashd {
 
         let check_interval = std::time::Duration::from_millis(100);
 
-        // wait for string that indicates daemon is ready
+        // wait for stdout log entry that indicates daemon is ready
         loop {
             match handle.try_wait() {
                 Ok(Some(exit_status)) => {
@@ -142,6 +142,7 @@ impl Zcashd {
 
     /// Runs a Zcash-cli command with the given `args`.
     ///
+    /// Example usage for generating blocks in Zcashd local net:
     /// ```ignore (incomplete)
     /// self.zcash_cli_command(&["generate", "1"]);
     /// ```
