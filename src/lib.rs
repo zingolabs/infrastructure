@@ -38,7 +38,7 @@ impl Zcashd {
     }
 
     /// Stops the Zcashd process.
-    pub fn stop(mut self) {
+    pub fn stop(&mut self) {
         match self.zcash_cli_command(&["stop"]) {
             Ok(_) => {
                 if let Err(e) = self.handle.wait() {
@@ -71,5 +71,11 @@ impl Zcashd {
         let mut stdout = String::new();
         stdout_log.read_to_string(&mut stdout).unwrap();
         println!("{}", stdout);
+    }
+}
+
+impl Drop for Zcashd {
+    fn drop(&mut self) {
+        self.stop();
     }
 }

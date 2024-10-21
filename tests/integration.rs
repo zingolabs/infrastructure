@@ -6,5 +6,4 @@ fn launch_zcashd() {
 
     let zcashd = launch::zcashd(None, None, None, &ActivationHeights::default(), None).unwrap();
     zcashd.print_stdout();
-    zcashd.stop();
 }
