@@ -14,6 +14,87 @@ pub mod error;
 pub mod network;
 
 const STDOUT_LOG: &str = "stdout.log";
+const STDERR_LOG: &str = "stderr.log";
+
+#[derive(Clone, Copy)]
+enum Process {
+    Zcashd,
+    Zainod,
+}
+
+impl std::fmt::Display for Process {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let process = match self {
+            Self::Zcashd => "zcashd",
+            Self::Zainod => "zainod",
+        };
+        write!(f, "{}", process)
+    }
+}
+
+fn wait_for_launch(
+    process: Process,
+    handle: &mut Child,
+    success_indicator: &str,
+    error_indicator: &str,
+) -> Result<TempDir, LaunchError> {
+    let logs_dir = tempfile::tempdir().unwrap();
+
+    let stdout_log_path = logs_dir.path().join(STDOUT_LOG);
+    let mut stdout_log = File::create(&stdout_log_path).unwrap();
+    let mut stdout = handle.stdout.take().unwrap();
+    std::thread::spawn(move || {
+        std::io::copy(&mut stdout, &mut stdout_log)
+            .expect("should be able to read/write stdout log");
+    });
+    let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
+    let mut stdout = String::new();
+
+    let stderr_log_path = logs_dir.path().join(STDERR_LOG);
+    let mut stderr_log = File::create(&stderr_log_path).unwrap();
+    let mut stderr = handle.stderr.take().unwrap();
+    std::thread::spawn(move || {
+        std::io::copy(&mut stderr, &mut stderr_log)
+            .expect("should be able to read/write stderr log");
+    });
+    let mut stderr_log = File::open(stderr_log_path).expect("should be able to open log");
+    let mut stderr = String::new();
+
+    // wait for stdout log entry that indicates daemon is ready
+    let interval = std::time::Duration::from_millis(100);
+    loop {
+        match handle.try_wait() {
+            Ok(Some(exit_status)) => {
+                stdout_log.read_to_string(&mut stdout).unwrap();
+                stderr_log.read_to_string(&mut stderr).unwrap();
+
+                return Err(LaunchError::ProcessFailed {
+                    process_name: process.to_string(),
+                    exit_status,
+                    stdout,
+                    stderr,
+                });
+            }
+            Ok(None) => (),
+            Err(e) => {
+                panic!("Unexpected Error: {e}")
+            }
+        };
+
+        stdout_log.read_to_string(&mut stdout).unwrap();
+        stderr_log.read_to_string(&mut stderr).unwrap();
+        if stdout.contains(error_indicator) || stderr.contains(error_indicator) {
+            panic!("{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
+        } else if stdout.contains(success_indicator) {
+            // launch successful
+            break;
+        }
+
+        std::thread::sleep(interval);
+    }
+
+    Ok(logs_dir)
+}
 
 /// This struct is used to represent and manage the Zcashd process.
 #[derive(Getters)]
@@ -82,58 +163,12 @@ impl Zcashd {
 
         let mut handle = command.spawn().unwrap();
 
-        let logs_dir = tempfile::tempdir().unwrap();
-        let stdout_log_path = logs_dir.path().join(STDOUT_LOG);
-        let mut stdout_log = File::create(&stdout_log_path).unwrap();
-        let mut stdout = handle.stdout.take().unwrap();
-        // TODO: consider writing logs in a runtime to increase performance
-        std::thread::spawn(move || {
-            std::io::copy(&mut stdout, &mut stdout_log)
-                .expect("should be able to read/write stdout log");
-        });
-
-        let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
-        let mut stdout = String::new();
-
-        let check_interval = std::time::Duration::from_millis(100);
-
-        // wait for stdout log entry that indicates daemon is ready
-        loop {
-            match handle.try_wait() {
-                Ok(Some(exit_status)) => {
-                    stdout_log.read_to_string(&mut stdout).unwrap();
-
-                    let mut stderr = String::new();
-                    handle
-                        .stderr
-                        .take()
-                        .unwrap()
-                        .read_to_string(&mut stderr)
-                        .unwrap();
-
-                    return Err(LaunchError::ProcessFailed {
-                        process_name: "zcashd".to_string(),
-                        exit_status,
-                        stdout,
-                        stderr,
-                    });
-                }
-                Ok(None) => (),
-                Err(e) => {
-                    panic!("Unexpected Error: {e}")
-                }
-            };
-
-            stdout_log.read_to_string(&mut stdout).unwrap();
-            if stdout.contains("Error:") {
-                panic!("Zcashd launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
-            } else if stdout.contains("init message: Done loading") {
-                // launch successful
-                break;
-            }
-
-            std::thread::sleep(check_interval);
-        }
+        let logs_dir = wait_for_launch(
+            Process::Zcashd,
+            &mut handle,
+            "init message: Done loading",
+            "Error:",
+        )?;
 
         Ok(Zcashd {
             handle,
@@ -264,58 +299,7 @@ impl Zainod {
 
         let mut handle = command.spawn().unwrap();
 
-        let logs_dir = tempfile::tempdir().unwrap();
-        let stdout_log_path = logs_dir.path().join(STDOUT_LOG);
-        let mut stdout_log = File::create(&stdout_log_path).unwrap();
-        let mut stdout = handle.stdout.take().unwrap();
-        // TODO: consider writing logs in a runtime to increase performance
-        std::thread::spawn(move || {
-            std::io::copy(&mut stdout, &mut stdout_log)
-                .expect("should be able to read/write stdout log");
-        });
-
-        let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
-        let mut stdout = String::new();
-
-        let check_interval = std::time::Duration::from_millis(100);
-
-        // wait for stdout log entry that indicates daemon is ready
-        loop {
-            match handle.try_wait() {
-                Ok(Some(exit_status)) => {
-                    stdout_log.read_to_string(&mut stdout).unwrap();
-
-                    let mut stderr = String::new();
-                    handle
-                        .stderr
-                        .take()
-                        .unwrap()
-                        .read_to_string(&mut stderr)
-                        .unwrap();
-
-                    return Err(LaunchError::ProcessFailed {
-                        process_name: "zainod".to_string(),
-                        exit_status,
-                        stdout,
-                        stderr,
-                    });
-                }
-                Ok(None) => (),
-                Err(e) => {
-                    panic!("Unexpected Error: {e}")
-                }
-            };
-
-            stdout_log.read_to_string(&mut stdout).unwrap();
-            if stdout.contains("Error:") {
-                panic!("Zainod launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
-            } else if stdout.contains("Server Ready.") {
-                // launch successful
-                break;
-            }
-
-            std::thread::sleep(check_interval);
-        }
+        let logs_dir = wait_for_launch(Process::Zainod, &mut handle, "Server Ready.", "Error:")?;
 
         Ok(Zainod {
             handle,
