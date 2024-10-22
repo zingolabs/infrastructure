@@ -1,3 +1,6 @@
+#![warn(missing_docs)]
+//! Zcash Localnet
+
 use std::{fs::File, io::Read, path::PathBuf, process::Child};
 
 use error::LaunchError;
@@ -9,19 +12,24 @@ use tempfile::TempDir;
 pub(crate) mod config;
 pub mod error;
 pub mod network;
-pub(crate) mod utils;
 
 const STDOUT_LOG: &str = "stdout.log";
 
-/// Struct associated with Zcashd process.
+/// This struct is used to represent and manage the Zcashd process.
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct Zcashd {
+    /// Child process handle
     handle: Child,
+    /// RPC Port
     port: Port,
+    /// Data directory
     _data_dir: TempDir,
+    /// Logs directory
     logs_dir: TempDir,
+    /// Config directory
     config_dir: TempDir,
+    /// Path to zcash cli binary
     zcash_cli_bin: Option<PathBuf>,
 }
 
@@ -43,7 +51,7 @@ impl Zcashd {
         activation_heights: &ActivationHeights,
         miner_address: Option<&str>,
     ) -> Result<Zcashd, LaunchError> {
-        let port = utils::pick_unused_port(rpc_port);
+        let port = network::pick_unused_port(rpc_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path =
             config::zcashd(config_dir.path(), port, activation_heights, miner_address).unwrap();
@@ -209,13 +217,17 @@ impl Drop for Zcashd {
     }
 }
 
-/// Struct associated with Zcashd process.
+/// This struct is used to represent and manage the Zainod process.
 #[derive(Getters)]
 #[getset(get = "pub")]
 pub struct Zainod {
+    /// Child process handle
     handle: Child,
+    /// RPC Port
     port: Port,
+    /// Logs directory
     logs_dir: TempDir,
+    /// Config directory
     config_dir: TempDir,
 }
 
@@ -230,7 +242,7 @@ impl Zainod {
         listen_port: Option<Port>,
         validator_port: Port,
     ) -> Result<Zainod, LaunchError> {
-        let port = utils::pick_unused_port(listen_port);
+        let port = network::pick_unused_port(listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zainod(config_dir.path(), port, validator_port).unwrap();
 

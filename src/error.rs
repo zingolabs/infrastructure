@@ -1,3 +1,5 @@
+//! Crate level error module
+
 /// Errors associated with launching processes
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum LaunchError {
