@@ -1,4 +1,4 @@
-//! Structs associated with local network configuration
+//! Structs and utility functions associated with local network configuration
 
 use portpicker::Port;
 use zcash_primitives::consensus::BlockHeight;
