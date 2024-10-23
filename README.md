@@ -15,6 +15,6 @@ Ensure that any processes used in this crate are installed on your system. The b
 Add the crate to your `Cargo.toml`:
 
 ```toml
-[dependencies]
+[dev-dependencies]
 zcash_local_net = "0.1.0"
 
