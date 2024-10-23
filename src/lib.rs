@@ -164,7 +164,7 @@ impl Zcashd {
     ///
     /// Use `activation_heights` to specify custom network upgrade activation heights
     ///
-    /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.  
+    /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
     pub fn launch(
         zcashd_bin: Option<PathBuf>,
         zcash_cli_bin: Option<PathBuf>,
