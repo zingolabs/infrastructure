@@ -152,6 +152,73 @@ fn wait_for_launch(
     Ok(())
 }
 
+/// Functionality for validator/full-node processes.
+pub trait Validator {
+    /// Config filename
+    const CONFIG_FILENAME: &str;
+
+    /// Stops the process.
+    fn stop(&mut self);
+
+    /// Generate `n` blocks.
+    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output>;
+
+    /// Get temporary config directory.
+    fn config_dir(&self) -> &TempDir;
+
+    /// Get temporary logs directory.
+    fn logs_dir(&self) -> &TempDir;
+
+    /// Returns path to config file.
+    fn config_path(&self) -> PathBuf {
+        self.config_dir().path().join(Self::CONFIG_FILENAME)
+    }
+
+    /// Prints the stdout log.
+    fn print_stdout(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDOUT_LOG);
+        print_log(stdout_log_path);
+    }
+
+    /// Prints the stdout log.
+    fn print_stderr(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDERR_LOG);
+        print_log(stdout_log_path);
+    }
+}
+
+/// Functionality for indexer/light-node processes.
+pub trait Indexer {
+    /// Config filename
+    const CONFIG_FILENAME: &str;
+
+    /// Stops the process.
+    fn stop(&mut self);
+
+    /// Get temporary config directory.
+    fn config_dir(&self) -> &TempDir;
+
+    /// Get temporary logs directory.
+    fn logs_dir(&self) -> &TempDir;
+
+    /// Returns path to config file.
+    fn config_path(&self) -> PathBuf {
+        self.config_dir().path().join(Self::CONFIG_FILENAME)
+    }
+
+    /// Prints the stdout log.
+    fn print_stdout(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDOUT_LOG);
+        print_log(stdout_log_path);
+    }
+
+    /// Prints the stdout log.
+    fn print_stderr(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDERR_LOG);
+        print_log(stdout_log_path);
+    }
+}
+
 /// This struct is used to represent and manage the Zcashd process.
 #[derive(Getters, CopyGetters)]
 #[getset(get = "pub")]
@@ -248,11 +315,6 @@ impl Zcashd {
         Ok(zcashd)
     }
 
-    /// Returns path to config file.
-    pub fn config_path(&self) -> PathBuf {
-        self.config_dir.path().join(config::ZCASHD_FILENAME)
-    }
-
     /// Runs a Zcash-cli command with the given `args`.
     ///
     /// Example usage for generating blocks in Zcashd local net:
@@ -268,9 +330,12 @@ impl Zcashd {
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
         command.args(args).output()
     }
+}
 
-    /// Stops the Zcashd process.
-    pub fn stop(&mut self) {
+impl Validator for Zcashd {
+    const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
+
+    fn stop(&mut self) {
         match self.zcash_cli_command(&["stop"]) {
             Ok(_) => {
                 if let Err(e) = self.handle.wait() {
@@ -291,21 +356,16 @@ impl Zcashd {
         }
     }
 
-    /// Generate `num_blocks` blocks.
-    pub fn generate_blocks(&self, num_blocks: u32) -> std::io::Result<std::process::Output> {
-        self.zcash_cli_command(&["generate", &num_blocks.to_string()])
+    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
+        self.zcash_cli_command(&["generate", &n.to_string()])
     }
 
-    /// Prints the stdout log.
-    pub fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDOUT_LOG);
-        print_log(stdout_log_path);
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
     }
 
-    /// Prints the stdout log.
-    pub fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDERR_LOG);
-        print_log(stdout_log_path);
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
     }
 }
 
@@ -387,27 +447,21 @@ impl Zainod {
             config_dir,
         })
     }
+}
 
-    /// Returns path to config file.
-    pub fn config_path(&self) -> PathBuf {
-        self.config_dir.path().join(config::ZAINOD_FILENAME)
-    }
+impl Indexer for Zainod {
+    const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
 
-    /// Stops the Zcashd process.
-    pub fn stop(&mut self) {
+    fn stop(&mut self) {
         self.handle.kill().expect("zainod couldn't be killed")
     }
 
-    /// Prints the stdout log.
-    pub fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDOUT_LOG);
-        print_log(stdout_log_path);
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
     }
 
-    /// Prints the stdout log.
-    pub fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDERR_LOG);
-        print_log(stdout_log_path);
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
     }
 }
 
@@ -502,32 +556,26 @@ impl Lightwalletd {
         })
     }
 
-    /// Returns path to config file.
-    pub fn config_path(&self) -> PathBuf {
-        self.config_dir.path().join(config::LIGHTWALLETD_FILENAME)
-    }
-
-    /// Stops the Zcashd process.
-    pub fn stop(&mut self) {
-        self.handle.kill().expect("lightwalletd couldn't be killed")
-    }
-
-    /// Prints the stdout log.
-    pub fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDOUT_LOG);
-        print_log(stdout_log_path);
-    }
-
-    /// Prints the stdout log.
-    pub fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir.path().join(STDERR_LOG);
-        print_log(stdout_log_path);
-    }
-
     /// Prints the stdout log.
     pub fn print_lwd_log(&self) {
         let stdout_log_path = self.logs_dir.path().join(LIGHTWALLETD_LOG);
         print_log(stdout_log_path);
+    }
+}
+
+impl Indexer for Lightwalletd {
+    const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
+
+    fn stop(&mut self) {
+        self.handle.kill().expect("zainod couldn't be killed")
+    }
+
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
     }
 }
 
