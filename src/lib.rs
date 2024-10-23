@@ -4,7 +4,7 @@
 use std::{fs::File, io::Read, path::PathBuf, process::Child};
 
 use error::LaunchError;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 use network::ActivationHeights;
 use portpicker::Port;
 use tempfile::TempDir;
@@ -135,12 +135,14 @@ fn wait_for_launch(
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Getters)]
+#[derive(Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zcashd {
     /// Child process handle
     handle: Child,
     /// RPC Port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
     port: Port,
     /// Data directory
     _data_dir: TempDir,
@@ -304,12 +306,14 @@ impl Drop for Zcashd {
 }
 
 /// This struct is used to represent and manage the Zainod process.
-#[derive(Getters)]
+#[derive(Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zainod {
     /// Child process handle
     handle: Child,
     /// RPC Port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
     port: Port,
     /// Logs directory
     logs_dir: TempDir,
@@ -400,12 +404,14 @@ impl Drop for Zainod {
 }
 
 /// This struct is used to represent and manage the Lightwalletd process.
-#[derive(Getters)]
+#[derive(Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Lightwalletd {
     /// Child process handle
     handle: Child,
     /// RPC Port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
     port: Port,
     /// Data directory
     _data_dir: TempDir,

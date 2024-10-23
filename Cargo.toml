@@ -21,10 +21,15 @@ tracing = "0.1.40"
 
 # Boilerplate reduction
 getset = "0.1.3"
+http = "1.1.0"
 
 [dev-dependencies]
 # Logging
 tracing-subscriber = "0.3.15"
 
 # Lightclient
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2" }
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ] }
+zcash_protocol = { git = "https://github.com/zingolabs/librustzcash.git", tag = "zcash_client_sqlite-0.11.2_plus_zingolabs_changes-1-g7ad60b5d5-2-g121371a08"  }
+
+# Runtime
+tokio = "1.25.0"
