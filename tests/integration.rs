@@ -48,7 +48,7 @@ fn launch_zainod() {
     tracing_subscriber::fmt().init();
 
     let zcashd = zcash_local_net::Zcashd::default();
-    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port().clone()).unwrap();
+    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port()).unwrap();
 
     zcashd.print_stdout();
     zcashd.print_stderr();
@@ -82,7 +82,7 @@ async fn zainod_basic_send() {
         Some(REG_O_ADDR_FROM_ABANDONART),
     )
     .unwrap();
-    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port().clone()).unwrap();
+    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port()).unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =

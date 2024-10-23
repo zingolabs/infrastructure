@@ -345,11 +345,7 @@ impl Zainod {
         command
             .args([
                 "--config",
-                format!(
-                    "{}",
-                    config_file_path.to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
+                config_file_path.to_str().expect("should be valid UTF-8"),
             ])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
