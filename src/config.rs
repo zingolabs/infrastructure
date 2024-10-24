@@ -1,10 +1,15 @@
+//! Module for writing configuration files
+
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use portpicker::Port;
+
 use crate::network::ActivationHeights;
 
 pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
+pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 #[allow(dead_code)]
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
@@ -12,7 +17,7 @@ pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 /// Returns the path to the config file.
 pub(crate) fn zcashd(
     config_dir: &Path,
-    rpcport: u16,
+    rpc_port: Port,
     activation_heights: &ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
@@ -49,7 +54,7 @@ experimentalfeatures=1
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#json-rpc-options
 rpcuser=xxxxxx
 rpcpassword=xxxxxx
-rpcport={rpcport}
+rpcport={rpc_port}
 rpcallowip=127.0.0.1
 
 # Buried config option to allow non-canonical RPC-PORT:
@@ -71,12 +76,62 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     Ok(config_file_path)
 }
 
+/// Writes the Zainod config file to the specified config directory.
+/// Returns the path to the config file.
+pub(crate) fn zainod(
+    config_dir: &Path,
+    listen_port: Port,
+    validator_port: Port,
+) -> std::io::Result<PathBuf> {
+    let config_file_path = config_dir.join(ZAINOD_FILENAME);
+    let mut config_file = File::create(config_file_path.clone())?;
+
+    config_file.write_all(format!("\
+# Configuration for Zaino
+
+# Sets the TcpIngestor's status (true or false)
+tcp_active = true
+
+# Optional TcpIngestors listen port (use None or specify a port number)
+listen_port = {listen_port}
+
+# Sets the NymIngestor's and NymDispatchers status (true or false)
+nym_active = false
+
+# Optional Nym conf path used for micnet client conf
+nym_conf_path = \"/tmp/indexer/nym\"
+
+# LightWalletD listen port [DEPRECATED]
+lightwalletd_port = 9067
+
+# Full node / validator listen port
+zebrad_port = {validator_port}
+
+# Optional full node Username
+node_user = \"xxxxxx\"
+
+# Optional full node Password
+node_password = \"xxxxxx\"
+
+# Maximum requests allowed in the request queue
+max_queue_size = 1024
+
+# Maximum workers allowed in the worker pool
+max_worker_pool_size = 64
+
+# Minimum number of workers held in the worker pool when idle
+idle_worker_pool_size = 4"
+    ).as_bytes())?;
+
+    Ok(config_file_path)
+}
+
 /// Writes the Lightwalletd config file to the specified config directory.
 /// Returns the path to the config file.
 #[allow(dead_code)]
-fn lightwalletd(
+pub(crate) fn lightwalletd(
     config_dir: &Path,
-    grpc_bind_addr_port: u16
+    grpc_bind_addr_port: Port
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;

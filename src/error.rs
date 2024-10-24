@@ -1,11 +1,15 @@
+//! Crate level error module
+
 /// Errors associated with launching processes
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum LaunchError {
-    /// Failed to launch Zcashd
+    /// Process failed during launch
     #[error(
-        "Failed to launch Zcashd.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
+        "{process_name} failed during launch.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
     )]
-    Zcashd {
+    ProcessFailed {
+        /// Process name
+        process_name: String,
         /// Exit status
         exit_status: std::process::ExitStatus,
         /// Stdout log
