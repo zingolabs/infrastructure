@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use portpicker::Port;
-use zcash_local_net::{network, Indexer as _, Validator as _};
+use zcash_local_net::{
+    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
+    network,
+    validator::{Validator as _, Zcashd, ZcashdConfig},
+};
 use zcash_protocol::{PoolType, ShieldedProtocol};
 use zingolib::{
     config::RegtestNetwork,
@@ -38,7 +42,7 @@ async fn build_lightclients(
 fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = zcash_local_net::Zcashd::default();
+    let zcashd = Zcashd::default();
     zcashd.print_stdout();
     zcashd.print_stderr();
 }
@@ -47,8 +51,13 @@ fn launch_zcashd() {
 fn launch_zainod() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = zcash_local_net::Zcashd::default();
-    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port()).unwrap();
+    let zcashd = Zcashd::default();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin: None,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
 
     zcashd.print_stdout();
     zcashd.print_stderr();
@@ -60,8 +69,13 @@ fn launch_zainod() {
 fn launch_lightwalletd() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = zcash_local_net::Zcashd::default();
-    let lwd = zcash_local_net::Lightwalletd::launch(None, None, zcashd.config_path()).unwrap();
+    let zcashd = Zcashd::default();
+    let lwd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin: None,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
 
     zcashd.print_stdout();
     zcashd.print_stderr();
@@ -74,15 +88,20 @@ fn launch_lightwalletd() {
 async fn zainod_basic_send() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = zcash_local_net::Zcashd::launch(
-        None,
-        None,
-        None,
-        &network::ActivationHeights::default(),
-        Some(REG_O_ADDR_FROM_ABANDONART),
-    )
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin: None,
+        zcash_cli_bin: None,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+    })
     .unwrap();
-    let zainod = zcash_local_net::Zainod::launch(None, None, zcashd.port()).unwrap();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin: None,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =
@@ -118,15 +137,20 @@ async fn zainod_basic_send() {
 async fn lightwalletd_basic_send() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = zcash_local_net::Zcashd::launch(
-        None,
-        None,
-        None,
-        &network::ActivationHeights::default(),
-        Some(REG_O_ADDR_FROM_ABANDONART),
-    )
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin: None,
+        zcash_cli_bin: None,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+    })
     .unwrap();
-    let lwd = zcash_local_net::Lightwalletd::launch(None, None, zcashd.config_path()).unwrap();
+    let lwd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin: None,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =
