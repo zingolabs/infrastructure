@@ -18,6 +18,10 @@
 //!
 //! Ensure that any processes used in this crate are installed on your system. The binaries can be in
 //! $PATH or the path to the binaries can be specified when launching a process.
+//!
+//! ## Testing
+//!
+//! Integration tests in this crate will require the binaries to be in $PATH to pass successfully.
 
 use std::{fs::File, io::Read, path::PathBuf, process::Child};
 
