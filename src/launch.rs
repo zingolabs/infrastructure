@@ -4,6 +4,7 @@ use tempfile::TempDir;
 
 use crate::{error::LaunchError, logs, Process};
 
+/// Wait until the process logs indicate the launch has succeeded or failed.
 pub(crate) fn wait(
     process: Process,
     handle: &mut Child,
