@@ -11,14 +11,6 @@ use tempfile::TempDir;
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
-/// Enumeration of all config structs associated with indexer/light-node processes
-pub enum IndexerConfig {
-    /// Zainod configuration
-    Zainod(ZainodConfig),
-    /// Lightwalletd configuration
-    Lightwalletd(LightwalletdConfig),
-}
-
 /// Zainod configuration
 ///
 /// Use `fixed_port` to specify a port for Zainod. Otherwise, a port is picked at random between 15000-25000.

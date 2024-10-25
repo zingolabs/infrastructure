@@ -8,12 +8,6 @@ use tempfile::TempDir;
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
-/// Enumeration of all config structs associated with validator/full-node processes
-pub enum ValidatorConfig {
-    /// Zcashd configuration
-    Zcashd(ZcashdConfig),
-}
-
 /// Zcashd configuration
 ///
 /// Use `zcashd_bin` and `zcash_cli_bin` to specify the paths to the binaries.
