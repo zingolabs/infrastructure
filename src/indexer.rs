@@ -50,7 +50,7 @@ pub trait Indexer: Sized {
     /// Launch the process.
     fn launch(config: Self::Config) -> Result<Self, LaunchError>;
 
-    /// Stops the process.
+    /// Stop the process.
     fn stop(&mut self);
 
     /// Get temporary config directory.
@@ -98,7 +98,7 @@ impl Indexer for Zainod {
 
     type Config = ZainodConfig;
 
-    fn launch(config: ZainodConfig) -> Result<Zainod, LaunchError> {
+    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
 
         let port = network::pick_unused_port(config.listen_port);
@@ -188,7 +188,7 @@ impl Indexer for Lightwalletd {
 
     type Config = LightwalletdConfig;
 
-    fn launch(config: LightwalletdConfig) -> Result<Lightwalletd, LaunchError> {
+    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
         let _lwd_log_file = File::create(&lwd_log_file_path).unwrap();

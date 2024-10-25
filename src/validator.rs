@@ -44,11 +44,17 @@ impl Default for ZcashdConfig {
 }
 
 /// Functionality for validator/full-node processes.
-pub trait Validator {
+pub trait Validator: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
 
-    /// Stops the process.
+    /// Validator config struct
+    type Config;
+
+    /// Launch the process.
+    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
+
+    /// Stop the process.
     fn stop(&mut self);
 
     /// Generate `n` blocks.
@@ -99,8 +105,29 @@ pub struct Zcashd {
 }
 
 impl Zcashd {
-    /// Launches Zcashd process and returns [`crate::Zcashd`] with the handle and associated directories.
-    pub fn launch(config: ZcashdConfig) -> Result<Zcashd, LaunchError> {
+    /// Runs a Zcash-cli command with the given `args`.
+    ///
+    /// Example usage for generating blocks in Zcashd local net:
+    /// ```ignore (incomplete)
+    /// self.zcash_cli_command(&["generate", "1"]);
+    /// ```
+    pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
+        let mut command = match &self.zcash_cli_bin {
+            Some(path) => std::process::Command::new(path),
+            None => std::process::Command::new("zcash-cli"),
+        };
+
+        command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
+        command.args(args).output()
+    }
+}
+
+impl Validator for Zcashd {
+    const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
+
+    type Config = ZcashdConfig;
+
+    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let data_dir = tempfile::tempdir().unwrap();
         let logs_dir = tempfile::tempdir().unwrap();
 
@@ -163,26 +190,6 @@ impl Zcashd {
 
         Ok(zcashd)
     }
-
-    /// Runs a Zcash-cli command with the given `args`.
-    ///
-    /// Example usage for generating blocks in Zcashd local net:
-    /// ```ignore (incomplete)
-    /// self.zcash_cli_command(&["generate", "1"]);
-    /// ```
-    pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        let mut command = match &self.zcash_cli_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcash-cli"),
-        };
-
-        command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
-        command.args(args).output()
-    }
-}
-
-impl Validator for Zcashd {
-    const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
 
     fn stop(&mut self) {
         match self.zcash_cli_command(&["stop"]) {
