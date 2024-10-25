@@ -12,7 +12,12 @@ use tempfile::TempDir;
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
 /// Enumeration of all config structs associated with indexer/light-node processes
-pub enum IndexerConfig {}
+pub enum IndexerConfig {
+    /// Zainod configuration
+    Zainod(ZainodConfig),
+    /// Lightwalletd configuration
+    Lightwalletd(LightwalletdConfig),
+}
 
 /// Zainod configuration
 ///
