@@ -34,6 +34,9 @@ pub(crate) mod logs;
 pub mod network;
 pub mod validator;
 
+#[cfg(feature = "client")]
+pub mod client;
+
 #[derive(Clone, Copy)]
 enum Process {
     Zcashd,

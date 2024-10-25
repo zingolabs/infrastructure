@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use portpicker::Port;
+use zcash_client_backend::proto::service::Empty;
 use zcash_local_net::{
+    client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network,
     validator::{Validator as _, Zcashd, ZcashdConfig},
@@ -18,6 +20,7 @@ use zingolib::{
     testvectors::{seeds, REG_O_ADDR_FROM_ABANDONART},
 };
 
+// NOTE: this should be migrated to zingolib when LocalNet replaces regtest manager in zingoilb::testutils
 async fn build_lightclients(
     lightclient_dir: PathBuf,
     indexer_port: Port,
@@ -190,4 +193,46 @@ async fn lightwalletd_basic_send() {
     println!("{:?}\n", faucet.do_balance().await);
     println!("recipient balance:");
     println!("{:?}\n", recipient.do_balance().await);
+}
+
+#[tokio::test]
+async fn get_lightd_info() {
+    tracing_subscriber::fmt().init();
+
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin: None,
+        zcash_cli_bin: None,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+    })
+    .unwrap();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin: None,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
+    let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin: None,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
+
+    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(Empty {});
+    let response = zainod_client.get_lightd_info(request).await.unwrap();
+    let zainod_lightd_info = response.into_inner();
+
+    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(Empty {});
+    let response = lwd_client.get_lightd_info(request).await.unwrap();
+    let lwd_lightd_info = response.into_inner();
+
+    assert_eq!(zainod_lightd_info, lwd_lightd_info);
 }
