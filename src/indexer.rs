@@ -48,9 +48,15 @@ pub struct LightwalletdConfig {
 }
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer {
+pub trait Indexer: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
+
+    /// Indexer config struct
+    type Config;
+
+    /// Launch the process.
+    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
 
     /// Stops the process.
     fn stop(&mut self);
@@ -95,9 +101,12 @@ pub struct Zainod {
     config_dir: TempDir,
 }
 
-impl Zainod {
-    /// Launches Zainod process and returns [`crate::Zainod`] with the handle and associated directories.
-    pub fn launch(config: ZainodConfig) -> Result<Zainod, LaunchError> {
+impl Indexer for Zainod {
+    const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
+
+    type Config = ZainodConfig;
+
+    fn launch(config: ZainodConfig) -> Result<Zainod, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
 
         let port = network::pick_unused_port(config.listen_port);
@@ -136,10 +145,6 @@ impl Zainod {
             config_dir,
         })
     }
-}
-
-impl Indexer for Zainod {
-    const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
 
     fn stop(&mut self) {
         self.handle.kill().expect("zainod couldn't be killed")
@@ -179,8 +184,19 @@ pub struct Lightwalletd {
 }
 
 impl Lightwalletd {
-    /// Launches Lightwalletd process and returns [`crate::Lightwalletd`] with the handle and associated directories.
-    pub fn launch(config: LightwalletdConfig) -> Result<Lightwalletd, LaunchError> {
+    /// Prints the stdout log.
+    pub fn print_lwd_log(&self) {
+        let stdout_log_path = self.logs_dir.path().join(logs::LIGHTWALLETD_LOG);
+        logs::print_log(stdout_log_path);
+    }
+}
+
+impl Indexer for Lightwalletd {
+    const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
+
+    type Config = LightwalletdConfig;
+
+    fn launch(config: LightwalletdConfig) -> Result<Lightwalletd, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
         let _lwd_log_file = File::create(&lwd_log_file_path).unwrap();
@@ -236,16 +252,6 @@ impl Lightwalletd {
             config_dir,
         })
     }
-
-    /// Prints the stdout log.
-    pub fn print_lwd_log(&self) {
-        let stdout_log_path = self.logs_dir.path().join(logs::LIGHTWALLETD_LOG);
-        logs::print_log(stdout_log_path);
-    }
-}
-
-impl Indexer for Lightwalletd {
-    const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
 
     fn stop(&mut self) {
         self.handle.kill().expect("zainod couldn't be killed")
