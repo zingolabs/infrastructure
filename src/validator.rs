@@ -8,6 +8,21 @@ use tempfile::TempDir;
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
+/// Loads chain into validator data directory from cache
+pub fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) -> std::process::Output {
+    let regtest_dir = chain_cache.join("regtest");
+    if !regtest_dir.exists() {
+        panic!("regtest directory not found!");
+    }
+
+    std::process::Command::new("cp")
+        .arg("-r")
+        .arg(regtest_dir)
+        .arg(validator_data_dir)
+        .output()
+        .unwrap()
+}
+
 /// Zcashd configuration
 ///
 /// Use `zcashd_bin` and `zcash_cli_bin` to specify the paths to the binaries.
@@ -29,16 +44,20 @@ pub struct ZcashdConfig {
     pub activation_heights: network::ActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
+    /// Data directory
+    pub data_dir: TempDir,
 }
 
 impl Default for ZcashdConfig {
     fn default() -> Self {
+        let data_dir = tempfile::tempdir().unwrap();
         Self {
             zcashd_bin: None,
             zcash_cli_bin: None,
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: None,
+            data_dir,
         }
     }
 }
@@ -66,9 +85,26 @@ pub trait Validator: Sized {
     /// Get temporary logs directory.
     fn logs_dir(&self) -> &TempDir;
 
+    /// Get temporary data directory.
+    fn data_dir(&self) -> &TempDir;
+
     /// Returns path to config file.
     fn config_path(&self) -> PathBuf {
         self.config_dir().path().join(Self::CONFIG_FILENAME)
+    }
+
+    /// Caches chain
+    fn cache_chain(&self, chain_cache: PathBuf) -> std::process::Output {
+        if chain_cache.exists() {
+            panic!("chain cache already exists!");
+        }
+
+        std::process::Command::new("cp")
+            .arg("-r")
+            .arg(self.data_dir().path().to_path_buf())
+            .arg(chain_cache)
+            .output()
+            .unwrap()
     }
 
     /// Prints the stdout log.
@@ -94,12 +130,12 @@ pub struct Zcashd {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     port: Port,
-    /// Data directory
-    _data_dir: TempDir,
-    /// Logs directory
-    logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
+    /// Logs directory
+    logs_dir: TempDir,
+    /// Data directory
+    data_dir: TempDir,
     /// Zcash cli binary location
     zcash_cli_bin: Option<PathBuf>,
 }
@@ -128,7 +164,6 @@ impl Validator for Zcashd {
     type Config = ZcashdConfig;
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
-        let data_dir = tempfile::tempdir().unwrap();
         let logs_dir = tempfile::tempdir().unwrap();
 
         let port = network::pick_unused_port(config.rpc_port);
@@ -155,7 +190,11 @@ impl Validator for Zcashd {
                 .as_str(),
                 format!(
                     "--datadir={}",
-                    data_dir.path().to_str().expect("should be valid UTF-8")
+                    config
+                        .data_dir
+                        .path()
+                        .to_str()
+                        .expect("should be valid UTF-8")
                 )
                 .as_str(),
                 "-debug=1",
@@ -178,13 +217,13 @@ impl Validator for Zcashd {
         let zcashd = Zcashd {
             handle,
             port,
-            _data_dir: data_dir,
-            logs_dir,
             config_dir,
+            logs_dir,
+            data_dir: config.data_dir,
             zcash_cli_bin: config.zcash_cli_bin,
         };
 
-        // generate genesis block
+        // generate genesis block (or additional block if loading chain from cache)
         zcashd.generate_blocks(1).unwrap();
         std::thread::sleep(std::time::Duration::from_secs(1));
 
@@ -222,6 +261,10 @@ impl Validator for Zcashd {
 
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
+    }
+
+    fn data_dir(&self) -> &TempDir {
+        &self.data_dir
     }
 }
 

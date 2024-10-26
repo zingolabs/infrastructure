@@ -32,6 +32,7 @@ pub mod indexer;
 pub(crate) mod launch;
 pub(crate) mod logs;
 pub mod network;
+pub mod utils;
 pub mod validator;
 
 #[cfg(feature = "client")]

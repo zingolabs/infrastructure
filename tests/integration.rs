@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use portpicker::Port;
 use zcash_local_net::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network,
-    validator::{Validator as _, Zcashd, ZcashdConfig},
+    network, utils,
+    validator::{self, Validator, Zcashd, ZcashdConfig},
     LocalNet,
 };
 use zcash_protocol::{PoolType, ShieldedProtocol};
@@ -92,6 +92,11 @@ fn launch_lightwalletd() {
 async fn zainod_basic_send() {
     tracing_subscriber::fmt().init();
 
+    let zcashd_data_dir = tempfile::tempdir().unwrap();
+    validator::load_chain(
+        utils::chain_cache_dir().join("test"),
+        zcashd_data_dir.path().to_path_buf(),
+    );
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
         ZainodConfig {
             zainod_bin: None,
@@ -104,6 +109,7 @@ async fn zainod_basic_send() {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: zcashd_data_dir,
         },
     );
 
@@ -114,17 +120,17 @@ async fn zainod_basic_send() {
     )
     .await;
 
-    faucet.do_sync(true).await.unwrap();
-    from_inputs::quick_send(
-        &faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
+    // faucet.do_sync(true).await.unwrap();
+    // from_inputs::quick_send(
+    //     &faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+    //         100_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(1).unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     faucet.do_sync(true).await.unwrap();
@@ -138,6 +144,10 @@ async fn zainod_basic_send() {
     println!("{:?}\n", faucet.do_balance().await);
     println!("recipient balance:");
     println!("{:?}\n", recipient.do_balance().await);
+
+    // local_net
+    //     .validator()
+    //     .cache_chain(utils::chain_cache_dir().join("test"));
 }
 
 #[tokio::test]
@@ -156,6 +166,7 @@ async fn lightwalletd_basic_send() {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         },
     );
 
@@ -226,6 +237,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -326,6 +338,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -384,6 +397,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -440,6 +454,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -503,6 +518,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -581,6 +597,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -661,6 +678,7 @@ mod client_rpcs {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            data_dir: tempfile::tempdir().unwrap(),
         })
         .unwrap();
         let zainod = Zainod::launch(ZainodConfig {
@@ -749,6 +767,7 @@ mod client_rpcs {
                 rpc_port: None,
                 activation_heights: network::ActivationHeights::default(),
                 miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+                data_dir: tempfile::tempdir().unwrap(),
             },
         );
 
@@ -803,6 +822,7 @@ mod client_rpcs {
                 rpc_port: None,
                 activation_heights: network::ActivationHeights::default(),
                 miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+                data_dir: tempfile::tempdir().unwrap(),
             },
         );
 
