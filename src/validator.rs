@@ -46,20 +46,19 @@ pub struct ZcashdConfig {
     pub activation_heights: network::ActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
-    /// Data directory
-    pub data_dir: TempDir,
+    /// Chain cache location. If `None`, launches a new chain.
+    pub chain_cache: Option<PathBuf>,
 }
 
 impl Default for ZcashdConfig {
     fn default() -> Self {
-        let data_dir = tempfile::tempdir().unwrap();
         Self {
             zcashd_bin: None,
             zcash_cli_bin: None,
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: None,
-            data_dir,
+            chain_cache: None,
         }
     }
 }
@@ -106,11 +105,14 @@ pub trait Validator: Sized {
         self.config_dir().path().join(Self::CONFIG_FILENAME)
     }
 
-    /// Caches chain
-    fn cache_chain(&self, chain_cache: PathBuf) -> std::process::Output {
+    /// Caches chain. This stops the zcashd process.
+    fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
         if chain_cache.exists() {
             panic!("chain cache already exists!");
         }
+
+        self.stop();
+        std::thread::sleep(std::time::Duration::from_secs(3));
 
         std::process::Command::new("cp")
             .arg("-r")
@@ -178,6 +180,11 @@ impl Validator for Zcashd {
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
+        let data_dir = tempfile::tempdir().unwrap();
+
+        if let Some(cache) = config.chain_cache {
+            load_chain(cache, data_dir.path().to_path_buf());
+        }
 
         let port = network::pick_unused_port(config.rpc_port);
         let config_dir = tempfile::tempdir().unwrap();
@@ -203,11 +210,7 @@ impl Validator for Zcashd {
                 .as_str(),
                 format!(
                     "--datadir={}",
-                    config
-                        .data_dir
-                        .path()
-                        .to_str()
-                        .expect("should be valid UTF-8")
+                    data_dir.path().to_str().expect("should be valid UTF-8")
                 )
                 .as_str(),
                 "-debug=1",
@@ -232,7 +235,7 @@ impl Validator for Zcashd {
             port,
             config_dir,
             logs_dir,
-            data_dir: config.data_dir,
+            data_dir,
             zcash_cli_bin: config.zcash_cli_bin,
         };
 
