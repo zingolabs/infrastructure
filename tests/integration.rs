@@ -255,6 +255,18 @@ mod client_rpcs {
         )
         .await;
 
+        // TODO: use second recipient taddr
+        // recipient.do_new_address("ozt").await.unwrap();
+        // let recipient_addresses = recipient.do_addresses().await;
+        // recipient taddr child index 0:
+        // tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i
+        //
+        // recipient taddr child index 1:
+        // tmAtLC3JkTDrXyn5okUbb6qcMGE4Xq4UdhD
+        //
+        // faucet taddr child index 0:
+        // tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
+
         faucet.do_sync(false).await.unwrap();
         from_inputs::quick_send(
             &faucet,
@@ -288,12 +300,16 @@ mod client_rpcs {
         .unwrap();
         local_net.validator().generate_blocks(1).unwrap();
 
+        recipient.do_sync(false).await.unwrap();
+        recipient.quick_shield().await.unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
+
         faucet.do_sync(false).await.unwrap();
         from_inputs::quick_send(
             &faucet,
             vec![(
                 &get_base_address(&recipient, PoolType::Transparent).await,
-                100_000,
+                200_000,
                 None,
             )],
         )
@@ -326,10 +342,6 @@ mod client_rpcs {
         .await
         .unwrap();
         local_net.validator().generate_blocks(2).unwrap();
-
-        recipient.do_sync(false).await.unwrap();
-        recipient.quick_shield().await.unwrap();
-        local_net.validator().generate_blocks(1).unwrap();
 
         faucet.do_sync(false).await.unwrap();
         from_inputs::quick_send(
@@ -1185,5 +1197,71 @@ mod client_rpcs {
         println!("");
 
         assert_eq!(zainod_tx, lwd_tx);
+    }
+
+    #[tokio::test]
+    async fn get_taddress_balance() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_list = proto::service::AddressList {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_list.clone());
+        let zainod_response = zainod_client
+            .get_taddress_balance(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_list.clone());
+        let lwd_response = lwd_client
+            .get_taddress_balance(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetTaddressBalance responses...");
+
+        println!("\nZainod response:");
+        println!("block id: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("block id: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(zainod_response, lwd_response);
     }
 }
