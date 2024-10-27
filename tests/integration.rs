@@ -325,7 +325,11 @@ mod client_rpcs {
         )
         .await
         .unwrap();
-        local_net.validator().generate_blocks(3).unwrap();
+        local_net.validator().generate_blocks(2).unwrap();
+
+        recipient.do_sync(false).await.unwrap();
+        recipient.quick_shield().await.unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
 
         faucet.do_sync(false).await.unwrap();
         from_inputs::quick_send(
