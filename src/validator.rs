@@ -2,6 +2,8 @@
 
 use std::{path::PathBuf, process::Child};
 
+use zcash_protocol::consensus::BlockHeight;
+
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
@@ -76,8 +78,19 @@ pub trait Validator: Sized {
     /// Stop the process.
     fn stop(&mut self);
 
-    /// Generate `n` blocks.
+    /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
+    /// correct height when this function returns.
     fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output>;
+
+    /// Get chain height
+    fn get_chain_height(&self) -> BlockHeight;
+
+    /// Polls chain until it reaches target height
+    fn poll_chain_height(&self, target_height: BlockHeight) {
+        while self.get_chain_height() < target_height {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
 
     /// Get temporary config directory.
     fn config_dir(&self) -> &TempDir;
@@ -225,7 +238,6 @@ impl Validator for Zcashd {
 
         // generate genesis block (or additional block if loading chain from cache)
         zcashd.generate_blocks(1).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(1));
 
         Ok(zcashd)
     }
@@ -252,7 +264,17 @@ impl Validator for Zcashd {
     }
 
     fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
-        self.zcash_cli_command(&["generate", &n.to_string()])
+        let chain_height = self.get_chain_height();
+        let output = self.zcash_cli_command(&["generate", &n.to_string()])?;
+        self.poll_chain_height(chain_height + n);
+
+        Ok(output)
+    }
+
+    fn get_chain_height(&self) -> BlockHeight {
+        let output = self.zcash_cli_command(&["getchaintips"]).unwrap();
+        let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
+        BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
     }
 
     fn config_dir(&self) -> &TempDir {

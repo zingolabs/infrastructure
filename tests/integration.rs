@@ -132,7 +132,6 @@ async fn zainod_basic_send() {
     // .await
     // .unwrap();
     local_net.validator().generate_blocks(1).unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     faucet.do_sync(true).await.unwrap();
     recipient.do_sync(true).await.unwrap();
 
@@ -189,7 +188,6 @@ async fn lightwalletd_basic_send() {
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     faucet.do_sync(true).await.unwrap();
     recipient.do_sync(true).await.unwrap();
 
@@ -614,7 +612,6 @@ mod client_rpcs {
         .unwrap();
 
         zcashd.generate_blocks(1).unwrap();
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let block_range = proto::service::BlockRange {
             start: Some(proto::service::BlockId {
@@ -709,7 +706,6 @@ mod client_rpcs {
         .await
         .unwrap();
         zcashd.generate_blocks(1).unwrap();
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let tx_filter = proto::service::TxFilter {
             block: None,
@@ -789,7 +785,6 @@ mod client_rpcs {
         .await
         .unwrap();
         local_net.validator().generate_blocks(1).unwrap();
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let tx_filter = proto::service::TxFilter {
             block: None,
@@ -844,7 +839,6 @@ mod client_rpcs {
         .await
         .unwrap();
         local_net.validator().generate_blocks(1).unwrap();
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         let tx_filter = proto::service::TxFilter {
             block: None,
