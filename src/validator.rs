@@ -182,7 +182,7 @@ impl Validator for Zcashd {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        if let Some(cache) = config.chain_cache {
+        if let Some(cache) = config.chain_cache.clone() {
             load_chain(cache, data_dir.path().to_path_buf());
         }
 
@@ -239,8 +239,10 @@ impl Validator for Zcashd {
             zcash_cli_bin: config.zcash_cli_bin,
         };
 
-        // generate genesis block (or additional block if loading chain from cache)
-        zcashd.generate_blocks(1).unwrap();
+        if config.chain_cache.is_none() {
+            // generate genesis block
+            zcashd.generate_blocks(1).unwrap();
+        }
 
         Ok(zcashd)
     }

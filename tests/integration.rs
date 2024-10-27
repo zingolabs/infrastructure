@@ -115,7 +115,7 @@ async fn zainod_basic_send() {
     )
     .await;
 
-    faucet.do_sync(true).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
         &faucet,
         vec![(
@@ -130,6 +130,9 @@ async fn zainod_basic_send() {
     faucet.do_sync(false).await.unwrap();
     recipient.do_sync(false).await.unwrap();
 
+    let recipient_balance = recipient.do_balance().await;
+    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
     local_net.indexer().print_stdout();
@@ -137,7 +140,7 @@ async fn zainod_basic_send() {
     println!("faucet balance:");
     println!("{:?}\n", faucet.do_balance().await);
     println!("recipient balance:");
-    println!("{:?}\n", recipient.do_balance().await);
+    println!("{:?}\n", recipient_balance);
 }
 
 #[tokio::test]
@@ -167,7 +170,7 @@ async fn lightwalletd_basic_send() {
     )
     .await;
 
-    faucet.do_sync(true).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
         &faucet,
         vec![(
@@ -179,8 +182,11 @@ async fn lightwalletd_basic_send() {
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).unwrap();
-    faucet.do_sync(true).await.unwrap();
-    recipient.do_sync(true).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
+    recipient.do_sync(false).await.unwrap();
+
+    let recipient_balance = recipient.do_balance().await;
+    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
 
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
@@ -190,17 +196,19 @@ async fn lightwalletd_basic_send() {
     println!("faucet balance:");
     println!("{:?}\n", faucet.do_balance().await);
     println!("recipient balance:");
-    println!("{:?}\n", recipient.do_balance().await);
+    println!("{:?}\n", recipient_balance);
 }
 
 #[cfg(feature = "client")]
 mod client_rpcs {
+    use std::path::PathBuf;
+
     use zcash_client_backend::proto;
     use zcash_local_net::{
         client,
         indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-        network,
-        validator::{Validator as _, Zcashd, ZcashdConfig},
+        network, utils,
+        validator::{Validator, Zcashd, ZcashdConfig},
         LocalNet,
     };
     use zcash_primitives::transaction::Transaction;
@@ -208,6 +216,7 @@ mod client_rpcs {
         consensus::{BlockHeight, BranchId},
         PoolType, ShieldedProtocol,
     };
+
     use zingolib::{
         config::{ChainType, RegtestNetwork},
         testutils::lightclient::{from_inputs, get_base_address},
@@ -215,6 +224,126 @@ mod client_rpcs {
     };
 
     use crate::build_lightclients;
+
+    #[ignore = "not a test. generates chain cache for client_rpc tests."]
+    #[tokio::test]
+    async fn generate_chain_cache() {
+        tracing_subscriber::fmt().init();
+
+        let mut local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
+            LightwalletdConfig {
+                lightwalletd_bin: None,
+                listen_port: None,
+                validator_conf: PathBuf::new(),
+            },
+            ZcashdConfig {
+                zcashd_bin: None,
+                zcash_cli_bin: None,
+                rpc_port: None,
+                activation_heights: network::ActivationHeights::default(),
+                miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+                chain_cache: None,
+            },
+        );
+
+        local_net.validator().generate_blocks(2).unwrap();
+
+        let lightclient_dir = tempfile::tempdir().unwrap();
+        let (faucet, recipient) = build_lightclients(
+            lightclient_dir.path().to_path_buf(),
+            local_net.indexer().port(),
+        )
+        .await;
+
+        faucet.do_sync(false).await.unwrap();
+        from_inputs::quick_send(
+            &faucet,
+            vec![(
+                &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+                100_000,
+                Some("orchard test memo"),
+            )],
+        )
+        .await
+        .unwrap();
+        from_inputs::quick_send(
+            &faucet,
+            vec![(
+                &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+                100_000,
+                Some("sapling test memo"),
+            )],
+        )
+        .await
+        .unwrap();
+        from_inputs::quick_send(
+            &faucet,
+            vec![(
+                &get_base_address(&recipient, PoolType::Transparent).await,
+                100_000,
+                None,
+            )],
+        )
+        .await
+        .unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
+
+        faucet.do_sync(false).await.unwrap();
+        from_inputs::quick_send(
+            &faucet,
+            vec![(
+                &get_base_address(&recipient, PoolType::Transparent).await,
+                100_000,
+                None,
+            )],
+        )
+        .await
+        .unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
+
+        recipient.do_sync(false).await.unwrap();
+        from_inputs::quick_send(
+            &recipient,
+            vec![(
+                &get_base_address(&faucet, PoolType::Transparent).await,
+                10_000,
+                None,
+            )],
+        )
+        .await
+        .unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
+
+        recipient.do_sync(false).await.unwrap();
+        from_inputs::quick_send(
+            &recipient,
+            vec![(
+                &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+                10_000,
+                Some("orchard test memo"),
+            )],
+        )
+        .await
+        .unwrap();
+        local_net.validator().generate_blocks(3).unwrap();
+
+        faucet.do_sync(false).await.unwrap();
+        from_inputs::quick_send(
+            &faucet,
+            vec![(
+                &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+                100_000,
+                None,
+            )],
+        )
+        .await
+        .unwrap();
+        local_net.validator().generate_blocks(1).unwrap();
+
+        local_net
+            .validator_mut()
+            .cache_chain(utils::chain_cache_dir().join("client_rpc_tests"));
+    }
 
     #[tokio::test]
     async fn get_lightd_info() {
@@ -685,7 +814,7 @@ mod client_rpcs {
         let lightclient_dir = tempfile::tempdir().unwrap();
         let (faucet, recipient) =
             build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
-        faucet.do_sync(true).await.unwrap();
+        faucet.do_sync(false).await.unwrap();
         let txids = from_inputs::quick_send(
             &faucet,
             vec![(
@@ -764,7 +893,7 @@ mod client_rpcs {
             local_net.indexer().port(),
         )
         .await;
-        faucet.do_sync(true).await.unwrap();
+        faucet.do_sync(false).await.unwrap();
         let txids = from_inputs::quick_send(
             &faucet,
             vec![(
@@ -818,7 +947,7 @@ mod client_rpcs {
             local_net.indexer().port(),
         )
         .await;
-        faucet.do_sync(true).await.unwrap();
+        faucet.do_sync(false).await.unwrap();
         let txids = from_inputs::quick_send(
             &faucet,
             vec![(
