@@ -69,7 +69,7 @@ listen=0"
 ### Zcashd Help provides documentation of the following:
 mineraddress={addr}
 minetolocalwallet=0 # This is set to false so that we can mine to a wallet, other than the zcashd wallet."
-                ).as_bytes()            
+                ).as_bytes()
         )?;
     }
 
@@ -137,7 +137,7 @@ pub(crate) fn lightwalletd(
 ) -> std::io::Result<PathBuf> {
     let validator_conf = validator_conf.to_str().unwrap();
     let log_file = log_file.to_str().unwrap();
-    
+
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
@@ -203,7 +203,7 @@ rpcallowip=127.0.0.1
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#zcash-conf-guide
 listen=0"
                         )
-        
+
         );
     }
 
@@ -256,7 +256,7 @@ listen=0
 mineraddress=test_addr_1234
 minetolocalwallet=0 # This is set to false so that we can mine to a wallet, other than the zcashd wallet."
                         )
-        
+
         );
     }
 
