@@ -23,6 +23,10 @@
 //!
 //! Integration tests in this crate will require the binaries to be in $PATH to pass successfully.
 
+use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
+use validator::{Validator, Zcashd, ZcashdConfig};
+
+
 pub(crate) mod config;
 pub mod error;
 pub mod indexer;
@@ -46,5 +50,57 @@ impl std::fmt::Display for Process {
             Self::Lightwalletd => "lightwalletd",
         };
         write!(f, "{}", process)
+    }
+}
+
+/// This stuct is used to represent and manage the local network.
+pub struct LocalNet<I, V>
+where
+    I: Indexer,
+    V: Validator,
+{
+    indexer: I,
+    validator: V,
+}
+
+impl<I, V> LocalNet<I, V>
+where
+    I: Indexer,
+    V: Validator,
+{
+    /// Gets indexer.
+    pub fn indexer(&self) -> &I {
+        &self.indexer
+    }
+
+    /// Gets validator.
+    pub fn validator(&self) -> &V {
+        &self.validator
+    }
+}
+
+impl LocalNet<Zainod, Zcashd> {
+    /// Launch LocalNet.
+    ///
+    /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
+    pub fn launch(mut indexer_config: ZainodConfig, validator_config: ZcashdConfig) -> Self {
+        let validator = Zcashd::launch(validator_config).unwrap();
+        indexer_config.validator_port = validator.port();
+        let indexer = Zainod::launch(indexer_config).unwrap();
+
+        LocalNet { indexer, validator }
+    }
+}
+
+impl LocalNet<Lightwalletd, Zcashd> {
+    /// Launch LocalNet.
+    ///
+    /// The `validator_conf` field of [`crate::indexer::LightwalletdConfig`] will be overwritten to match the validator's config path.
+    pub fn launch(mut indexer_config: LightwalletdConfig, validator_config: ZcashdConfig) -> Self {
+        let validator = Zcashd::launch(validator_config).unwrap();
+        indexer_config.validator_conf = validator.config_path();
+        let indexer = Lightwalletd::launch(indexer_config).unwrap();
+
+        LocalNet { indexer, validator }
     }
 }
