@@ -1,4 +1,4 @@
-//! Module for writing configuration files
+//! Module for configuring processes and writing configuration files
 
 use std::fs::File;
 use std::io::Write;
@@ -10,7 +10,6 @@ use crate::network::ActivationHeights;
 
 pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
-#[allow(dead_code)]
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
 /// Writes the Zcashd config file to the specified config directory.
@@ -86,7 +85,9 @@ pub(crate) fn zainod(
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    config_file.write_all(format!("\
+    config_file.write_all(
+        format!(
+            "\
 # Configuration for Zaino
 
 # Sets the TcpIngestor's status (true or false)
@@ -121,7 +122,9 @@ max_worker_pool_size = 64
 
 # Minimum number of workers held in the worker pool when idle
 idle_worker_pool_size = 4"
-    ).as_bytes())?;
+        )
+        .as_bytes(),
+    )?;
 
     Ok(config_file_path)
 }
@@ -141,13 +144,17 @@ pub(crate) fn lightwalletd(
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    config_file.write_all(format!("\
+    config_file.write_all(
+        format!(
+            "\
 grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
 cache-size: 10
 log-file: {log_file}
 log-level: 10
 zcash-conf-path: {validator_conf}"
-    ).as_bytes())?;
+        )
+        .as_bytes(),
+    )?;
 
     Ok(config_file_path)
 }
@@ -156,13 +163,13 @@ zcash-conf-path: {validator_conf}"
 mod tests {
     use std::path::PathBuf;
 
-    use crate::{network::ActivationHeights, LIGHTWALLETD_LOG};
+    use crate::{logs, network};
 
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = ActivationHeights {
-            overwinter : 1.into(),
+        let activation_heights = network::ActivationHeights {
+            overwinter: 1.into(),
             sapling: 2.into(),
             blossom: 3.into(),
             heartwood: 4.into(),
@@ -210,8 +217,8 @@ listen=0"
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = ActivationHeights {
-            overwinter : 1.into(),
+        let activation_heights = network::ActivationHeights {
+            overwinter: 1.into(),
             sapling: 2.into(),
             blossom: 3.into(),
             heartwood: 4.into(),
@@ -219,7 +226,13 @@ listen=0"
             nu5: 6.into(),
         };
 
-        super::zcashd(config_dir.path(), 1234, &activation_heights, Some("test_addr_1234")).unwrap();
+        super::zcashd(
+            config_dir.path(),
+            1234,
+            &activation_heights,
+            Some("test_addr_1234"),
+        )
+        .unwrap();
 
         assert_eq!(std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
                         format!("\
@@ -266,7 +279,8 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 
         super::zainod(config_dir.path(), 1234, 18232).unwrap();
 
-        assert_eq!(std::fs::read_to_string(config_dir.path().join(super::ZAINOD_FILENAME)).unwrap(),
+        assert_eq!(
+            std::fs::read_to_string(config_dir.path().join(super::ZAINOD_FILENAME)).unwrap(),
             format!(
                 "\
 # Configuration for Zaino
@@ -311,12 +325,19 @@ idle_worker_pool_size = 4"
     fn lightwalletd() {
         let config_dir = tempfile::tempdir().unwrap();
         let logs_dir = tempfile::tempdir().unwrap();
-        let log_file_path = logs_dir.path().join(LIGHTWALLETD_LOG);
+        let log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
 
-        super::lightwalletd(config_dir.path(), 1234, log_file_path.clone(), PathBuf::from("conf_path")).unwrap();
+        super::lightwalletd(
+            config_dir.path(),
+            1234,
+            log_file_path.clone(),
+            PathBuf::from("conf_path"),
+        )
+        .unwrap();
         let log_file_path = log_file_path.to_str().unwrap();
 
-        assert_eq!(std::fs::read_to_string(config_dir.path().join(super::LIGHTWALLETD_FILENAME)).unwrap(),
+        assert_eq!(
+            std::fs::read_to_string(config_dir.path().join(super::LIGHTWALLETD_FILENAME)).unwrap(),
             format!(
                 "\
 grpc-bind-addr: 127.0.0.1:1234
