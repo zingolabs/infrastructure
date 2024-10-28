@@ -1825,4 +1825,258 @@ mod client_rpcs {
 
         assert_eq!(zainod_tx_summaries, lwd_tx_summaries);
     }
+
+    #[tokio::test]
+    async fn get_tree_state_by_height() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let block_id = proto::service::BlockId {
+            height: 5,
+            hash: vec![],
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let zainod_response = zainod_client
+            .get_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let lwd_response = lwd_client
+            .get_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetTreeState responses...");
+
+        println!("\nZainod response:");
+        println!("tree state: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("tree state: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_tree_state_by_hash() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let block_id = proto::service::BlockId {
+            height: 5,
+            hash: vec![],
+        };
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let block = lwd_client.get_block(request).await.unwrap().into_inner();
+        let mut block_hash = block.hash().clone().0.to_vec();
+        block_hash.reverse();
+
+        let block_id = proto::service::BlockId {
+            height: 0,
+            hash: block_hash,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let zainod_response = zainod_client
+            .get_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let request = tonic::Request::new(block_id.clone());
+        let lwd_response = lwd_client
+            .get_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetTreeState responses...");
+
+        println!("\nZainod response:");
+        println!("tree state: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("tree state: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_tree_state_out_of_bounds() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let block_id = proto::service::BlockId {
+            height: 20,
+            hash: vec![],
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let zainod_err_status = zainod_client.get_tree_state(request).await.unwrap_err();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(block_id.clone());
+        let lwd_err_status = lwd_client.get_tree_state(request).await.unwrap_err();
+
+        println!("Asserting GetBlock responses...");
+
+        println!("\nZainod response:");
+        println!("error status: {:?}", zainod_err_status);
+
+        println!("\nLightwalletd response:");
+        println!("error status: {:?}", lwd_err_status);
+
+        println!("");
+
+        assert_eq!(zainod_err_status.code(), lwd_err_status.code());
+        assert_eq!(zainod_err_status.message(), lwd_err_status.message());
+    }
+
+    #[tokio::test]
+    async fn get_latest_tree_state() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(proto::service::Empty {});
+        let zainod_response = zainod_client
+            .get_latest_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(proto::service::Empty {});
+        let lwd_response = lwd_client
+            .get_latest_tree_state(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetLatestTreeState responses...");
+
+        println!("\nZainod response:");
+        println!("tree state: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("tree state: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(zainod_response, lwd_response);
+    }
 }
