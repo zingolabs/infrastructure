@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use portpicker::Port;
-use zcash_local_net::network;
+use zcash_local_net::{network, Indexer as _, Validator as _};
 use zcash_protocol::{PoolType, ShieldedProtocol};
 use zingolib::{
     config::RegtestNetwork,
