@@ -3867,10 +3867,13 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tonic",
  "tracing",
  "tracing-subscriber",
+ "zcash_client_backend",
  "zcash_primitives",
  "zcash_protocol",
+ "zingo-netutils",
  "zingolib",
 ]
 
