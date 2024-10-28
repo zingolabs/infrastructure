@@ -15,3 +15,13 @@ fn launch_zainod() {
     zcashd.print_stdout();
     zainod.print_stdout();
 }
+
+#[test]
+fn launch_lightwalletd() {
+    tracing_subscriber::fmt().init();
+
+    let zcashd = zcash_local_net::Zcashd::default();
+    let lwd = zcash_local_net::Lightwalletd::launch(None, None, zcashd.config_path()).unwrap();
+    zcashd.print_stdout();
+    lwd.print_lwd_log();
+}

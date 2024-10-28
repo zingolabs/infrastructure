@@ -131,17 +131,22 @@ idle_worker_pool_size = 4"
 #[allow(dead_code)]
 pub(crate) fn lightwalletd(
     config_dir: &Path,
-    grpc_bind_addr_port: Port
+    grpc_bind_addr_port: Port,
+    log_file: PathBuf,
+    validator_conf: PathBuf,
 ) -> std::io::Result<PathBuf> {
+    let validator_conf = validator_conf.to_str().unwrap();
+    let log_file = log_file.to_str().unwrap();
+    
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
     config_file.write_all(format!("\
 grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
 cache-size: 10
-log-file: ../logs/lwd.log
+log-file: {log_file}
 log-level: 10
-zcash-conf-path: ./zcash.conf"
+zcash-conf-path: {validator_conf}"
     ).as_bytes())?;
 
     Ok(config_file_path)
@@ -149,7 +154,9 @@ zcash-conf-path: ./zcash.conf"
 
 #[cfg(test)]
 mod tests {
-    use crate::network::ActivationHeights;
+    use std::path::PathBuf;
+
+    use crate::{network::ActivationHeights, LIGHTWALLETD_LOG};
 
     #[test]
     fn zcashd() {
@@ -254,19 +261,69 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     }
 
     #[test]
-    fn lightwalletd() {
+    fn zainod() {
         let config_dir = tempfile::tempdir().unwrap();
 
-        super::lightwalletd(config_dir.path(), 1234).unwrap();
+        super::zainod(config_dir.path(), 1234, 18232).unwrap();
+
+        assert_eq!(std::fs::read_to_string(config_dir.path().join(super::ZAINOD_FILENAME)).unwrap(),
+            format!(
+                "\
+# Configuration for Zaino
+
+# Sets the TcpIngestor's status (true or false)
+tcp_active = true
+
+# Optional TcpIngestors listen port (use None or specify a port number)
+listen_port = 1234
+
+# Sets the NymIngestor's and NymDispatchers status (true or false)
+nym_active = false
+
+# Optional Nym conf path used for micnet client conf
+nym_conf_path = \"/tmp/indexer/nym\"
+
+# LightWalletD listen port [DEPRECATED]
+lightwalletd_port = 9067
+
+# Full node / validator listen port
+zebrad_port = 18232
+
+# Optional full node Username
+node_user = \"xxxxxx\"
+
+# Optional full node Password
+node_password = \"xxxxxx\"
+
+# Maximum requests allowed in the request queue
+max_queue_size = 1024
+
+# Maximum workers allowed in the worker pool
+max_worker_pool_size = 64
+
+# Minimum number of workers held in the worker pool when idle
+idle_worker_pool_size = 4"
+            )
+        )
+    }
+
+    #[test]
+    fn lightwalletd() {
+        let config_dir = tempfile::tempdir().unwrap();
+        let logs_dir = tempfile::tempdir().unwrap();
+        let log_file_path = logs_dir.path().join(LIGHTWALLETD_LOG);
+
+        super::lightwalletd(config_dir.path(), 1234, log_file_path.clone(), PathBuf::from("conf_path")).unwrap();
+        let log_file_path = log_file_path.to_str().unwrap();
 
         assert_eq!(std::fs::read_to_string(config_dir.path().join(super::LIGHTWALLETD_FILENAME)).unwrap(),
             format!(
                 "\
 grpc-bind-addr: 127.0.0.1:1234
 cache-size: 10
-log-file: ../logs/lwd.log
+log-file: {log_file_path}
 log-level: 10
-zcash-conf-path: ./zcash.conf"
+zcash-conf-path: conf_path"
             )
         )
     }
