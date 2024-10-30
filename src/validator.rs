@@ -2,11 +2,28 @@
 
 use std::{path::PathBuf, process::Child};
 
+use zcash_protocol::consensus::BlockHeight;
+
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
+
+/// Loads chain into validator data directory from cache
+pub fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) -> std::process::Output {
+    let regtest_dir = chain_cache.join("regtest");
+    if !regtest_dir.exists() {
+        panic!("regtest directory not found!");
+    }
+
+    std::process::Command::new("cp")
+        .arg("-r")
+        .arg(regtest_dir)
+        .arg(validator_data_dir)
+        .output()
+        .unwrap()
+}
 
 /// Zcashd configuration
 ///
@@ -29,6 +46,8 @@ pub struct ZcashdConfig {
     pub activation_heights: network::ActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
+    /// Chain cache location. If `None`, launches a new chain.
+    pub chain_cache: Option<PathBuf>,
 }
 
 impl Default for ZcashdConfig {
@@ -39,6 +58,7 @@ impl Default for ZcashdConfig {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: None,
+            chain_cache: None,
         }
     }
 }
@@ -57,8 +77,19 @@ pub trait Validator: Sized {
     /// Stop the process.
     fn stop(&mut self);
 
-    /// Generate `n` blocks.
+    /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
+    /// correct height when this function returns.
     fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output>;
+
+    /// Get chain height
+    fn get_chain_height(&self) -> BlockHeight;
+
+    /// Polls chain until it reaches target height
+    fn poll_chain_height(&self, target_height: BlockHeight) {
+        while self.get_chain_height() < target_height {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
 
     /// Get temporary config directory.
     fn config_dir(&self) -> &TempDir;
@@ -66,9 +97,29 @@ pub trait Validator: Sized {
     /// Get temporary logs directory.
     fn logs_dir(&self) -> &TempDir;
 
+    /// Get temporary data directory.
+    fn data_dir(&self) -> &TempDir;
+
     /// Returns path to config file.
     fn config_path(&self) -> PathBuf {
         self.config_dir().path().join(Self::CONFIG_FILENAME)
+    }
+
+    /// Caches chain. This stops the zcashd process.
+    fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
+        if chain_cache.exists() {
+            panic!("chain cache already exists!");
+        }
+
+        self.stop();
+        std::thread::sleep(std::time::Duration::from_secs(3));
+
+        std::process::Command::new("cp")
+            .arg("-r")
+            .arg(self.data_dir().path().to_path_buf())
+            .arg(chain_cache)
+            .output()
+            .unwrap()
     }
 
     /// Prints the stdout log.
@@ -94,12 +145,12 @@ pub struct Zcashd {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     port: Port,
-    /// Data directory
-    _data_dir: TempDir,
-    /// Logs directory
-    logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
+    /// Logs directory
+    logs_dir: TempDir,
+    /// Data directory
+    data_dir: TempDir,
     /// Zcash cli binary location
     zcash_cli_bin: Option<PathBuf>,
 }
@@ -128,8 +179,12 @@ impl Validator for Zcashd {
     type Config = ZcashdConfig;
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
-        let data_dir = tempfile::tempdir().unwrap();
         let logs_dir = tempfile::tempdir().unwrap();
+        let data_dir = tempfile::tempdir().unwrap();
+
+        if let Some(cache) = config.chain_cache.clone() {
+            load_chain(cache, data_dir.path().to_path_buf());
+        }
 
         let port = network::pick_unused_port(config.rpc_port);
         let config_dir = tempfile::tempdir().unwrap();
@@ -178,15 +233,16 @@ impl Validator for Zcashd {
         let zcashd = Zcashd {
             handle,
             port,
-            _data_dir: data_dir,
-            logs_dir,
             config_dir,
+            logs_dir,
+            data_dir,
             zcash_cli_bin: config.zcash_cli_bin,
         };
 
-        // generate genesis block
-        zcashd.generate_blocks(1).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        if config.chain_cache.is_none() {
+            // generate genesis block
+            zcashd.generate_blocks(1).unwrap();
+        }
 
         Ok(zcashd)
     }
@@ -213,7 +269,17 @@ impl Validator for Zcashd {
     }
 
     fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
-        self.zcash_cli_command(&["generate", &n.to_string()])
+        let chain_height = self.get_chain_height();
+        let output = self.zcash_cli_command(&["generate", &n.to_string()])?;
+        self.poll_chain_height(chain_height + n);
+
+        Ok(output)
+    }
+
+    fn get_chain_height(&self) -> BlockHeight {
+        let output = self.zcash_cli_command(&["getchaintips"]).unwrap();
+        let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
+        BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
     }
 
     fn config_dir(&self) -> &TempDir {
@@ -222,6 +288,10 @@ impl Validator for Zcashd {
 
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
+    }
+
+    fn data_dir(&self) -> &TempDir {
+        &self.data_dir
     }
 }
 

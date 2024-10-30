@@ -3863,6 +3863,7 @@ version = "0.1.0"
 dependencies = [
  "getset",
  "http",
+ "json",
  "portpicker",
  "tempfile",
  "thiserror",

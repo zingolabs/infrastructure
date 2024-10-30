@@ -33,6 +33,7 @@ pub mod indexer;
 pub(crate) mod launch;
 pub(crate) mod logs;
 pub mod network;
+pub mod utils;
 pub mod validator;
 
 #[cfg(feature = "client")]
@@ -76,9 +77,19 @@ where
         &self.indexer
     }
 
+    /// Gets indexer as mut.
+    pub fn indexer_mut(&mut self) -> &mut I {
+        &mut self.indexer
+    }
+
     /// Gets validator.
     pub fn validator(&self) -> &V {
         &self.validator
+    }
+
+    /// Gets validator as mut.
+    pub fn validator_mut(&mut self) -> &mut V {
+        &mut self.validator
     }
 }
 
