@@ -766,7 +766,7 @@ mod client_rpcs {
             lwd_blocks.push(compact_block);
         }
 
-        println!("Asserting GetBlockRange responses...");
+        println!("Asserting GetBlockRangeNullifiers responses...");
 
         println!("\nZainod response:");
         println!("compact blocks: {:?}", zainod_blocks);
@@ -2007,7 +2007,7 @@ mod client_rpcs {
         let request = tonic::Request::new(block_id.clone());
         let lwd_err_status = lwd_client.get_tree_state(request).await.unwrap_err();
 
-        println!("Asserting GetBlock responses...");
+        println!("Asserting GetTreeState responses...");
 
         println!("\nZainod response:");
         println!("error status: {:?}", zainod_err_status);
@@ -2078,5 +2078,745 @@ mod client_rpcs {
         println!("");
 
         assert_eq!(zainod_response, lwd_response);
+    }
+
+    // this is not a satisfactory test for this rpc and will return empty vecs.
+    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    #[tokio::test]
+    async fn get_subtree_roots_sapling() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
+            start_index: 0,
+            shielded_protocol: 0,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(subtree_roots_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_subtree_roots(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_subtree_roots = Vec::new();
+        while let Some(subtree_root) = zainod_response.message().await.unwrap() {
+            zainod_subtree_roots.push(subtree_root);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(subtree_roots_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_subtree_roots(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_subtree_roots = Vec::new();
+        while let Some(subtree_root) = lwd_response.message().await.unwrap() {
+            lwd_subtree_roots.push(subtree_root);
+        }
+
+        println!("Asserting GetSubtreeRoots responses...");
+
+        println!("\nZainod response:");
+        println!("subtree roots: {:?}", zainod_subtree_roots);
+
+        println!("\nLightwalletd response:");
+        println!("subtree roots: {:?}", lwd_subtree_roots);
+
+        println!("");
+
+        assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
+    }
+
+    // this is not a satisfactory test for this rpc and will return empty vecs.
+    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    #[tokio::test]
+    async fn get_subtree_roots_orchard() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
+            start_index: 0,
+            shielded_protocol: 1,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(subtree_roots_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_subtree_roots(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_subtree_roots = Vec::new();
+        while let Some(subtree_root) = zainod_response.message().await.unwrap() {
+            zainod_subtree_roots.push(subtree_root);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(subtree_roots_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_subtree_roots(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_subtree_roots = Vec::new();
+        while let Some(subtree_root) = lwd_response.message().await.unwrap() {
+            lwd_subtree_roots.push(subtree_root);
+        }
+
+        println!("Asserting GetSubtreeRoots responses...");
+
+        println!("\nZainod response:");
+        println!("subtree roots: {:?}", zainod_subtree_roots);
+
+        println!("\nLightwalletd response:");
+        println!("subtree roots: {:?}", lwd_subtree_roots);
+
+        println!("");
+
+        assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_all() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 0,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let zainod_response = zainod_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let lwd_response = lwd_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetAddressUtxos responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(lwd_response.address_utxos.len(), 2);
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_lower() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 0,
+            max_entries: 1,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let zainod_response = zainod_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let lwd_response = lwd_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetAddressUtxos responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(lwd_response.address_utxos.len(), 1);
+        assert_eq!(lwd_response.address_utxos.first().unwrap().height, 6);
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_upper() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 7,
+            max_entries: 1,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let zainod_response = zainod_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let lwd_response = lwd_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetAddressUtxos responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(lwd_response.address_utxos.len(), 1);
+        assert_eq!(lwd_response.address_utxos.first().unwrap().height, 7);
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_out_of_bounds() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 20,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let zainod_response = zainod_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let lwd_response = lwd_client
+            .get_address_utxos(request)
+            .await
+            .unwrap()
+            .into_inner();
+
+        println!("Asserting GetAddressUtxos responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_response);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_response);
+
+        println!("");
+
+        assert_eq!(lwd_response.address_utxos.len(), 0);
+        assert_eq!(zainod_response, lwd_response);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_stream_all() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 0,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = zainod_response.message().await.unwrap() {
+            zainod_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = lwd_response.message().await.unwrap() {
+            lwd_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        println!("Asserting GetAddressUtxosStream responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_address_utxo_replies);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_address_utxo_replies);
+
+        println!("");
+
+        assert_eq!(lwd_address_utxo_replies.len(), 2);
+        assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_stream_lower() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 0,
+            max_entries: 1,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = zainod_response.message().await.unwrap() {
+            zainod_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = lwd_response.message().await.unwrap() {
+            lwd_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        println!("Asserting GetAddressUtxosStream responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_address_utxo_replies);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_address_utxo_replies);
+
+        println!("");
+
+        assert_eq!(lwd_address_utxo_replies.len(), 1);
+        assert_eq!(lwd_address_utxo_replies.first().unwrap().height, 6);
+        assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_stream_upper() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 7,
+            max_entries: 1,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = zainod_response.message().await.unwrap() {
+            zainod_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = lwd_response.message().await.unwrap() {
+            lwd_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        println!("Asserting GetAddressUtxosStream responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_address_utxo_replies);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_address_utxo_replies);
+
+        println!("");
+
+        assert_eq!(lwd_address_utxo_replies.len(), 1);
+        assert_eq!(lwd_address_utxo_replies.first().unwrap().height, 7);
+        assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
+    }
+
+    #[tokio::test]
+    async fn get_address_utxos_stream_out_of_bounds() {
+        tracing_subscriber::fmt().init();
+
+        let zcashd = Zcashd::launch(ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        })
+        .unwrap();
+        let zainod = Zainod::launch(ZainodConfig {
+            zainod_bin: None,
+            listen_port: None,
+            validator_port: zcashd.port(),
+        })
+        .unwrap();
+        let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+            lightwalletd_bin: None,
+            listen_port: None,
+            validator_conf: zcashd.config_path(),
+        })
+        .unwrap();
+
+        let address_utxos_arg = proto::service::GetAddressUtxosArg {
+            addresses: vec![
+                "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
+                "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
+            ],
+            start_height: 20,
+            max_entries: 0,
+        };
+
+        let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut zainod_response = zainod_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut zainod_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = zainod_response.message().await.unwrap() {
+            zainod_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+            .await
+            .unwrap();
+        let request = tonic::Request::new(address_utxos_arg.clone());
+        let mut lwd_response = lwd_client
+            .get_address_utxos_stream(request)
+            .await
+            .unwrap()
+            .into_inner();
+        let mut lwd_address_utxo_replies = Vec::new();
+        while let Some(address_utxo_reply) = lwd_response.message().await.unwrap() {
+            lwd_address_utxo_replies.push(address_utxo_reply);
+        }
+
+        println!("Asserting GetAddressUtxosStream responses...");
+
+        println!("\nZainod response:");
+        println!("address utxos replies: {:?}", zainod_address_utxo_replies);
+
+        println!("\nLightwalletd response:");
+        println!("address utxos replies: {:?}", lwd_address_utxo_replies);
+
+        println!("");
+
+        println!("");
+
+        assert_eq!(lwd_address_utxo_replies.len(), 0);
+        assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
     }
 }
