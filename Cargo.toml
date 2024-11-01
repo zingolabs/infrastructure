@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 client = [ "dep:zcash_client_backend", "dep:zingo-netutils" ]
+test_fixtures = [ "client", "dep:tonic", "dep:zingolib"]
 
 [dependencies]
 # Zcash
@@ -14,6 +15,11 @@ zcash_protocol = { git = "https://github.com/zingolabs/librustzcash.git", tag = 
 
 # Lightclient
 zingo-netutils = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", optional = true }
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ], optional = true }
+
+
+# RPC
+tonic = {version = "0.12.2", features = ["tls", "tls-roots", "tls-webpki-roots"], optional = true }
 
 # File
 tempfile = "3.13.0"
@@ -35,15 +41,12 @@ getset = "0.1.3"
 json = "0.12.4"
 
 [dev-dependencies]
-# Logging
-tracing-subscriber = "0.3.15"
-
 # Lightclient
 zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ] }
+
+# Logging
+tracing-subscriber = "0.3.15"
 
 # Runtime
 tokio = "1.25.0"
 tokio-stream = "0.1.16"
-
-# RPC
-tonic = {version = "0.12.2", features = ["tls", "tls-roots", "tls-webpki-roots"]}
