@@ -48,6 +48,7 @@ txindex=1
 # https://zcash.readthedocs.io/en/latest/rtd_pages/insight_explorer.html?highlight=insightexplorer#additional-getrawtransaction-fields
 insightexplorer=1
 experimentalfeatures=1
+lightwalletd=1
 
 ### RPC Server Interface Options:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#json-rpc-options
@@ -198,6 +199,7 @@ txindex=1
 # https://zcash.readthedocs.io/en/latest/rtd_pages/insight_explorer.html?highlight=insightexplorer#additional-getrawtransaction-fields
 insightexplorer=1
 experimentalfeatures=1
+lightwalletd=1
 
 ### RPC Server Interface Options:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#json-rpc-options
@@ -253,6 +255,7 @@ txindex=1
 # https://zcash.readthedocs.io/en/latest/rtd_pages/insight_explorer.html?highlight=insightexplorer#additional-getrawtransaction-fields
 insightexplorer=1
 experimentalfeatures=1
+lightwalletd=1
 
 ### RPC Server Interface Options:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#json-rpc-options
