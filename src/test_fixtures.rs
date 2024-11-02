@@ -618,6 +618,87 @@ pub async fn get_block_range_nullifiers(
     assert_eq!(zainod_blocks, lwd_blocks);
 }
 
+/// GetBlockRangeNullifiers RPC test
+pub async fn get_block_range_nullifiers_reverse(
+    zcashd_bin: Option<PathBuf>,
+    zcash_cli_bin: Option<PathBuf>,
+    zainod_bin: Option<PathBuf>,
+    lightwalletd_bin: Option<PathBuf>,
+) {
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin,
+        zcash_cli_bin,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+    })
+    .unwrap();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
+    let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
+
+    let block_range = proto::service::BlockRange {
+        start: Some(proto::service::BlockId {
+            height: 10,
+            hash: vec![],
+        }),
+        end: Some(proto::service::BlockId {
+            height: 4,
+            hash: vec![],
+        }),
+    };
+
+    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(block_range.clone());
+    let mut zainod_response = zainod_client
+        .get_block_range_nullifiers(request)
+        .await
+        .unwrap()
+        .into_inner();
+    let mut zainod_blocks = Vec::new();
+    while let Some(compact_block) = zainod_response.message().await.unwrap() {
+        zainod_blocks.push(compact_block);
+    }
+
+    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(block_range.clone());
+    let mut lwd_response = lwd_client
+        .get_block_range_nullifiers(request)
+        .await
+        .unwrap()
+        .into_inner();
+    let mut lwd_blocks = Vec::new();
+    while let Some(compact_block) = lwd_response.message().await.unwrap() {
+        lwd_blocks.push(compact_block);
+    }
+
+    println!("Asserting GetBlockRangeNullifiers responses...");
+
+    println!("\nZainod response:");
+    println!("compact blocks: {:?}", zainod_blocks);
+
+    println!("\nLightwalletd response:");
+    println!("compact blocks: {:?}", lwd_blocks);
+
+    println!("");
+
+    assert_eq!(zainod_blocks, lwd_blocks);
+}
+
 /// GetBlockRange RPC test
 pub async fn get_block_range_lower(
     zcashd_bin: Option<PathBuf>,
@@ -735,6 +816,87 @@ pub async fn get_block_range_upper(
         }),
         end: Some(proto::service::BlockId {
             height: 10,
+            hash: vec![],
+        }),
+    };
+
+    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(block_range.clone());
+    let mut zainod_response = zainod_client
+        .get_block_range(request)
+        .await
+        .unwrap()
+        .into_inner();
+    let mut zainod_blocks = Vec::new();
+    while let Some(compact_block) = zainod_response.message().await.unwrap() {
+        zainod_blocks.push(compact_block);
+    }
+
+    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(block_range.clone());
+    let mut lwd_response = lwd_client
+        .get_block_range(request)
+        .await
+        .unwrap()
+        .into_inner();
+    let mut lwd_blocks = Vec::new();
+    while let Some(compact_block) = lwd_response.message().await.unwrap() {
+        lwd_blocks.push(compact_block);
+    }
+
+    println!("Asserting GetBlockRange responses...");
+
+    println!("\nZainod response:");
+    println!("compact blocks: {:?}", zainod_blocks);
+
+    println!("\nLightwalletd response:");
+    println!("compact blocks: {:?}", lwd_blocks);
+
+    println!("");
+
+    assert_eq!(zainod_blocks, lwd_blocks);
+}
+
+/// GetBlockRange RPC test
+pub async fn get_block_range_reverse(
+    zcashd_bin: Option<PathBuf>,
+    zcash_cli_bin: Option<PathBuf>,
+    zainod_bin: Option<PathBuf>,
+    lightwalletd_bin: Option<PathBuf>,
+) {
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin,
+        zcash_cli_bin,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+    })
+    .unwrap();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
+    let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
+
+    let block_range = proto::service::BlockRange {
+        start: Some(proto::service::BlockId {
+            height: 10,
+            hash: vec![],
+        }),
+        end: Some(proto::service::BlockId {
+            height: 1,
             hash: vec![],
         }),
     };
