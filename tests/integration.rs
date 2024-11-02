@@ -277,6 +277,19 @@ mod client_rpcs {
     }
 
     #[tokio::test]
+    async fn get_block_range_nullifiers_reverse() {
+        tracing_subscriber::fmt().init();
+
+        zcash_local_net::test_fixtures::get_block_range_nullifiers_reverse(
+            ZCASHD_BIN,
+            ZCASH_CLI_BIN,
+            ZAINOD_BIN,
+            LIGHTWALLETD_BIN,
+        )
+        .await;
+    }
+
+    #[tokio::test]
     async fn get_block_range_lower() {
         tracing_subscriber::fmt().init();
 
@@ -294,6 +307,19 @@ mod client_rpcs {
         tracing_subscriber::fmt().init();
 
         zcash_local_net::test_fixtures::get_block_range_upper(
+            ZCASHD_BIN,
+            ZCASH_CLI_BIN,
+            ZAINOD_BIN,
+            LIGHTWALLETD_BIN,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn get_block_range_reverse() {
+        tracing_subscriber::fmt().init();
+
+        zcash_local_net::test_fixtures::get_block_range_reverse(
             ZCASHD_BIN,
             ZCASH_CLI_BIN,
             ZAINOD_BIN,
