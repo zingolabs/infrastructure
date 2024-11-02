@@ -26,7 +26,6 @@
 use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
 use validator::{Validator, Zcashd, ZcashdConfig};
 
-
 pub(crate) mod config;
 pub mod error;
 pub mod indexer;
@@ -35,6 +34,9 @@ pub(crate) mod logs;
 pub mod network;
 pub mod utils;
 pub mod validator;
+
+#[cfg(feature = "test_fixtures")]
+pub mod test_fixtures;
 
 #[cfg(feature = "client")]
 pub mod client;
