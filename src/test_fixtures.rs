@@ -10,12 +10,10 @@
 //! #[ignore = "not a test. generates chain cache for client_rpc tests."]
 //! #[tokio::test]
 //! async fn generate_zcashd_chain_cache() {
-//!   tracing_subscriber::fmt().init();
-//!
 //!   zcash_local_net::test_fixtures::generate_zcashd_chain_cache(
-//!     ZCASHD_BIN,
-//!     ZCASH_CLI_BIN,
-//!     LIGHTWALLETD_BIN,
+//!     None,
+//!     None,
+//!     None,
 //!   )
 //!   .await;
 //! }
