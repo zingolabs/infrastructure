@@ -353,14 +353,6 @@ impl Validator for Zcashd {
     }
 }
 
-// impl Default for Zcashd {
-//     /// Default launch for Zcashd.
-//     /// Panics on failure.
-//     fn default() -> Self {
-//         Zcashd::launch(ZcashdConfig::default()).unwrap()
-//     }
-// }
-
 impl Drop for Zcashd {
     fn drop(&mut self) {
         self.stop();
@@ -456,6 +448,7 @@ impl Validator for Zebrad {
             // generate genesis block
             zebrad.generate_blocks(1).await.unwrap();
         }
+        std::thread::sleep(std::time::Duration::from_secs(5));
 
         Ok(zebrad)
     }
@@ -465,6 +458,7 @@ impl Validator for Zebrad {
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
+        // TODO: generate n blocks instead of 1
         let rpc_address = SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             self.rpc_listen_port(),
@@ -502,6 +496,7 @@ impl Validator for Zebrad {
     }
 
     fn get_chain_height(&self) -> BlockHeight {
+        // TODO:
         BlockHeight::from_u32(1)
     }
 
@@ -517,14 +512,6 @@ impl Validator for Zebrad {
         &self.data_dir
     }
 }
-
-// impl Default for Zebrad {
-//     /// Default launch for Zcashd.
-//     /// Panics on failure.
-//     fn default() -> Self {
-//         Zebrad::launch(ZebradConfig::default()).unwrap()
-//     }
-// }
 
 impl Drop for Zebrad {
     fn drop(&mut self) {

@@ -111,6 +111,7 @@ tx_cost_limit = 80000000
 [mining]
 debug_like_zcashd = true
 miner_address = \"{miner_address}\"
+internal_miner = false
 
 [network]
 # cache_dir = true
@@ -128,7 +129,7 @@ NU5 = {nu5_activation_height}
 [rpc]
 # cookie_dir = \"/home/oscar/.cache/zebra\"
 debug_force_finished_sync = false
-enable_cookie_auth = true
+enable_cookie_auth = false
 parallel_cpu_threads = 0
 listen_addr = \"127.0.0.1:{rpc_listen_port}\"
 

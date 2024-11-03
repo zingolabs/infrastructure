@@ -233,7 +233,7 @@ impl Indexer for Lightwalletd {
             &logs_dir,
             Some(lwd_log_file_path),
             "Starting insecure no-TLS (plaintext) server",
-            "Error:",
+            "error",
         )?;
 
         Ok(Lightwalletd {

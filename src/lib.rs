@@ -116,7 +116,7 @@ impl LocalNet<Zainod, Zebrad> {
     /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
     pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZebradConfig) -> Self {
         let validator = Zebrad::launch(validator_config).await.unwrap();
-        indexer_config.validator_port = validator.network_listen_port();
+        indexer_config.validator_port = validator.rpc_listen_port();
         let indexer = Zainod::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }

@@ -19,6 +19,7 @@ use zcash_local_net::{
 
 const ZCASHD_BIN: Option<PathBuf> = None;
 const ZCASH_CLI_BIN: Option<PathBuf> = None;
+const ZEBRAD_BIN: Option<PathBuf> = None;
 const LIGHTWALLETD_BIN: Option<PathBuf> = None;
 const ZAINOD_BIN: Option<PathBuf> = None;
 
@@ -27,8 +28,8 @@ async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin: None,
-        zcash_cli_bin: None,
+        zcashd_bin: ZCASHD_BIN,
+        zcash_cli_bin: ZCASH_CLI_BIN,
         rpc_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
@@ -45,7 +46,7 @@ async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
     let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin: None,
+        zebrad_bin: ZEBRAD_BIN,
         network_listen_port: None,
         rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
@@ -69,8 +70,8 @@ async fn launch_localnet_zainod_zcashd() {
             validator_port: 0,
         },
         ZcashdConfig {
-            zcashd_bin: None,
-            zcash_cli_bin: None,
+            zcashd_bin: ZCASHD_BIN,
+            zcash_cli_bin: ZCASH_CLI_BIN,
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
@@ -96,7 +97,7 @@ async fn launch_localnet_zainod_zebrad() {
             validator_port: 0,
         },
         ZebradConfig {
-            zebrad_bin: None,
+            zebrad_bin: ZEBRAD_BIN,
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
@@ -123,8 +124,8 @@ async fn launch_localnet_lightwalletd_zcashd() {
             validator_conf: PathBuf::new(),
         },
         ZcashdConfig {
-            zcashd_bin: None,
-            zcash_cli_bin: None,
+            zcashd_bin: ZCASHD_BIN,
+            zcash_cli_bin: ZCASH_CLI_BIN,
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
@@ -151,7 +152,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             validator_conf: PathBuf::new(),
         },
         ZebradConfig {
-            zebrad_bin: None,
+            zebrad_bin: ZEBRAD_BIN,
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
