@@ -101,8 +101,8 @@ impl LocalNet<Zainod, Zcashd> {
     /// Launch LocalNet.
     ///
     /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
-    pub fn launch(mut indexer_config: ZainodConfig, validator_config: ZcashdConfig) -> Self {
-        let validator = Zcashd::launch(validator_config).unwrap();
+    pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZcashdConfig) -> Self {
+        let validator = Zcashd::launch(validator_config).await.unwrap();
         indexer_config.validator_port = validator.port();
         let indexer = Zainod::launch(indexer_config).unwrap();
 
@@ -114,8 +114,8 @@ impl LocalNet<Zainod, Zebrad> {
     /// Launch LocalNet.
     ///
     /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
-    pub fn launch(mut indexer_config: ZainodConfig, validator_config: ZebradConfig) -> Self {
-        let validator = Zebrad::launch(validator_config).unwrap();
+    pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZebradConfig) -> Self {
+        let validator = Zebrad::launch(validator_config).await.unwrap();
         indexer_config.validator_port = validator.network_listen_port();
         let indexer = Zainod::launch(indexer_config).unwrap();
 
@@ -127,8 +127,11 @@ impl LocalNet<Lightwalletd, Zcashd> {
     /// Launch LocalNet.
     ///
     /// The `validator_conf` field of [`crate::indexer::LightwalletdConfig`] will be overwritten to match the validator's config path.
-    pub fn launch(mut indexer_config: LightwalletdConfig, validator_config: ZcashdConfig) -> Self {
-        let validator = Zcashd::launch(validator_config).unwrap();
+    pub async fn launch(
+        mut indexer_config: LightwalletdConfig,
+        validator_config: ZcashdConfig,
+    ) -> Self {
+        let validator = Zcashd::launch(validator_config).await.unwrap();
         indexer_config.validator_conf = validator.config_path();
         let indexer = Lightwalletd::launch(indexer_config).unwrap();
 
@@ -140,8 +143,11 @@ impl LocalNet<Lightwalletd, Zebrad> {
     /// Launch LocalNet.
     ///
     /// The `validator_conf` field of [`crate::indexer::LightwalletdConfig`] will be overwritten to match the validator's config path.
-    pub fn launch(mut indexer_config: LightwalletdConfig, validator_config: ZebradConfig) -> Self {
-        let validator = Zebrad::launch(validator_config).unwrap();
+    pub async fn launch(
+        mut indexer_config: LightwalletdConfig,
+        validator_config: ZebradConfig,
+    ) -> Self {
+        let validator = Zebrad::launch(validator_config).await.unwrap();
         indexer_config.validator_conf = validator.config_path();
         let indexer = Lightwalletd::launch(indexer_config).unwrap();
 

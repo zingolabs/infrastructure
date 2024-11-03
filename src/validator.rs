@@ -11,6 +11,10 @@ use zcash_protocol::consensus::BlockHeight;
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
+use zebra_chain::{parameters::NetworkUpgrade, serialization::ZcashSerialize as _};
+use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
+    proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
+};
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
@@ -58,18 +62,18 @@ pub struct ZcashdConfig {
     pub chain_cache: Option<PathBuf>,
 }
 
-impl Default for ZcashdConfig {
-    fn default() -> Self {
-        Self {
-            zcashd_bin: None,
-            zcash_cli_bin: None,
-            rpc_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: None,
-            chain_cache: None,
-        }
-    }
-}
+// impl Default for ZcashdConfig {
+//     fn default() -> Self {
+//         Self {
+//             zcashd_bin: None,
+//             zcash_cli_bin: None,
+//             rpc_port: None,
+//             activation_heights: network::ActivationHeights::default(),
+//             miner_address: None,
+//             chain_cache: None,
+//         }
+//     }
+// }
 
 /// Zebrad configuration
 ///
@@ -118,14 +122,19 @@ pub trait Validator: Sized {
     type Config;
 
     /// Launch the process.
-    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
+    fn launch(
+        config: Self::Config,
+    ) -> impl std::future::Future<Output = Result<Self, LaunchError>> + Send;
 
     /// Stop the process.
     fn stop(&mut self);
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
-    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output>;
+    fn generate_blocks(
+        &self,
+        n: u32,
+    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
     /// Get chain height
     fn get_chain_height(&self) -> BlockHeight;
@@ -199,6 +208,8 @@ pub struct Zcashd {
     data_dir: TempDir,
     /// Zcash cli binary location
     zcash_cli_bin: Option<PathBuf>,
+    /// Network upgrade activation heights
+    activation_heights: network::ActivationHeights,
 }
 
 impl Zcashd {
@@ -224,7 +235,7 @@ impl Validator for Zcashd {
 
     type Config = ZcashdConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -283,11 +294,12 @@ impl Validator for Zcashd {
             logs_dir,
             data_dir,
             zcash_cli_bin: config.zcash_cli_bin,
+            activation_heights: config.activation_heights,
         };
 
         if config.chain_cache.is_none() {
             // generate genesis block
-            zcashd.generate_blocks(1).unwrap();
+            zcashd.generate_blocks(1).await.unwrap();
         }
 
         Ok(zcashd)
@@ -314,12 +326,12 @@ impl Validator for Zcashd {
         }
     }
 
-    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
+    async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height();
-        let output = self.zcash_cli_command(&["generate", &n.to_string()])?;
+        self.zcash_cli_command(&["generate", &n.to_string()])?;
         self.poll_chain_height(chain_height + n);
 
-        Ok(output)
+        Ok(())
     }
 
     fn get_chain_height(&self) -> BlockHeight {
@@ -341,13 +353,13 @@ impl Validator for Zcashd {
     }
 }
 
-impl Default for Zcashd {
-    /// Default launch for Zcashd.
-    /// Panics on failure.
-    fn default() -> Self {
-        Zcashd::launch(ZcashdConfig::default()).unwrap()
-    }
-}
+// impl Default for Zcashd {
+//     /// Default launch for Zcashd.
+//     /// Panics on failure.
+//     fn default() -> Self {
+//         Zcashd::launch(ZcashdConfig::default()).unwrap()
+//     }
+// }
 
 impl Drop for Zcashd {
     fn drop(&mut self) {
@@ -375,6 +387,8 @@ pub struct Zebrad {
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
+    /// Network upgrade activation heights
+    activation_heights: network::ActivationHeights,
 }
 
 impl Validator for Zebrad {
@@ -382,7 +396,7 @@ impl Validator for Zebrad {
 
     type Config = ZebradConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -435,12 +449,13 @@ impl Validator for Zebrad {
             config_dir,
             logs_dir,
             data_dir,
+            activation_heights: config.activation_heights,
         };
 
-        // if config.chain_cache.is_none() {
-        //     // generate genesis block
-        //     zebrad.generate_blocks(1).unwrap();
-        // }
+        if config.chain_cache.is_none() {
+            // generate genesis block
+            zebrad.generate_blocks(1).await.unwrap();
+        }
 
         Ok(zebrad)
     }
@@ -449,10 +464,10 @@ impl Validator for Zebrad {
         self.handle.kill().expect("zainod couldn't be killed")
     }
 
-    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
+    async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let rpc_address = SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            self.rpc_listen_port,
+            self.rpc_listen_port(),
         );
         let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
 
@@ -461,28 +476,29 @@ impl Validator for Zebrad {
             .await
             .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-        let network_upgrade = if block_template.height < NU5_ACTIVATION_HEIGHT {
+        let network_upgrade = if block_template.height < self.activation_heights().nu5.into() {
             NetworkUpgrade::Canopy
         } else {
             NetworkUpgrade::Nu5
         };
 
         let block_data = hex::encode(
-            proposal_block_from_template(&block_template, TimeSource::default(), network_upgrade)?
-                .zcash_serialize_to_vec()?,
+            proposal_block_from_template(&block_template, TimeSource::default(), network_upgrade)
+                .unwrap()
+                .zcash_serialize_to_vec()
+                .unwrap(),
         );
 
         let submit_block_response = client
             .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-            .await?;
+            .await
+            .unwrap();
 
-        let was_submission_successful = submit_block_response.contains(r#""result":null"#);
+        if !submit_block_response.contains(r#""result":null"#) {
+            panic!("failed to submit block!")
+        };
 
-        Ok(std::process::Output {
-            status: std::process::ExitStatus::default(),
-            stdout: vec![],
-            stderr: vec![],
-        })
+        Ok(())
     }
 
     fn get_chain_height(&self) -> BlockHeight {
@@ -502,13 +518,13 @@ impl Validator for Zebrad {
     }
 }
 
-impl Default for Zebrad {
-    /// Default launch for Zcashd.
-    /// Panics on failure.
-    fn default() -> Self {
-        Zebrad::launch(ZebradConfig::default()).unwrap()
-    }
-}
+// impl Default for Zebrad {
+//     /// Default launch for Zcashd.
+//     /// Panics on failure.
+//     fn default() -> Self {
+//         Zebrad::launch(ZebradConfig::default()).unwrap()
+//     }
+// }
 
 impl Drop for Zebrad {
     fn drop(&mut self) {

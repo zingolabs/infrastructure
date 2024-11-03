@@ -13,7 +13,7 @@ use zcash_local_net::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network,
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
+    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ABANDON_ABANDON_UA},
     LocalNet,
 };
 
@@ -22,26 +22,44 @@ const ZCASH_CLI_BIN: Option<PathBuf> = None;
 const LIGHTWALLETD_BIN: Option<PathBuf> = None;
 const ZAINOD_BIN: Option<PathBuf> = None;
 
-#[test]
-fn launch_zcashd() {
+#[tokio::test]
+async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = Zcashd::default();
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin: None,
+        zcash_cli_bin: None,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+        chain_cache: None,
+    })
+    .await
+    .unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
 }
 
-#[test]
-fn launch_zebrad() {
+#[tokio::test]
+async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::default();
+    let zebrad = Zebrad::launch(ZebradConfig {
+        zebrad_bin: None,
+        network_listen_port: None,
+        rpc_listen_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: ABANDON_ABANDON_UA,
+        chain_cache: None,
+    })
+    .await
+    .unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 }
 
-#[test]
-fn launch_localnet_zainod_zcashd() {
+#[tokio::test]
+async fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
@@ -50,8 +68,16 @@ fn launch_localnet_zainod_zcashd() {
             listen_port: None,
             validator_port: 0,
         },
-        ZcashdConfig::default(),
-    );
+        ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: None,
+        },
+    )
+    .await;
 
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
@@ -59,8 +85,8 @@ fn launch_localnet_zainod_zcashd() {
     local_net.indexer().print_stderr();
 }
 
-#[test]
-fn launch_localnet_zainod_zebrad() {
+#[tokio::test]
+async fn launch_localnet_zainod_zebrad() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zebrad>::launch(
@@ -69,8 +95,16 @@ fn launch_localnet_zainod_zebrad() {
             listen_port: None,
             validator_port: 0,
         },
-        ZebradConfig::default(),
-    );
+        ZebradConfig {
+            zebrad_bin: None,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ABANDON_ABANDON_UA,
+            chain_cache: None,
+        },
+    )
+    .await;
 
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
@@ -78,8 +112,8 @@ fn launch_localnet_zainod_zebrad() {
     local_net.indexer().print_stderr();
 }
 
-#[test]
-fn launch_localnet_lightwalletd_zcashd() {
+#[tokio::test]
+async fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
@@ -88,8 +122,16 @@ fn launch_localnet_lightwalletd_zcashd() {
             listen_port: None,
             validator_conf: PathBuf::new(),
         },
-        ZcashdConfig::default(),
-    );
+        ZcashdConfig {
+            zcashd_bin: None,
+            zcash_cli_bin: None,
+            rpc_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: None,
+        },
+    )
+    .await;
 
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
@@ -98,8 +140,8 @@ fn launch_localnet_lightwalletd_zcashd() {
     local_net.indexer().print_stderr();
 }
 
-#[test]
-fn launch_localnet_lightwalletd_zebrad() {
+#[tokio::test]
+async fn launch_localnet_lightwalletd_zebrad() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
@@ -108,8 +150,16 @@ fn launch_localnet_lightwalletd_zebrad() {
             listen_port: None,
             validator_conf: PathBuf::new(),
         },
-        ZebradConfig::default(),
-    );
+        ZebradConfig {
+            zebrad_bin: None,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ABANDON_ABANDON_UA,
+            chain_cache: None,
+        },
+    )
+    .await;
 
     local_net.validator().print_stdout();
     local_net.validator().print_stderr();
@@ -136,7 +186,8 @@ async fn zainod_basic_send() {
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -156,7 +207,7 @@ async fn zainod_basic_send() {
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
     faucet.do_sync(false).await.unwrap();
     recipient.do_sync(false).await.unwrap();
 
@@ -191,7 +242,8 @@ async fn lightwalletd_basic_send() {
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -211,7 +263,7 @@ async fn lightwalletd_basic_send() {
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
     faucet.do_sync(false).await.unwrap();
     recipient.do_sync(false).await.unwrap();
 

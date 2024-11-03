@@ -64,9 +64,10 @@ pub async fn generate_zcashd_chain_cache(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         },
-    );
+    )
+    .await;
 
-    local_net.validator().generate_blocks(2).unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -118,11 +119,11 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     recipient.quick_shield().await.unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -135,7 +136,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -148,7 +149,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -161,7 +162,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(2).unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
 
     faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -174,7 +175,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let chain_cache_dir = utils::chain_cache_dir();
     if !chain_cache_dir.exists() {
@@ -200,6 +201,7 @@ pub async fn get_lightd_info(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -304,6 +306,7 @@ pub async fn get_latest_block(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -366,6 +369,7 @@ pub async fn get_block(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -425,6 +429,7 @@ pub async fn get_block_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -485,6 +490,7 @@ pub async fn get_block_nullifiers(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -552,6 +558,7 @@ pub async fn get_block_range_nullifiers(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -633,6 +640,7 @@ pub async fn get_block_range_nullifiers_reverse(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -714,6 +722,7 @@ pub async fn get_block_range_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -795,6 +804,7 @@ pub async fn get_block_range_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -876,6 +886,7 @@ pub async fn get_block_range_reverse(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -957,6 +968,7 @@ pub async fn get_block_range_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1059,6 +1071,7 @@ pub async fn get_transaction(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1088,7 +1101,7 @@ pub async fn get_transaction(
     )
     .await
     .unwrap();
-    zcashd.generate_blocks(1).unwrap();
+    zcashd.generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1152,7 +1165,8 @@ pub async fn send_transaction(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1171,7 +1185,7 @@ pub async fn send_transaction(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1206,7 +1220,8 @@ pub async fn send_transaction(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1225,7 +1240,7 @@ pub async fn send_transaction(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1290,6 +1305,7 @@ pub async fn get_taddress_txids_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1401,6 +1417,7 @@ pub async fn get_taddress_txids_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1512,6 +1529,7 @@ pub async fn get_taddress_txids_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1623,6 +1641,7 @@ pub async fn get_taddress_balance(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1693,6 +1712,7 @@ pub async fn get_taddress_balance_stream(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1765,6 +1785,7 @@ pub async fn get_mempool_tx(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1938,6 +1959,7 @@ pub async fn get_mempool_stream(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2204,6 +2226,7 @@ pub async fn get_tree_state_by_height(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2271,6 +2294,7 @@ pub async fn get_tree_state_by_hash(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2348,6 +2372,7 @@ pub async fn get_tree_state_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2408,6 +2433,7 @@ pub async fn get_latest_tree_state(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2473,6 +2499,7 @@ pub async fn get_subtree_roots_sapling(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2552,6 +2579,7 @@ pub async fn get_subtree_roots_orchard(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2628,6 +2656,7 @@ pub async fn get_address_utxos_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2700,6 +2729,7 @@ pub async fn get_address_utxos_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2773,6 +2803,7 @@ pub async fn get_address_utxos_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2846,6 +2877,7 @@ pub async fn get_address_utxos_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2918,6 +2950,7 @@ pub async fn get_address_utxos_stream_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2998,6 +3031,7 @@ pub async fn get_address_utxos_stream_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3079,6 +3113,7 @@ pub async fn get_address_utxos_stream_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3160,6 +3195,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
