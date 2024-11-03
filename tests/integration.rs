@@ -13,7 +13,7 @@ use zcash_local_net::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network,
-    validator::{Validator, Zcashd, ZcashdConfig},
+    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
     LocalNet,
 };
 
@@ -32,7 +32,16 @@ fn launch_zcashd() {
 }
 
 #[test]
-fn launch_zainod() {
+fn launch_zebrad() {
+    tracing_subscriber::fmt().init();
+
+    let zebrad = Zebrad::default();
+    zebrad.print_stdout();
+    zebrad.print_stderr();
+}
+
+#[test]
+fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
@@ -51,7 +60,26 @@ fn launch_zainod() {
 }
 
 #[test]
-fn launch_lightwalletd() {
+fn launch_localnet_zainod_zebrad() {
+    tracing_subscriber::fmt().init();
+
+    let local_net = LocalNet::<Zainod, Zebrad>::launch(
+        ZainodConfig {
+            zainod_bin: ZAINOD_BIN,
+            listen_port: None,
+            validator_port: 0,
+        },
+        ZebradConfig::default(),
+    );
+
+    local_net.validator().print_stdout();
+    local_net.validator().print_stderr();
+    local_net.indexer().print_stdout();
+    local_net.indexer().print_stderr();
+}
+
+#[test]
+fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
@@ -61,6 +89,26 @@ fn launch_lightwalletd() {
             validator_conf: PathBuf::new(),
         },
         ZcashdConfig::default(),
+    );
+
+    local_net.validator().print_stdout();
+    local_net.validator().print_stderr();
+    local_net.indexer().print_stdout();
+    local_net.indexer().print_lwd_log();
+    local_net.indexer().print_stderr();
+}
+
+#[test]
+fn launch_localnet_lightwalletd_zebrad() {
+    tracing_subscriber::fmt().init();
+
+    let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
+        LightwalletdConfig {
+            lightwalletd_bin: LIGHTWALLETD_BIN,
+            listen_port: None,
+            validator_conf: PathBuf::new(),
+        },
+        ZebradConfig::default(),
     );
 
     local_net.validator().print_stdout();

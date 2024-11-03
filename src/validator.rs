@@ -1,6 +1,10 @@
 //! Module for the structs that represent and manage the validator/full-node processes i.e. Zebrad.
 
-use std::{path::PathBuf, process::Child};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    path::PathBuf,
+    process::Child,
+};
 
 use zcash_protocol::consensus::BlockHeight;
 
@@ -9,6 +13,10 @@ use portpicker::Port;
 use tempfile::TempDir;
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
+
+/// Default miner address. Regtest unified address for abandon abandon..art seed (entropy all zeros)
+pub const ABANDON_ABANDON_UA: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
+// pub const ABANDON_ABANDON_UA: &str = "uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8r7h4daun2zkznrjaa8ra8asgdm8wwgwjvlwwrxx7347r8w0ee6dqyw4rufw4wg9djwcr6frzkezmdw6dud3wsm99eany5r8wgsctlxquu009nzd6hsme2tcsk0v3sgjvxa70er7h27z5epr67p5q767s2z5gt88paru56mxpm6pwz0cu35m";
 
 /// Loads chain into validator data directory from cache
 pub fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) -> std::process::Output {
@@ -58,6 +66,44 @@ impl Default for ZcashdConfig {
             rpc_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: None,
+            chain_cache: None,
+        }
+    }
+}
+
+/// Zebrad configuration
+///
+/// Use `zebrad_bin` to specify the binary location.
+/// If the binary is in $PATH, `None` can be specified to run "zebrad".
+///
+/// Use `fixed_port` to specify a port for Zebrad. Otherwise, a port is picked at random between 15000-25000.
+///
+/// Use `activation_heights` to specify custom network upgrade activation heights
+///
+/// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
+pub struct ZebradConfig {
+    /// Zebrad binary location
+    pub zebrad_bin: Option<PathBuf>,
+    /// Zebrad network listen port
+    pub network_listen_port: Option<Port>,
+    /// Zebrad RPC listen port
+    pub rpc_listen_port: Option<Port>,
+    /// Local network upgrade activation heights
+    pub activation_heights: network::ActivationHeights,
+    /// Miner address
+    pub miner_address: &'static str,
+    /// Chain cache location. If `None`, launches a new chain.
+    pub chain_cache: Option<PathBuf>,
+}
+
+impl Default for ZebradConfig {
+    fn default() -> Self {
+        Self {
+            zebrad_bin: None,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: &ABANDON_ABANDON_UA,
             chain_cache: None,
         }
     }
@@ -304,6 +350,167 @@ impl Default for Zcashd {
 }
 
 impl Drop for Zcashd {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// This struct is used to represent and manage the Zebrad process.
+#[derive(Getters, CopyGetters)]
+#[getset(get = "pub")]
+pub struct Zebrad {
+    /// Child process handle
+    handle: Child,
+    /// network listen port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    network_listen_port: Port,
+    /// RPC listen port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    rpc_listen_port: Port,
+    /// Config directory
+    config_dir: TempDir,
+    /// Logs directory
+    logs_dir: TempDir,
+    /// Data directory
+    data_dir: TempDir,
+}
+
+impl Validator for Zebrad {
+    const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
+
+    type Config = ZebradConfig;
+
+    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        let logs_dir = tempfile::tempdir().unwrap();
+        let data_dir = tempfile::tempdir().unwrap();
+
+        let network_listen_port = network::pick_unused_port(config.network_listen_port);
+        let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
+        let config_dir = tempfile::tempdir().unwrap();
+        let config_file_path = config::zebrad(
+            config_dir.path(),
+            network_listen_port,
+            rpc_listen_port,
+            &config.activation_heights,
+            config.miner_address,
+        )
+        .unwrap();
+
+        let mut command = match config.zebrad_bin {
+            Some(path) => std::process::Command::new(path),
+            None => std::process::Command::new("zebrad"),
+        };
+        command
+            .args([
+                "--config",
+                format!(
+                    "{}",
+                    config_file_path.to_str().expect("should be valid UTF-8")
+                )
+                .as_str(),
+                "start",
+            ])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        let mut handle = command.spawn().unwrap();
+
+        logs::write_logs(&mut handle, &logs_dir);
+        launch::wait(
+            Process::Zebrad,
+            &mut handle,
+            &logs_dir,
+            None,
+            "activating mempool",
+            "error:",
+        )?;
+        std::thread::sleep(std::time::Duration::from_secs(5));
+
+        let zebrad = Zebrad {
+            handle,
+            network_listen_port,
+            rpc_listen_port,
+            config_dir,
+            logs_dir,
+            data_dir,
+        };
+
+        // if config.chain_cache.is_none() {
+        //     // generate genesis block
+        //     zebrad.generate_blocks(1).unwrap();
+        // }
+
+        Ok(zebrad)
+    }
+
+    fn stop(&mut self) {
+        self.handle.kill().expect("zainod couldn't be killed")
+    }
+
+    fn generate_blocks(&self, n: u32) -> std::io::Result<std::process::Output> {
+        let rpc_address = SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            self.rpc_listen_port,
+        );
+        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+
+        let block_template: GetBlockTemplate = client
+            .json_result_from_call("getblocktemplate", "[]".to_string())
+            .await
+            .expect("response should be success output with a serialized `GetBlockTemplate`");
+
+        let network_upgrade = if block_template.height < NU5_ACTIVATION_HEIGHT {
+            NetworkUpgrade::Canopy
+        } else {
+            NetworkUpgrade::Nu5
+        };
+
+        let block_data = hex::encode(
+            proposal_block_from_template(&block_template, TimeSource::default(), network_upgrade)?
+                .zcash_serialize_to_vec()?,
+        );
+
+        let submit_block_response = client
+            .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
+            .await?;
+
+        let was_submission_successful = submit_block_response.contains(r#""result":null"#);
+
+        Ok(std::process::Output {
+            status: std::process::ExitStatus::default(),
+            stdout: vec![],
+            stderr: vec![],
+        })
+    }
+
+    fn get_chain_height(&self) -> BlockHeight {
+        BlockHeight::from_u32(1)
+    }
+
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    fn data_dir(&self) -> &TempDir {
+        &self.data_dir
+    }
+}
+
+impl Default for Zebrad {
+    /// Default launch for Zcashd.
+    /// Panics on failure.
+    fn default() -> Self {
+        Zebrad::launch(ZebradConfig::default()).unwrap()
+    }
+}
+
+impl Drop for Zebrad {
     fn drop(&mut self) {
         self.stop();
     }
