@@ -434,7 +434,7 @@ dependencies = [
 [[package]]
 name = "build_utils"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2#95e5b0d8f9d5ee0485c6141533da2f727aeafae2"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
 
 [[package]]
 name = "bumpalo"
@@ -3875,7 +3875,7 @@ dependencies = [
  "zcash_client_backend",
  "zcash_primitives",
  "zcash_protocol",
- "zingo-netutils",
+ "zingo-netutils 0.1.0 (git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2)",
  "zingolib",
 ]
 
@@ -4014,7 +4014,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2#95e5b0d8f9d5ee0485c6141533da2f727aeafae2"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
 dependencies = [
  "zcash_address",
  "zcash_client_backend",
@@ -4045,9 +4045,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "zingo-netutils"
+version = "0.1.0"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
+dependencies = [
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "prost",
+ "rustls-pemfile 1.0.4",
+ "thiserror",
+ "tokio-rustls",
+ "tonic",
+ "tower 0.4.13",
+ "webpki-roots 0.21.1",
+ "zcash_client_backend",
+]
+
+[[package]]
 name = "zingo-status"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2#95e5b0d8f9d5ee0485c6141533da2f727aeafae2"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
 dependencies = [
  "zcash_primitives",
 ]
@@ -4055,7 +4076,7 @@ dependencies = [
 [[package]]
 name = "zingo-sync"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2#95e5b0d8f9d5ee0485c6141533da2f727aeafae2"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
 dependencies = [
  "crossbeam-channel",
  "futures",
@@ -4073,13 +4094,13 @@ dependencies = [
  "zcash_keys",
  "zcash_note_encryption",
  "zcash_primitives",
- "zingo-netutils",
+ "zingo-netutils 0.1.0 (git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering)",
 ]
 
 [[package]]
 name = "zingolib"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib.git?tag=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2#95e5b0d8f9d5ee0485c6141533da2f727aeafae2"
+source = "git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering#51ab25009d0bc0d530046f6382a58aadb4adb623"
 dependencies = [
  "append-only-vec",
  "base58",
@@ -4139,7 +4160,7 @@ dependencies = [
  "zcash_primitives",
  "zcash_proofs",
  "zingo-memo",
- "zingo-netutils",
+ "zingo-netutils 0.1.0 (git+https://github.com/Oscar-Pepper/zingolib.git?branch=zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering)",
  "zingo-status",
  "zingo-sync",
  "zip32",
