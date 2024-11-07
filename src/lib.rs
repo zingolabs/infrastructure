@@ -23,6 +23,8 @@
 //!
 //! Integration tests in this crate will require the binaries to be in $PATH to pass successfully.
 
+use std::fs::File;
+
 use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
 
@@ -147,8 +149,24 @@ impl LocalNet<Lightwalletd, Zebrad> {
         mut indexer_config: LightwalletdConfig,
         validator_config: ZebradConfig,
     ) -> Self {
+        let config_dir = utils::config_dir();
+        if !config_dir.exists() {
+            std::fs::create_dir_all(config_dir.clone()).unwrap();
+        }
+
+        let zcashd_conf_path = config_dir.join(config::ZCASHD_FILENAME);
+        if !zcashd_conf_path.exists() {
+            config::zcashd(
+                config_dir.as_path(),
+                network::pick_unused_port(validator_config.rpc_listen_port),
+                &network::ActivationHeights::default(),
+                None,
+            )
+            .unwrap();
+        }
+
         let validator = Zebrad::launch(validator_config).await.unwrap();
-        indexer_config.validator_conf = validator.config_path();
+        indexer_config.validator_conf = zcashd_conf_path;
         let indexer = Lightwalletd::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
