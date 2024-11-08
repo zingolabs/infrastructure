@@ -13,7 +13,7 @@ use zcash_local_net::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network,
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ABANDON_ABANDON_UA},
+    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 
@@ -50,8 +50,9 @@ async fn launch_zebrad() {
         network_listen_port: None,
         rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
-        miner_address: ABANDON_ABANDON_UA,
-        chain_cache: None,
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: Some(PathBuf::from("/home/oscar/.cache/zebra")),
+        // chain_cache: None,
     })
     .await
     .unwrap();
@@ -103,7 +104,7 @@ async fn launch_localnet_zainod_zebrad() {
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
-            miner_address: ABANDON_ABANDON_UA,
+            miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
         },
     )
@@ -158,7 +159,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
-            miner_address: ABANDON_ABANDON_UA,
+            miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
         },
     )
@@ -286,7 +287,19 @@ async fn lightwalletd_basic_send() {
 
 #[cfg(feature = "test_fixtures")]
 mod client_rpcs {
-    use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN};
+    use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
+
+    #[ignore = "not a test. generates chain cache for client_rpc tests."]
+    #[tokio::test]
+    async fn generate_zebrad_large_chain_cache() {
+        tracing_subscriber::fmt().init();
+
+        zcash_local_net::test_fixtures::generate_zebrad_large_chain_cache(
+            ZEBRAD_BIN,
+            LIGHTWALLETD_BIN,
+        )
+        .await;
+    }
 
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
     #[tokio::test]

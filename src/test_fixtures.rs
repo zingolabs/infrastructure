@@ -40,9 +40,42 @@ use crate::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
-    validator::{Validator as _, Zcashd, ZcashdConfig},
+    validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
+
+/// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
+pub async fn generate_zebrad_large_chain_cache(
+    zebrad_bin: Option<PathBuf>,
+    lightwalletd_bin: Option<PathBuf>,
+) {
+    let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
+        LightwalletdConfig {
+            lightwalletd_bin,
+            listen_port: None,
+            zcashd_conf: PathBuf::new(),
+        },
+        ZebradConfig {
+            zebrad_bin,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ZEBRAD_DEFAULT_MINER,
+            chain_cache: None,
+        },
+    )
+    .await;
+
+    local_net.validator().generate_blocks(150).await.unwrap();
+
+    let chain_cache_dir = utils::chain_cache_dir();
+    if !chain_cache_dir.exists() {
+        std::fs::create_dir_all(chain_cache_dir.clone()).unwrap();
+    }
+    local_net
+        .validator_mut()
+        .cache_chain(chain_cache_dir.join("client_rpc_tests_large"));
+}
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache(

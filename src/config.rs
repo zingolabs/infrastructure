@@ -83,6 +83,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 /// Canopy (and all earlier netwrok upgrades) must have an activation height of 1 for zebrad regtest mode
 pub(crate) fn zebrad(
     config_dir: &Path,
+    data_dir: &Path,
     network_listen_port: Port,
     rpc_listen_port: Port,
     activation_heights: &ActivationHeights,
@@ -95,6 +96,8 @@ pub(crate) fn zebrad(
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
     let nu5_activation_height: u32 = activation_heights.nu5.into();
+
+    let chain_cache = data_dir.to_str().unwrap();
 
     config_file.write_all(
         format!(
@@ -111,15 +114,17 @@ tx_cost_limit = 80000000
 [mining]
 debug_like_zcashd = true
 miner_address = \"{miner_address}\"
-internal_miner = false
 
 [network]
-# cache_dir = true
+cache_dir = \"{chain_cache}\"
 crawl_new_peer_interval = \"1m 1s\"
 max_connections_per_ip = 1
 network = \"Regtest\"
 peerset_initial_target_size = 25
 listen_addr = \"127.0.0.1:{network_listen_port}\"
+
+[network.testnet_parameters]
+disable_pow = true
 
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
@@ -127,16 +132,16 @@ listen_addr = \"127.0.0.1:{network_listen_port}\"
 NU5 = {nu5_activation_height} 
 
 [rpc]
-# cookie_dir = \"/home/oscar/.cache/zebra\"
 debug_force_finished_sync = false
 enable_cookie_auth = false
 parallel_cpu_threads = 0
 listen_addr = \"127.0.0.1:{rpc_listen_port}\"
 
 [state]
-# cache_dir = \"/home/oscar/.cache/zebra\"
+cache_dir = \"{chain_cache}\"
 delete_old_database = true
-ephemeral = true
+# ephemeral is set false to enable chain caching
+ephemeral = false
 
 [sync]
 checkpoint_verify_concurrency_limit = 1000

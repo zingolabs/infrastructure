@@ -20,23 +20,7 @@ use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
 /// Default miner address. Regtest unified address for abandon abandon..art seed (entropy all zeros)
-pub const ABANDON_ABANDON_UA: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
-// pub const ABANDON_ABANDON_UA: &str = "uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8r7h4daun2zkznrjaa8ra8asgdm8wwgwjvlwwrxx7347r8w0ee6dqyw4rufw4wg9djwcr6frzkezmdw6dud3wsm99eany5r8wgsctlxquu009nzd6hsme2tcsk0v3sgjvxa70er7h27z5epr67p5q767s2z5gt88paru56mxpm6pwz0cu35m";
-
-/// Loads chain into validator data directory from cache
-pub fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) -> std::process::Output {
-    let regtest_dir = chain_cache.join("regtest");
-    if !regtest_dir.exists() {
-        panic!("regtest directory not found!");
-    }
-
-    std::process::Command::new("cp")
-        .arg("-r")
-        .arg(regtest_dir)
-        .arg(validator_data_dir)
-        .output()
-        .unwrap()
-}
+pub const ZEBRAD_DEFAULT_MINER: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
 
 /// Zcashd configuration
 ///
@@ -62,19 +46,6 @@ pub struct ZcashdConfig {
     /// Chain cache location. If `None`, launches a new chain.
     pub chain_cache: Option<PathBuf>,
 }
-
-// impl Default for ZcashdConfig {
-//     fn default() -> Self {
-//         Self {
-//             zcashd_bin: None,
-//             zcash_cli_bin: None,
-//             rpc_port: None,
-//             activation_heights: network::ActivationHeights::default(),
-//             miner_address: None,
-//             chain_cache: None,
-//         }
-//     }
-// }
 
 /// Zebrad configuration
 ///
@@ -108,7 +79,7 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
-            miner_address: &ABANDON_ABANDON_UA,
+            miner_address: &ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
         }
     }
@@ -177,6 +148,9 @@ pub trait Validator: Sized {
             .unwrap()
     }
 
+    /// Loads chain into validator data directory from cache
+    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf);
+
     /// Prints the stdout log.
     fn print_stdout(&self) {
         let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);
@@ -240,7 +214,7 @@ impl Validator for Zcashd {
         let data_dir = tempfile::tempdir().unwrap();
 
         if let Some(cache) = config.chain_cache.clone() {
-            load_chain(cache, data_dir.path().to_path_buf());
+            Self::load_chain(cache, data_dir.path().to_path_buf());
         }
 
         let port = network::pick_unused_port(config.rpc_port);
@@ -357,6 +331,20 @@ impl Validator for Zcashd {
     fn data_dir(&self) -> &TempDir {
         &self.data_dir
     }
+
+    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) {
+        let regtest_dir = chain_cache.join("regtest");
+        if !regtest_dir.exists() {
+            panic!("regtest directory not found!");
+        }
+
+        std::process::Command::new("cp")
+            .arg("-r")
+            .arg(regtest_dir)
+            .arg(validator_data_dir)
+            .output()
+            .unwrap();
+    }
 }
 
 impl Drop for Zcashd {
@@ -400,11 +388,16 @@ impl Validator for Zebrad {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
+        if let Some(cache) = config.chain_cache.clone() {
+            Self::load_chain(cache, data_dir.path().to_path_buf());
+        }
+
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zebrad(
             config_dir.path(),
+            data_dir.path(),
             network_listen_port,
             rpc_listen_port,
             &config.activation_heights,
@@ -478,7 +471,7 @@ impl Validator for Zebrad {
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
-        let chain_height = self.get_chain_height().await;
+        let chain_height = dbg!(self.get_chain_height().await);
 
         for _ in 0..n {
             let block_template: GetBlockTemplate = self
@@ -532,6 +525,8 @@ impl Validator for Zebrad {
             .and_then(|h| u32::try_from(h).ok())
             .unwrap();
 
+        dbg!(&chain_height);
+
         BlockHeight::from_u32(chain_height)
     }
 
@@ -551,6 +546,20 @@ impl Validator for Zebrad {
 
     fn data_dir(&self) -> &TempDir {
         &self.data_dir
+    }
+
+    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) {
+        let state_dir = chain_cache.join("state");
+        if !state_dir.exists() {
+            panic!("state directory not found!");
+        }
+
+        std::process::Command::new("cp")
+            .arg("-r")
+            .arg(state_dir)
+            .arg(validator_data_dir)
+            .output()
+            .unwrap();
     }
 }
 
