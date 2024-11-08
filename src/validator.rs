@@ -12,6 +12,7 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 use zebra_chain::{parameters::NetworkUpgrade, serialization::ZcashSerialize as _};
+use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
     proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
 };
@@ -137,14 +138,13 @@ pub trait Validator: Sized {
     ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
     /// Get chain height
-    fn get_chain_height(&self) -> BlockHeight;
+    fn get_chain_height(&self) -> impl std::future::Future<Output = BlockHeight> + Send;
 
     /// Polls chain until it reaches target height
-    fn poll_chain_height(&self, target_height: BlockHeight) {
-        while self.get_chain_height() < target_height {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-    }
+    fn poll_chain_height(
+        &self,
+        target_height: BlockHeight,
+    ) -> impl std::future::Future<Output = ()> + Send;
 
     /// Get temporary config directory.
     fn config_dir(&self) -> &TempDir;
@@ -327,17 +327,23 @@ impl Validator for Zcashd {
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
-        let chain_height = self.get_chain_height();
+        let chain_height = self.get_chain_height().await;
         self.zcash_cli_command(&["generate", &n.to_string()])?;
-        self.poll_chain_height(chain_height + n);
+        self.poll_chain_height(chain_height + n).await;
 
         Ok(())
     }
 
-    fn get_chain_height(&self) -> BlockHeight {
+    async fn get_chain_height(&self) -> BlockHeight {
         let output = self.zcash_cli_command(&["getchaintips"]).unwrap();
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
         BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
+    }
+
+    async fn poll_chain_height(&self, target_height: BlockHeight) {
+        while self.get_chain_height().await < target_height {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
     }
 
     fn config_dir(&self) -> &TempDir {
@@ -381,6 +387,8 @@ pub struct Zebrad {
     data_dir: TempDir,
     /// Network upgrade activation heights
     activation_heights: network::ActivationHeights,
+    /// RPC request client
+    client: RpcRequestClient,
 }
 
 impl Validator for Zebrad {
@@ -401,6 +409,14 @@ impl Validator for Zebrad {
             rpc_listen_port,
             &config.activation_heights,
             config.miner_address,
+        )
+        .unwrap();
+        // create zcashd conf necessary for lightwalletd
+        config::zcashd(
+            config_dir.path(),
+            rpc_listen_port,
+            &config.activation_heights,
+            None,
         )
         .unwrap();
 
@@ -434,6 +450,9 @@ impl Validator for Zebrad {
         )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
 
+        let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), rpc_listen_port);
+        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+
         let zebrad = Zebrad {
             handle,
             network_listen_port,
@@ -442,6 +461,7 @@ impl Validator for Zebrad {
             logs_dir,
             data_dir,
             activation_heights: config.activation_heights,
+            client,
         };
 
         if config.chain_cache.is_none() {
@@ -458,46 +478,67 @@ impl Validator for Zebrad {
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
-        // TODO: generate n blocks instead of 1
-        let rpc_address = SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            self.rpc_listen_port(),
-        );
-        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+        let chain_height = self.get_chain_height().await;
 
-        let block_template: GetBlockTemplate = client
-            .json_result_from_call("getblocktemplate", "[]".to_string())
-            .await
-            .expect("response should be success output with a serialized `GetBlockTemplate`");
+        for _ in 0..n {
+            let block_template: GetBlockTemplate = self
+                .client
+                .json_result_from_call("getblocktemplate", "[]".to_string())
+                .await
+                .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-        let network_upgrade = if block_template.height < self.activation_heights().nu5.into() {
-            NetworkUpgrade::Canopy
-        } else {
-            NetworkUpgrade::Nu5
-        };
+            let network_upgrade = if block_template.height < self.activation_heights().nu5.into() {
+                NetworkUpgrade::Canopy
+            } else {
+                NetworkUpgrade::Nu5
+            };
 
-        let block_data = hex::encode(
-            proposal_block_from_template(&block_template, TimeSource::default(), network_upgrade)
+            let block_data = hex::encode(
+                proposal_block_from_template(
+                    &block_template,
+                    TimeSource::default(),
+                    network_upgrade,
+                )
                 .unwrap()
                 .zcash_serialize_to_vec()
                 .unwrap(),
-        );
+            );
 
-        let submit_block_response = client
-            .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-            .await
-            .unwrap();
+            let submit_block_response = self
+                .client
+                .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
+                .await
+                .unwrap();
 
-        if !submit_block_response.contains(r#""result":null"#) {
-            panic!("failed to submit block!")
-        };
+            if !submit_block_response.contains(r#""result":null"#) {
+                panic!("failed to submit block!")
+            };
+        }
+        self.poll_chain_height(chain_height + n).await;
 
         Ok(())
     }
 
-    fn get_chain_height(&self) -> BlockHeight {
-        // TODO:
-        BlockHeight::from_u32(1)
+    async fn get_chain_height(&self) -> BlockHeight {
+        let response: serde_json::Value = self
+            .client
+            .json_result_from_call("getblockchaininfo", "[]".to_string())
+            .await
+            .unwrap();
+
+        let chain_height: u32 = response
+            .get("blocks")
+            .and_then(|h| h.as_u64())
+            .and_then(|h| u32::try_from(h).ok())
+            .unwrap();
+
+        BlockHeight::from_u32(chain_height)
+    }
+
+    async fn poll_chain_height(&self, target_height: BlockHeight) {
+        while self.get_chain_height().await < target_height {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
     }
 
     fn config_dir(&self) -> &TempDir {

@@ -5179,6 +5179,7 @@ dependencies = [
  "http 1.1.0",
  "json",
  "portpicker",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tokio",

@@ -54,7 +54,7 @@ pub async fn generate_zcashd_chain_cache(
         LightwalletdConfig {
             lightwalletd_bin,
             listen_port: None,
-            validator_conf: PathBuf::new(),
+            zcashd_conf: PathBuf::new(),
         },
         ZcashdConfig {
             zcashd_bin,
@@ -212,7 +212,7 @@ pub async fn get_lightd_info(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -317,7 +317,7 @@ pub async fn get_latest_block(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -380,7 +380,7 @@ pub async fn get_block(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -440,7 +440,7 @@ pub async fn get_block_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -501,7 +501,7 @@ pub async fn get_block_nullifiers(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -569,7 +569,7 @@ pub async fn get_block_range_nullifiers(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -651,7 +651,7 @@ pub async fn get_block_range_nullifiers_reverse(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -733,7 +733,7 @@ pub async fn get_block_range_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -815,7 +815,7 @@ pub async fn get_block_range_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -897,7 +897,7 @@ pub async fn get_block_range_reverse(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -979,7 +979,7 @@ pub async fn get_block_range_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1082,7 +1082,7 @@ pub async fn get_transaction(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1316,7 +1316,7 @@ pub async fn get_taddress_txids_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1428,7 +1428,7 @@ pub async fn get_taddress_txids_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1540,7 +1540,7 @@ pub async fn get_taddress_txids_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1652,7 +1652,7 @@ pub async fn get_taddress_balance(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1723,7 +1723,7 @@ pub async fn get_taddress_balance_stream(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1796,7 +1796,7 @@ pub async fn get_mempool_tx(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1970,7 +1970,7 @@ pub async fn get_mempool_stream(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2237,7 +2237,7 @@ pub async fn get_tree_state_by_height(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2305,7 +2305,7 @@ pub async fn get_tree_state_by_hash(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2383,7 +2383,7 @@ pub async fn get_tree_state_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2444,7 +2444,7 @@ pub async fn get_latest_tree_state(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2510,7 +2510,7 @@ pub async fn get_subtree_roots_sapling(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2590,7 +2590,7 @@ pub async fn get_subtree_roots_orchard(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2667,7 +2667,7 @@ pub async fn get_address_utxos_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2740,7 +2740,7 @@ pub async fn get_address_utxos_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2814,7 +2814,7 @@ pub async fn get_address_utxos_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2888,7 +2888,7 @@ pub async fn get_address_utxos_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2961,7 +2961,7 @@ pub async fn get_address_utxos_stream_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3042,7 +3042,7 @@ pub async fn get_address_utxos_stream_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3124,7 +3124,7 @@ pub async fn get_address_utxos_stream_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3206,7 +3206,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 

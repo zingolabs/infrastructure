@@ -57,6 +57,8 @@ async fn launch_zebrad() {
     .unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
+
+    zebrad.get_chain_height().await;
 }
 
 #[tokio::test]
@@ -121,7 +123,7 @@ async fn launch_localnet_lightwalletd_zcashd() {
         LightwalletdConfig {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
-            validator_conf: PathBuf::new(),
+            zcashd_conf: PathBuf::new(),
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
@@ -149,12 +151,12 @@ async fn launch_localnet_lightwalletd_zebrad() {
         LightwalletdConfig {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
-            validator_conf: PathBuf::new(),
+            zcashd_conf: PathBuf::new(),
         },
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
             network_listen_port: None,
-            rpc_listen_port: Some(18232),
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: ABANDON_ABANDON_UA,
             chain_cache: None,
@@ -233,7 +235,7 @@ async fn lightwalletd_basic_send() {
         LightwalletdConfig {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
-            validator_conf: PathBuf::new(),
+            zcashd_conf: PathBuf::new(),
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,

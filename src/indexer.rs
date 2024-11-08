@@ -35,8 +35,8 @@ pub struct LightwalletdConfig {
     pub lightwalletd_bin: Option<PathBuf>,
     /// Listen RPC port
     pub listen_port: Option<Port>,
-    /// Validator configuration file location
-    pub validator_conf: PathBuf,
+    /// Zcashd configuration file location
+    pub zcashd_conf: PathBuf,
 }
 
 /// Functionality for indexer/light-node processes.
@@ -201,7 +201,7 @@ impl Indexer for Lightwalletd {
             config_dir.path(),
             port,
             lwd_log_file_path.clone(),
-            config.validator_conf.clone(),
+            config.zcashd_conf.clone(),
         )
         .unwrap();
 
@@ -217,7 +217,7 @@ impl Indexer for Lightwalletd {
                 "--log-file",
                 lwd_log_file_path.to_str().unwrap(),
                 "--zcash-conf-path",
-                config.validator_conf.to_str().unwrap(),
+                config.zcashd_conf.to_str().unwrap(),
                 "--config",
                 config_file_path.to_str().unwrap(),
             ])
