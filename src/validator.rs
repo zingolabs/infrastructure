@@ -525,8 +525,6 @@ impl Validator for Zebrad {
             .and_then(|h| u32::try_from(h).ok())
             .unwrap();
 
-        dbg!(&chain_height);
-
         BlockHeight::from_u32(chain_height)
     }
 

@@ -12,7 +12,7 @@ use zingolib::{
 use zcash_local_net::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network,
+    network, utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
@@ -51,15 +51,32 @@ async fn launch_zebrad() {
         rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(PathBuf::from("/home/oscar/.cache/zebra")),
-        // chain_cache: None,
+        chain_cache: None,
+    })
+    .await
+    .unwrap();
+    zebrad.print_stdout();
+    zebrad.print_stderr();
+}
+
+#[tokio::test]
+async fn launch_zebrad_with_cache() {
+    tracing_subscriber::fmt().init();
+
+    let zebrad = Zebrad::launch(ZebradConfig {
+        zebrad_bin: ZEBRAD_BIN,
+        network_listen_port: None,
+        rpc_listen_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
     })
     .await
     .unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 
-    zebrad.get_chain_height().await;
+    assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
 
 #[tokio::test]
