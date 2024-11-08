@@ -246,7 +246,7 @@ impl Indexer for Lightwalletd {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zainod couldn't be killed")
+        self.handle.kill().expect("lightwalletd couldn't be killed")
     }
 
     fn config_dir(&self) -> &TempDir {

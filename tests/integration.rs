@@ -154,7 +154,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
             network_listen_port: None,
-            rpc_listen_port: Some(8232),
+            rpc_listen_port: Some(18232),
             activation_heights: network::ActivationHeights::default(),
             miner_address: ABANDON_ABANDON_UA,
             chain_cache: None,
