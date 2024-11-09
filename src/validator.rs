@@ -19,7 +19,7 @@ use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
 
 use crate::{config, error::LaunchError, launch, logs, network, Process};
 
-/// Default miner address. Regtest unified address for abandon abandon..art seed (entropy all zeros)
+/// Zebrad default miner address.
 pub const ZEBRAD_DEFAULT_MINER: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
 
 /// Zcashd configuration
