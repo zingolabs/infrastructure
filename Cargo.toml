@@ -14,8 +14,9 @@ zcash_primitives = { git = "https://github.com/zingolabs/librustzcash.git", tag 
 zcash_protocol = { git = "https://github.com/zingolabs/librustzcash.git", tag = "zcash_client_sqlite-0.11.2_plus_zingolabs_changes-1-g7ad60b5d5-2-g121371a08"  }
 
 # Lightclient
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", optional = true }
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ], optional = true }
+zingo-netutils = { git = "https://github.com/Oscar-Pepper/zingolib.git", branch = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering", optional = true }
+zingolib = { git = "https://github.com/Oscar-Pepper/zingolib.git", branch = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering", features = [ "test-elevation" ], optional = true }
+# zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ], optional = true }
 
 # RPC
 tonic = {version = "0.12.2", features = ["tls", "tls-roots", "tls-webpki-roots"], optional = true }
@@ -45,7 +46,8 @@ tokio-stream = { version = "0.1.16", optional = true }
 
 [dev-dependencies]
 # Lightclient
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ] }
+zingolib = { git = "https://github.com/Oscar-Pepper/zingolib.git", branch = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2_with_output_ordering", features = [ "test-elevation" ] }
+# zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep_002_091024_95e5b0d8f9d5ee0485c6141533da2f727aeafae2", features = [ "test-elevation" ] }
 
 # Logging
 tracing-subscriber = "0.3.15"
