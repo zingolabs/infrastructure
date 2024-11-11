@@ -21,6 +21,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 
+use portpicker::Port;
 use tokio::sync::mpsc::unbounded_channel;
 use zcash_client_backend::proto;
 use zcash_primitives::transaction::Transaction;
@@ -37,7 +38,7 @@ use zingolib::{
 };
 
 use crate::{
-    client,
+    client, config,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
     validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
@@ -62,6 +63,7 @@ pub async fn generate_zebrad_large_chain_cache(
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            override_config_file: None,
         },
     )
     .await;
@@ -2519,31 +2521,33 @@ pub async fn get_latest_tree_state(
 /// This is not a satisfactory test fixture for this rpc and will return empty vecs.
 /// This rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
 pub async fn get_subtree_roots_sapling(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
+    zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
+    zebrad_testnet_config_path: PathBuf,
+    zebrad_rpc_listen_port: Port,
 ) {
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
-        rpc_port: None,
+    let zebrad = Zebrad::launch(ZebradConfig {
+        zebrad_bin,
+        network_listen_port: None,
+        rpc_listen_port: Some(zebrad_rpc_listen_port),
         activation_heights: network::ActivationHeights::default(),
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: None,
+        override_config_file: Some(zebrad_testnet_config_path),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
         listen_port: None,
-        validator_port: zcashd.port(),
+        validator_port: zebrad.rpc_listen_port(),
     })
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
     })
     .unwrap();
 
@@ -2591,6 +2595,7 @@ pub async fn get_subtree_roots_sapling(
 
     println!("");
 
+    assert!(lwd_subtree_roots.len() >= 2);
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
 }
 

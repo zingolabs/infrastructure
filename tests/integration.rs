@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use once_cell::sync::Lazy;
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
 use zingolib::{
@@ -22,6 +23,11 @@ const ZCASH_CLI_BIN: Option<PathBuf> = None;
 const ZEBRAD_BIN: Option<PathBuf> = None;
 const LIGHTWALLETD_BIN: Option<PathBuf> = None;
 const ZAINOD_BIN: Option<PathBuf> = None;
+
+static ZEBRAD_TESTNET_CONFIG: Lazy<Option<PathBuf>> = Lazy::new(|| {
+    let workspace_root_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+    Some(workspace_root_path.join(".config/zebrad.toml"))
+});
 
 #[tokio::test]
 async fn launch_zcashd() {
@@ -52,6 +58,7 @@ async fn launch_zebrad() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: None,
+        override_config_file: None,
     })
     .await
     .unwrap();
@@ -70,6 +77,7 @@ async fn launch_zebrad_with_cache() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        override_config_file: None,
     })
     .await
     .unwrap();
@@ -123,6 +131,7 @@ async fn launch_localnet_zainod_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            override_config_file: None,
         },
     )
     .await;
@@ -178,6 +187,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            override_config_file: None,
         },
     )
     .await;
@@ -304,7 +314,9 @@ async fn lightwalletd_basic_send() {
 
 #[cfg(feature = "test_fixtures")]
 mod client_rpcs {
-    use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
+    use crate::{
+        LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN, ZEBRAD_TESTNET_CONFIG,
+    };
 
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
     #[tokio::test]
@@ -651,10 +663,11 @@ mod client_rpcs {
         tracing_subscriber::fmt().init();
 
         zcash_local_net::test_fixtures::get_subtree_roots_sapling(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
+            ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
+            ZEBRAD_TESTNET_CONFIG.clone().unwrap(),
+            18232,
         )
         .await;
     }

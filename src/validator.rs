@@ -70,6 +70,11 @@ pub struct ZebradConfig {
     pub miner_address: &'static str,
     /// Chain cache location. If `None`, launches a new chain.
     pub chain_cache: Option<PathBuf>,
+    /// Overrides the generated config file path with the specified config file path.
+    /// This is useful for using custom pre-synced chain such as Testnet / Mainnet for testing.
+    /// `rpc_listen_port` must match the overriding config file.
+    /// `activation_heights`, `miner_address` and `chain_cache` will be ignored while using config override.
+    pub override_config_file: Option<PathBuf>,
 }
 
 impl Default for ZebradConfig {
@@ -81,6 +86,7 @@ impl Default for ZebradConfig {
             activation_heights: network::ActivationHeights::default(),
             miner_address: &ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            override_config_file: None,
         }
     }
 }
@@ -395,15 +401,19 @@ impl Validator for Zebrad {
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path = config::zebrad(
-            config_dir.path(),
-            data_dir.path(),
-            network_listen_port,
-            rpc_listen_port,
-            &config.activation_heights,
-            config.miner_address,
-        )
-        .unwrap();
+        let config_file_path = if let Some(path) = config.override_config_file.clone() {
+            path
+        } else {
+            config::zebrad(
+                config_dir.path(),
+                data_dir.path(),
+                network_listen_port,
+                rpc_listen_port,
+                &config.activation_heights,
+                config.miner_address,
+            )
+            .unwrap()
+        };
         // create zcashd conf necessary for lightwalletd
         config::zcashd(
             config_dir.path(),
@@ -438,7 +448,7 @@ impl Validator for Zebrad {
             &mut handle,
             &logs_dir,
             None,
-            "activating mempool",
+            "Release always valid in Testnet",
             "error:",
         )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
@@ -457,7 +467,7 @@ impl Validator for Zebrad {
             client,
         };
 
-        if config.chain_cache.is_none() {
+        if config.chain_cache.is_none() && config.override_config_file.is_none() {
             // generate genesis block
             zebrad.generate_blocks(1).await.unwrap();
         }
