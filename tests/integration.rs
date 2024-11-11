@@ -447,6 +447,19 @@ mod client_rpcs {
     }
 
     #[tokio::test]
+    async fn get_mempool_stream_zingolib_mempool_monitor() {
+        tracing_subscriber::fmt().init();
+
+        zcash_local_net::test_fixtures::get_mempool_stream_zingolib_mempool_monitor(
+            ZCASHD_BIN,
+            ZCASH_CLI_BIN,
+            ZAINOD_BIN,
+            LIGHTWALLETD_BIN,
+        )
+        .await;
+    }
+
+    #[tokio::test]
     async fn get_mempool_stream() {
         tracing_subscriber::fmt().init();
 
