@@ -1962,6 +1962,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1972,7 +1973,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
