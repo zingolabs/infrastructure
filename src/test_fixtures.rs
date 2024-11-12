@@ -34,7 +34,7 @@ use zingolib::{
     lightclient::LightClient,
     testutils::lightclient::{from_inputs, get_base_address},
     testvectors::REG_O_ADDR_FROM_ABANDONART,
-    wallet::data::summaries::TransactionSummaryInterface as _,
+    wallet::data::summaries::TransactionSummaryInterface,
 };
 
 use crate::{
@@ -1882,6 +1882,7 @@ pub async fn get_mempool_tx(
     )
     .await
     .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
     let full_txid_2 = txids_2.first().as_ref().to_vec();
     // the excluded list only accepts truncated txids when they are truncated at the start, not end.
@@ -1944,13 +1945,85 @@ pub async fn get_mempool_tx(
     assert_eq!(lwd_txs[0].hash, txids[0]);
     assert_eq!(lwd_txs[1].hash, txids[1]);
     assert_eq!(zainod_txs, lwd_txs);
+}
 
-    let recipient = Arc::new(recipient);
-    LightClient::start_mempool_monitor(recipient.clone());
-    recipient.clear_state().await;
+/// GetMempoolStream RPC test (zingolib mempool monitor)
+pub async fn get_mempool_stream_zingolib_mempool_monitor(
+    zcashd_bin: Option<PathBuf>,
+    zcash_cli_bin: Option<PathBuf>,
+    zainod_bin: Option<PathBuf>,
+    lightwalletd_bin: Option<PathBuf>,
+) {
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin,
+        zcash_cli_bin,
+        rpc_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+    })
+    .unwrap();
+    let zainod = Zainod::launch(ZainodConfig {
+        zainod_bin,
+        listen_port: None,
+        validator_port: zcashd.port(),
+    })
+    .unwrap();
+    let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
+        lightwalletd_bin,
+        listen_port: None,
+        validator_conf: zcashd.config_path(),
+    })
+    .unwrap();
+
+    let lightclient_dir = tempfile::tempdir().unwrap();
+    let (faucet, recipient) =
+        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
+
+    faucet.do_sync(false).await.unwrap();
+    let _txids_1 = from_inputs::quick_send(
+        &faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+            200_000,
+            Some("orchard test memo"),
+        )],
+    )
+    .await
+    .unwrap();
+    let _txids_2 = from_inputs::quick_send(
+        &faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+            100_000,
+            Some("sapling test memo"),
+        )],
+    )
+    .await
+    .unwrap();
+
     recipient.do_sync(false).await.unwrap();
+    let _txids_3 = from_inputs::quick_send(
+        &recipient,
+        vec![(
+            &get_base_address(&faucet, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+            50_000,
+            Some("orchard test memo"),
+        )],
+    )
+    .await
+    .unwrap();
+    let _txids_4 = from_inputs::quick_send(
+        &recipient,
+        vec![(
+            &get_base_address(&faucet, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+            25_000,
+            Some("sapling test memo"),
+        )],
+    )
+    .await
+    .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let lwd_tx_summaries = recipient.transaction_summaries().await;
 
     drop(recipient);
     drop(faucet);
@@ -1960,23 +2033,89 @@ pub async fn get_mempool_tx(
         client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port()).await;
 
     let recipient = Arc::new(recipient);
+    recipient.do_sync(false).await.unwrap();
     LightClient::start_mempool_monitor(recipient.clone());
-    recipient.clear_state().await;
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let zainod_tx_summaries = recipient.transaction_summaries().await;
+    let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
+    println!("Zainod Transactions:\n{}", zainod_tx_summaries);
+    let mut zainod_tx_summaries = zainod_tx_summaries.0;
+
+    drop(recipient);
+    drop(_faucet);
+
+    let lightclient_dir = tempfile::tempdir().unwrap();
+    let (_faucet, recipient) =
+        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
+
+    let recipient = Arc::new(recipient);
+    recipient.do_sync(false).await.unwrap();
+    LightClient::start_mempool_monitor(recipient.clone());
+    recipient.do_sync(false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
+    println!("Lightwalletd Transactions:\n{}", lwd_tx_summaries);
+    let mut lwd_tx_summaries = lwd_tx_summaries.0;
+
+    zainod_tx_summaries.sort_by_key(|tx| tx.txid());
+    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight());
+    lwd_tx_summaries.sort_by_key(|tx| tx.txid());
+    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight());
 
     println!("Asserting wallet transaction summaries...");
 
-    println!("\nZainod:");
-    println!("{}", zainod_tx_summaries);
+    assert_eq!(lwd_tx_summaries.len(), zainod_tx_summaries.len());
 
-    println!("\nLightwalletd:");
-    println!("{}", lwd_tx_summaries);
+    for i in 0..zainod_tx_summaries.len() {
+        println!("\nZainod transaction {}:", i);
+        println!("{}", zainod_tx_summaries[i]);
 
-    println!("");
+        println!("\nLightwalletd transaction {}:", i);
+        println!("{}", lwd_tx_summaries[i]);
 
-    assert_eq!(zainod_tx_summaries, lwd_tx_summaries);
+        println!("");
+
+        assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
+        assert_eq!(
+            lwd_tx_summaries[i].status(),
+            zainod_tx_summaries[i].status()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].blockheight(),
+            zainod_tx_summaries[i].blockheight()
+        );
+        assert_eq!(lwd_tx_summaries[i].kind(), zainod_tx_summaries[i].kind());
+        assert_eq!(lwd_tx_summaries[i].value(), zainod_tx_summaries[i].value());
+        assert_eq!(lwd_tx_summaries[i].fee(), zainod_tx_summaries[i].fee());
+        assert_eq!(
+            lwd_tx_summaries[i].zec_price(),
+            zainod_tx_summaries[i].zec_price()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].orchard_notes(),
+            zainod_tx_summaries[i].orchard_notes()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].sapling_notes(),
+            zainod_tx_summaries[i].sapling_notes()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].transparent_coins(),
+            zainod_tx_summaries[i].transparent_coins()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].outgoing_tx_data(),
+            zainod_tx_summaries[i].outgoing_tx_data()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].orchard_nullifiers(),
+            zainod_tx_summaries[i].orchard_nullifiers()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].sapling_nullifiers(),
+            zainod_tx_summaries[i].sapling_nullifiers()
+        );
+    }
 }
 
 /// GetMempoolStream RPC test
@@ -2077,7 +2216,6 @@ pub async fn get_mempool_stream(
     )
     .await
     .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
     // receive txs from mempool
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
@@ -2165,7 +2303,7 @@ pub async fn get_mempool_stream(
     // receive txs from mempool
     while let Some(raw_tx) = zainod_receiver.recv().await {
         zainod_raw_txs.push(raw_tx);
-        if lwd_raw_txs.len() == 4 {
+        if zainod_raw_txs.len() == 4 {
             break;
         }
     }
@@ -2220,14 +2358,6 @@ pub async fn get_mempool_stream(
     assert_eq!(lwd_txs[3].txid(), txids[3]);
     assert_eq!(zainod_txs, lwd_txs);
 
-    let recipient = Arc::new(recipient);
-    LightClient::start_mempool_monitor(recipient.clone());
-    recipient.clear_state().await;
-    recipient.do_sync(false).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let mut lwd_tx_summaries = recipient.transaction_summaries().await.0;
-    lwd_tx_summaries.sort_by(|a, b| a.txid().cmp(&b.txid()));
-
     drop(recipient);
     drop(faucet);
 
@@ -2237,13 +2367,86 @@ pub async fn get_mempool_stream(
 
     let recipient = Arc::new(recipient);
     LightClient::start_mempool_monitor(recipient.clone());
-    recipient.clear_state().await;
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let mut zainod_tx_summaries = recipient.transaction_summaries().await.0;
-    zainod_tx_summaries.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
+    println!("Zainod Transactions:\n{}\n", zainod_tx_summaries);
+    let mut zainod_tx_summaries = zainod_tx_summaries.0;
 
-    assert_eq!(zainod_tx_summaries, lwd_tx_summaries);
+    drop(recipient);
+    drop(_faucet);
+
+    let lightclient_dir = tempfile::tempdir().unwrap();
+    let (_faucet, recipient) =
+        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
+
+    let recipient = Arc::new(recipient);
+    LightClient::start_mempool_monitor(recipient.clone());
+    recipient.do_sync(false).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
+    println!("Lightwalletd Transactions:\n{}\n", lwd_tx_summaries);
+    let mut lwd_tx_summaries = lwd_tx_summaries.0;
+
+    zainod_tx_summaries.sort_by_key(|tx| tx.txid());
+    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight());
+    lwd_tx_summaries.sort_by_key(|tx| tx.txid());
+    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight());
+
+    println!("Asserting wallet transaction summaries...");
+
+    assert_eq!(lwd_tx_summaries.len(), zainod_tx_summaries.len());
+
+    for i in 0..zainod_tx_summaries.len() {
+        println!("\nZainod transaction {}:", i);
+        println!("{}", zainod_tx_summaries[i]);
+
+        println!("\nLightwalletd transaction {}:", i);
+        println!("{}", lwd_tx_summaries[i]);
+
+        println!("");
+
+        assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
+        assert_eq!(
+            lwd_tx_summaries[i].status(),
+            zainod_tx_summaries[i].status()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].blockheight(),
+            zainod_tx_summaries[i].blockheight()
+        );
+        assert_eq!(lwd_tx_summaries[i].kind(), zainod_tx_summaries[i].kind());
+        assert_eq!(lwd_tx_summaries[i].value(), zainod_tx_summaries[i].value());
+        assert_eq!(lwd_tx_summaries[i].fee(), zainod_tx_summaries[i].fee());
+        assert_eq!(
+            lwd_tx_summaries[i].zec_price(),
+            zainod_tx_summaries[i].zec_price()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].orchard_notes(),
+            zainod_tx_summaries[i].orchard_notes()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].sapling_notes(),
+            zainod_tx_summaries[i].sapling_notes()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].transparent_coins(),
+            zainod_tx_summaries[i].transparent_coins()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].outgoing_tx_data(),
+            zainod_tx_summaries[i].outgoing_tx_data()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].orchard_nullifiers(),
+            zainod_tx_summaries[i].orchard_nullifiers()
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].sapling_nullifiers(),
+            zainod_tx_summaries[i].sapling_nullifiers()
+        );
+    }
 }
 
 /// GetTreeState RPC test
