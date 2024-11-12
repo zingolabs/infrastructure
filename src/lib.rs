@@ -21,7 +21,9 @@
 //!
 //! ## Testing
 //!
-//! Integration tests in this crate will require the binaries to be in $PATH to pass successfully.
+//! Pre-requisities for running integration tests successfully:
+//! - Build the Zcashd, Zebrad, Zainod and Lightwalletd binaries and add to $PATH.
+//! - Run `cargo test generate_zebrad_large_chain_cache --features test_fixtures -- --ignored` or `cargo nextest run generate_zebrad_large_chain_cache --run-ignored ignored-only --features test_fixtures`
 
 use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
