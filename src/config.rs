@@ -9,6 +9,7 @@ use portpicker::Port;
 use crate::network::ActivationHeights;
 
 pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
+pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
@@ -72,6 +73,90 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
                 ).as_bytes()
         )?;
     }
+
+    Ok(config_file_path)
+}
+
+/// Writes the Zebrad config file to the specified config directory.
+/// Returns the path to the config file.
+///
+/// Canopy (and all earlier netwrok upgrades) must have an activation height of 1 for zebrad regtest mode
+pub(crate) fn zebrad(
+    config_dir: &Path,
+    data_dir: &Path,
+    network_listen_port: Port,
+    rpc_listen_port: Port,
+    activation_heights: &ActivationHeights,
+    miner_address: &str,
+) -> std::io::Result<PathBuf> {
+    let config_file_path = config_dir.join(ZEBRAD_FILENAME);
+    let mut config_file = File::create(config_file_path.clone())?;
+
+    if activation_heights.canopy != 1.into() {
+        panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
+    }
+    let nu5_activation_height: u32 = activation_heights.nu5.into();
+
+    let chain_cache = data_dir.to_str().unwrap();
+
+    config_file.write_all(
+        format!(
+            "\
+[consensus]
+checkpoint_sync = true
+
+[mempool]
+eviction_memory_time = \"1h\"
+tx_cost_limit = 80000000
+
+[metrics]
+
+[mining]
+debug_like_zcashd = true
+miner_address = \"{miner_address}\"
+
+[network]
+cache_dir = \"{chain_cache}\"
+crawl_new_peer_interval = \"1m 1s\"
+max_connections_per_ip = 1
+network = \"Regtest\"
+peerset_initial_target_size = 25
+listen_addr = \"127.0.0.1:{network_listen_port}\"
+
+[network.testnet_parameters]
+disable_pow = true
+
+[network.testnet_parameters.activation_heights]
+# Configured activation heights must be greater than or equal to 1,
+# block height 0 is reserved for the Genesis network upgrade in Zebra
+NU5 = {nu5_activation_height} 
+
+[rpc]
+debug_force_finished_sync = false
+enable_cookie_auth = false
+parallel_cpu_threads = 0
+listen_addr = \"127.0.0.1:{rpc_listen_port}\"
+
+[state]
+cache_dir = \"{chain_cache}\"
+delete_old_database = true
+# ephemeral is set false to enable chain caching
+ephemeral = false
+
+[sync]
+checkpoint_verify_concurrency_limit = 1000
+download_concurrency_limit = 50
+full_verify_concurrency_limit = 20
+parallel_cpu_threads = 0
+
+[tracing]
+buffer_limit = 128000
+force_use_color = false
+use_color = true
+use_journald = false"
+        )
+        .as_bytes(),
+    )?;
 
     Ok(config_file_path)
 }

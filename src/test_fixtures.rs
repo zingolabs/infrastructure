@@ -40,9 +40,42 @@ use crate::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
-    validator::{Validator as _, Zcashd, ZcashdConfig},
+    validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
+
+/// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
+pub async fn generate_zebrad_large_chain_cache(
+    zebrad_bin: Option<PathBuf>,
+    lightwalletd_bin: Option<PathBuf>,
+) {
+    let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
+        LightwalletdConfig {
+            lightwalletd_bin,
+            listen_port: None,
+            zcashd_conf: PathBuf::new(),
+        },
+        ZebradConfig {
+            zebrad_bin,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ZEBRAD_DEFAULT_MINER,
+            chain_cache: None,
+        },
+    )
+    .await;
+
+    local_net.validator().generate_blocks(150).await.unwrap();
+
+    let chain_cache_dir = utils::chain_cache_dir();
+    if !chain_cache_dir.exists() {
+        std::fs::create_dir_all(chain_cache_dir.clone()).unwrap();
+    }
+    local_net
+        .validator_mut()
+        .cache_chain(chain_cache_dir.join("client_rpc_tests_large"));
+}
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache(
@@ -54,7 +87,7 @@ pub async fn generate_zcashd_chain_cache(
         LightwalletdConfig {
             lightwalletd_bin,
             listen_port: None,
-            validator_conf: PathBuf::new(),
+            zcashd_conf: PathBuf::new(),
         },
         ZcashdConfig {
             zcashd_bin,
@@ -64,9 +97,10 @@ pub async fn generate_zcashd_chain_cache(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         },
-    );
+    )
+    .await;
 
-    local_net.validator().generate_blocks(2).unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -118,11 +152,11 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     recipient.quick_shield().await.unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -135,7 +169,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -148,7 +182,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     recipient.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -161,7 +195,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(2).unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
 
     faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -174,7 +208,7 @@ pub async fn generate_zcashd_chain_cache(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let chain_cache_dir = utils::chain_cache_dir();
     if !chain_cache_dir.exists() {
@@ -200,6 +234,7 @@ pub async fn get_lightd_info(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -210,7 +245,7 @@ pub async fn get_lightd_info(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -304,6 +339,7 @@ pub async fn get_latest_block(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -314,7 +350,7 @@ pub async fn get_latest_block(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -366,6 +402,7 @@ pub async fn get_block(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -376,7 +413,7 @@ pub async fn get_block(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -425,6 +462,7 @@ pub async fn get_block_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -435,7 +473,7 @@ pub async fn get_block_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -485,6 +523,7 @@ pub async fn get_block_nullifiers(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -495,7 +534,7 @@ pub async fn get_block_nullifiers(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -552,6 +591,7 @@ pub async fn get_block_range_nullifiers(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -562,7 +602,7 @@ pub async fn get_block_range_nullifiers(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -633,6 +673,7 @@ pub async fn get_block_range_nullifiers_reverse(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -643,7 +684,7 @@ pub async fn get_block_range_nullifiers_reverse(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -714,6 +755,7 @@ pub async fn get_block_range_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -724,7 +766,7 @@ pub async fn get_block_range_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -795,6 +837,7 @@ pub async fn get_block_range_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -805,7 +848,7 @@ pub async fn get_block_range_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -876,6 +919,7 @@ pub async fn get_block_range_reverse(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -886,7 +930,7 @@ pub async fn get_block_range_reverse(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -957,6 +1001,7 @@ pub async fn get_block_range_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -967,7 +1012,7 @@ pub async fn get_block_range_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1059,6 +1104,7 @@ pub async fn get_transaction(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1069,7 +1115,7 @@ pub async fn get_transaction(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1088,7 +1134,7 @@ pub async fn get_transaction(
     )
     .await
     .unwrap();
-    zcashd.generate_blocks(1).unwrap();
+    zcashd.generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1152,7 +1198,8 @@ pub async fn send_transaction(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1171,7 +1218,7 @@ pub async fn send_transaction(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1206,7 +1253,8 @@ pub async fn send_transaction(
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    );
+    )
+    .await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1225,7 +1273,7 @@ pub async fn send_transaction(
     )
     .await
     .unwrap();
-    local_net.validator().generate_blocks(1).unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1290,6 +1338,7 @@ pub async fn get_taddress_txids_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1300,7 +1349,7 @@ pub async fn get_taddress_txids_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1401,6 +1450,7 @@ pub async fn get_taddress_txids_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1411,7 +1461,7 @@ pub async fn get_taddress_txids_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1512,6 +1562,7 @@ pub async fn get_taddress_txids_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1522,7 +1573,7 @@ pub async fn get_taddress_txids_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1623,6 +1674,7 @@ pub async fn get_taddress_balance(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1633,7 +1685,7 @@ pub async fn get_taddress_balance(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1693,6 +1745,7 @@ pub async fn get_taddress_balance_stream(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1703,7 +1756,7 @@ pub async fn get_taddress_balance_stream(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1765,6 +1818,7 @@ pub async fn get_mempool_tx(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1775,7 +1829,7 @@ pub async fn get_mempool_tx(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -1906,6 +1960,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -1916,7 +1971,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2077,6 +2132,7 @@ pub async fn get_mempool_stream(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2087,7 +2143,7 @@ pub async fn get_mempool_stream(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2407,6 +2463,7 @@ pub async fn get_tree_state_by_height(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2417,7 +2474,7 @@ pub async fn get_tree_state_by_height(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2474,6 +2531,7 @@ pub async fn get_tree_state_by_hash(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2484,7 +2542,7 @@ pub async fn get_tree_state_by_hash(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2551,6 +2609,7 @@ pub async fn get_tree_state_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2561,7 +2620,7 @@ pub async fn get_tree_state_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2611,6 +2670,7 @@ pub async fn get_latest_tree_state(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2621,7 +2681,7 @@ pub async fn get_latest_tree_state(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2676,6 +2736,7 @@ pub async fn get_subtree_roots_sapling(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2686,7 +2747,7 @@ pub async fn get_subtree_roots_sapling(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2755,6 +2816,7 @@ pub async fn get_subtree_roots_orchard(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2765,7 +2827,7 @@ pub async fn get_subtree_roots_orchard(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2831,6 +2893,7 @@ pub async fn get_address_utxos_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2841,7 +2904,7 @@ pub async fn get_address_utxos_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2903,6 +2966,7 @@ pub async fn get_address_utxos_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2913,7 +2977,7 @@ pub async fn get_address_utxos_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -2976,6 +3040,7 @@ pub async fn get_address_utxos_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -2986,7 +3051,7 @@ pub async fn get_address_utxos_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3049,6 +3114,7 @@ pub async fn get_address_utxos_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3059,7 +3125,7 @@ pub async fn get_address_utxos_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3121,6 +3187,7 @@ pub async fn get_address_utxos_stream_all(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3131,7 +3198,7 @@ pub async fn get_address_utxos_stream_all(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3201,6 +3268,7 @@ pub async fn get_address_utxos_stream_lower(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3211,7 +3279,7 @@ pub async fn get_address_utxos_stream_lower(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3282,6 +3350,7 @@ pub async fn get_address_utxos_stream_upper(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3292,7 +3361,7 @@ pub async fn get_address_utxos_stream_upper(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
@@ -3363,6 +3432,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
+    .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
@@ -3373,7 +3443,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        validator_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
 
