@@ -2722,8 +2722,10 @@ pub async fn get_latest_tree_state(
 
 /// GetSubtreeRoots RPC test
 ///
-/// This is not a satisfactory test fixture for this rpc and will return empty vecs.
-/// This rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+/// This test requires Zebrad testnet to already be synced using the config file at `zebrad_testnet_config_path`
+/// See `zcash_local_net/.config/zebrad.toml` for an example config file.
+///
+/// `zebrad_rpc_listen_port` must match the [rpc.listen_addr] port in the zebrad config file.
 pub async fn get_subtree_roots_sapling(
     zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
@@ -2799,40 +2801,44 @@ pub async fn get_subtree_roots_sapling(
 
     println!("");
 
-    assert!(lwd_subtree_roots.len() >= 2);
+    if lwd_subtree_roots.len() < 2 {
+        panic!("please sync testnet chain until there are at least 2 subtree roots");
+    }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
 }
 
 /// GetSubtreeRoots RPC test
 ///
-/// This is not a satisfactory test fixture for this rpc and will return empty vecs.
-/// This rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+/// This test requires Zebrad testnet to already be synced using the config file at `zebrad_testnet_config_path`
+/// See `zcash_local_net/.config/zebrad.toml` for an example config file.
 pub async fn get_subtree_roots_orchard(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
+    zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
+    zebrad_testnet_config_path: PathBuf,
+    zebrad_rpc_listen_port: Port,
 ) {
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
-        rpc_port: None,
+    let zebrad = Zebrad::launch(ZebradConfig {
+        zebrad_bin,
+        network_listen_port: None,
+        rpc_listen_port: Some(zebrad_rpc_listen_port),
         activation_heights: network::ActivationHeights::default(),
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: None,
+        override_config_file: Some(zebrad_testnet_config_path),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
         zainod_bin,
         listen_port: None,
-        validator_port: zcashd.port(),
+        validator_port: zebrad.rpc_listen_port(),
     })
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
     })
     .unwrap();
 
@@ -2880,6 +2886,9 @@ pub async fn get_subtree_roots_orchard(
 
     println!("");
 
+    if lwd_subtree_roots.len() < 2 {
+        panic!("please sync testnet chain until there are at least 2 subtree roots");
+    }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
 }
 

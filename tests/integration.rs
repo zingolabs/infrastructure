@@ -669,8 +669,8 @@ mod client_rpcs {
         .await;
     }
 
-    // this is not a satisfactory test for this rpc and will return empty vecs.
-    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    /// This test requires Zebrad testnet to be synced using the config file at `zcash_local_net/.config/zebrad.toml`
+    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests due to using a fixed port"]
     #[tokio::test]
     async fn get_subtree_roots_sapling() {
         tracing_subscriber::fmt().init();
@@ -685,17 +685,18 @@ mod client_rpcs {
         .await;
     }
 
-    // this is not a satisfactory test for this rpc and will return empty vecs.
-    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    /// This test requires Zebrad testnet to be synced using the config file at `zcash_local_net/.config/zebrad.toml`
+    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests due to using a fixed port"]
     #[tokio::test]
     async fn get_subtree_roots_orchard() {
         tracing_subscriber::fmt().init();
 
         zcash_local_net::test_fixtures::get_subtree_roots_orchard(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
+            ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
+            ZEBRAD_TESTNET_CONFIG.clone().unwrap(),
+            18232,
         )
         .await;
     }
