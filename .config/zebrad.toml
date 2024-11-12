@@ -61,7 +61,6 @@ network = "Testnet"
 peerset_initial_target_size = 25
 
 [rpc]
-cookie_dir = "/home/oscar/.cache/zebra"
 debug_force_finished_sync = false
 enable_cookie_auth = false
 parallel_cpu_threads = 0
