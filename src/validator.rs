@@ -17,7 +17,13 @@ use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
     proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
 };
 
-use crate::{config, error::LaunchError, launch, logs, network, Process};
+use crate::{
+    config,
+    error::LaunchError,
+    launch, logs,
+    network::{self, Network},
+    Process,
+};
 
 /// Zebrad default miner address.
 pub const ZEBRAD_DEFAULT_MINER: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
@@ -70,11 +76,11 @@ pub struct ZebradConfig {
     pub miner_address: &'static str,
     /// Chain cache location. If `None`, launches a new chain.
     pub chain_cache: Option<PathBuf>,
-    /// Overrides the generated config file path with the specified config file path.
-    /// This is useful for using custom pre-synced chain such as Testnet / Mainnet for testing.
-    /// `rpc_listen_port` must match the overriding config file.
-    /// `activation_heights`, `miner_address` and `chain_cache` will be ignored while using config override.
-    pub override_config_file: Option<PathBuf>,
+    /// Network type.
+    ///
+    /// Can be used for testing against cached testnet / mainnet chains where large chains are needed.
+    /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
+    pub network: Network,
 }
 
 impl Default for ZebradConfig {
@@ -86,7 +92,7 @@ impl Default for ZebradConfig {
             activation_heights: network::ActivationHeights::default(),
             miner_address: &ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            override_config_file: None,
+            network: Network::Regtest,
         }
     }
 }
@@ -137,6 +143,9 @@ pub trait Validator: Sized {
         self.config_dir().path().join(Self::CONFIG_FILENAME)
     }
 
+    /// Network type
+    fn network(&self) -> Network;
+
     /// Caches chain. This stops the zcashd process.
     fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
         if chain_cache.exists() {
@@ -154,8 +163,16 @@ pub trait Validator: Sized {
             .unwrap()
     }
 
-    /// Loads chain into validator data directory from cache
-    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf);
+    /// Checks `chain cache` is valid and loads into `validator_data_dir`.
+    /// Returns the path to the loaded chain cache.
+    ///
+    /// If network is not `Regtest` variant, the chain cache will not be copied and the original cache path will be
+    /// returned instead
+    fn load_chain(
+        chain_cache: PathBuf,
+        validator_data_dir: PathBuf,
+        validator_network: Network,
+    ) -> PathBuf;
 
     /// Prints the stdout log.
     fn print_stdout(&self) {
@@ -220,7 +237,7 @@ impl Validator for Zcashd {
         let data_dir = tempfile::tempdir().unwrap();
 
         if let Some(cache) = config.chain_cache.clone() {
-            Self::load_chain(cache, data_dir.path().to_path_buf());
+            Self::load_chain(cache, data_dir.path().to_path_buf(), Network::Regtest);
         }
 
         let port = network::pick_unused_port(config.rpc_port);
@@ -338,8 +355,16 @@ impl Validator for Zcashd {
         &self.data_dir
     }
 
-    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) {
-        let regtest_dir = chain_cache.join("regtest");
+    fn network(&self) -> Network {
+        unimplemented!();
+    }
+
+    fn load_chain(
+        chain_cache: PathBuf,
+        validator_data_dir: PathBuf,
+        _validator_network: Network,
+    ) -> PathBuf {
+        let regtest_dir = chain_cache.clone().join("regtest");
         if !regtest_dir.exists() {
             panic!("regtest directory not found!");
         }
@@ -350,6 +375,7 @@ impl Validator for Zcashd {
             .arg(validator_data_dir)
             .output()
             .unwrap();
+        chain_cache
     }
 }
 
@@ -383,6 +409,8 @@ pub struct Zebrad {
     activation_heights: network::ActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
+    /// Network type
+    network: Network,
 }
 
 impl Validator for Zebrad {
@@ -394,26 +422,30 @@ impl Validator for Zebrad {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        if let Some(cache) = config.chain_cache.clone() {
-            Self::load_chain(cache, data_dir.path().to_path_buf());
+        if !matches!(config.network, Network::Regtest) && config.chain_cache.is_none() {
+            panic!("chain cache must be specified when not using a regtest network!")
         }
+
+        let cache_dir = if let Some(cache) = config.chain_cache.clone() {
+            Self::load_chain(cache.clone(), data_dir.path().to_path_buf(), config.network);
+            cache
+        } else {
+            data_dir.path().to_path_buf()
+        };
 
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path = if let Some(path) = config.override_config_file.clone() {
-            path
-        } else {
-            config::zebrad(
-                config_dir.path(),
-                data_dir.path(),
-                network_listen_port,
-                rpc_listen_port,
-                &config.activation_heights,
-                config.miner_address,
-            )
-            .unwrap()
-        };
+        let config_file_path = config::zebrad(
+            config_dir.path().to_path_buf(),
+            cache_dir,
+            network_listen_port,
+            rpc_listen_port,
+            &config.activation_heights,
+            config.miner_address,
+            config.network,
+        )
+        .unwrap();
         // create zcashd conf necessary for lightwalletd
         config::zcashd(
             config_dir.path(),
@@ -465,9 +497,10 @@ impl Validator for Zebrad {
             data_dir,
             activation_heights: config.activation_heights,
             client,
+            network: config.network,
         };
 
-        if config.chain_cache.is_none() && config.override_config_file.is_none() {
+        if config.chain_cache.is_none() && matches!(config.network, Network::Regtest) {
             // generate genesis block
             zebrad.generate_blocks(1).await.unwrap();
         }
@@ -556,18 +589,31 @@ impl Validator for Zebrad {
         &self.data_dir
     }
 
-    fn load_chain(chain_cache: PathBuf, validator_data_dir: PathBuf) {
-        let state_dir = chain_cache.join("state");
+    fn network(&self) -> Network {
+        self.network
+    }
+
+    fn load_chain(
+        chain_cache: PathBuf,
+        validator_data_dir: PathBuf,
+        validator_network: Network,
+    ) -> PathBuf {
+        let state_dir = chain_cache.clone().join("state");
         if !state_dir.exists() {
             panic!("state directory not found!");
         }
 
-        std::process::Command::new("cp")
-            .arg("-r")
-            .arg(state_dir)
-            .arg(validator_data_dir)
-            .output()
-            .unwrap();
+        if matches!(validator_network, Network::Regtest) {
+            std::process::Command::new("cp")
+                .arg("-r")
+                .arg(state_dir)
+                .arg(validator_data_dir.clone())
+                .output()
+                .unwrap();
+            validator_data_dir
+        } else {
+            chain_cache
+        }
     }
 }
 

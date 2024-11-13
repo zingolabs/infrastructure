@@ -5413,7 +5413,6 @@ dependencies = [
  "hex",
  "http 1.1.0",
  "json",
- "once_cell",
  "portpicker",
  "serde_json",
  "tempfile",

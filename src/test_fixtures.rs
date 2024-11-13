@@ -21,7 +21,6 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use portpicker::Port;
 use tokio::sync::mpsc::unbounded_channel;
 use zcash_client_backend::proto;
 use zcash_primitives::transaction::Transaction;
@@ -40,7 +39,8 @@ use zingolib::{
 use crate::{
     client, config,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network, utils,
+    network::{self, Network},
+    utils,
     validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
@@ -63,7 +63,7 @@ pub async fn generate_zebrad_large_chain_cache(
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            override_config_file: None,
+            network: Network::Regtest,
         },
     )
     .await;
@@ -2722,25 +2722,30 @@ pub async fn get_latest_tree_state(
 
 /// GetSubtreeRoots RPC test
 ///
-/// This test requires Zebrad testnet to already be synced using the config file at `zebrad_testnet_config_path`
-/// See `zcash_local_net/.config/zebrad.toml` for an example config file.
+/// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+/// `CARGO_MANIFEST_DIR/chain_cache/testnet_get_subtree_roots`
 ///
-/// `zebrad_rpc_listen_port` must match the [rpc.listen_addr] port in the zebrad config file.
+/// Example directory tree:
+/// zcash-local-net/chain_cache/testnet_get_subtree_roots/
+/// └── state
+///     └── v26
+///         └── testnet
+///             ├── 000008.sst
+///             ├── 000010.sst
+///
 pub async fn get_subtree_roots_sapling(
     zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
-    zebrad_testnet_config_path: PathBuf,
-    zebrad_rpc_listen_port: Port,
 ) {
     let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
-        rpc_listen_port: Some(zebrad_rpc_listen_port),
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: None,
-        override_config_file: Some(zebrad_testnet_config_path),
+        chain_cache: Some(utils::chain_cache_dir().join("testnet_get_subtree_roots_sapling")),
+        network: Network::Testnet,
     })
     .await
     .unwrap();
@@ -2809,23 +2814,30 @@ pub async fn get_subtree_roots_sapling(
 
 /// GetSubtreeRoots RPC test
 ///
-/// This test requires Zebrad testnet to already be synced using the config file at `zebrad_testnet_config_path`
-/// See `zcash_local_net/.config/zebrad.toml` for an example config file.
+/// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
+/// `CARGO_MANIFEST_DIR/chain_cache/testnet_get_subtree_roots`
+///
+/// Example directory tree:
+/// zcash-local-net/chain_cache/testnet_get_subtree_roots/
+/// └── state
+///     └── v26
+///         └── testnet
+///             ├── 000008.sst
+///             ├── 000010.sst
+///
 pub async fn get_subtree_roots_orchard(
     zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
-    zebrad_testnet_config_path: PathBuf,
-    zebrad_rpc_listen_port: Port,
 ) {
     let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
-        rpc_listen_port: Some(zebrad_rpc_listen_port),
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: None,
-        override_config_file: Some(zebrad_testnet_config_path),
+        chain_cache: Some(utils::chain_cache_dir().join("testnet_get_subtree_roots_orchard")),
+        network: Network::Testnet,
     })
     .await
     .unwrap();

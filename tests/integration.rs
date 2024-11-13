@@ -2,7 +2,6 @@
 
 use std::path::PathBuf;
 
-use once_cell::sync::Lazy;
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
 use zingolib::{
@@ -23,11 +22,6 @@ const ZCASH_CLI_BIN: Option<PathBuf> = None;
 const ZEBRAD_BIN: Option<PathBuf> = None;
 const LIGHTWALLETD_BIN: Option<PathBuf> = None;
 const ZAINOD_BIN: Option<PathBuf> = None;
-
-static ZEBRAD_TESTNET_CONFIG: Lazy<Option<PathBuf>> = Lazy::new(|| {
-    let workspace_root_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    Some(workspace_root_path.join(".config/zebrad.toml"))
-});
 
 #[tokio::test]
 async fn launch_zcashd() {
@@ -58,7 +52,7 @@ async fn launch_zebrad() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: None,
-        override_config_file: None,
+        network: network::Network::Regtest,
     })
     .await
     .unwrap();
@@ -77,7 +71,7 @@ async fn launch_zebrad_with_cache() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
-        override_config_file: None,
+        network: network::Network::Regtest,
     })
     .await
     .unwrap();
@@ -131,7 +125,7 @@ async fn launch_localnet_zainod_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            override_config_file: None,
+            network: network::Network::Regtest,
         },
     )
     .await;
@@ -187,7 +181,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            override_config_file: None,
+            network: network::Network::Regtest,
         },
     )
     .await;
@@ -314,9 +308,7 @@ async fn lightwalletd_basic_send() {
 
 #[cfg(feature = "test_fixtures")]
 mod client_rpcs {
-    use crate::{
-        LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN, ZEBRAD_TESTNET_CONFIG,
-    };
+    use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
 
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
     #[tokio::test]
@@ -669,8 +661,9 @@ mod client_rpcs {
         .await;
     }
 
-    /// This test requires Zebrad testnet to be synced using the config file at `zcash_local_net/.config/zebrad.toml`
-    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests due to using a fixed port"]
+    /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
+    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests. under development."]
     #[tokio::test]
     async fn get_subtree_roots_sapling() {
         tracing_subscriber::fmt().init();
@@ -679,14 +672,13 @@ mod client_rpcs {
             ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
-            ZEBRAD_TESTNET_CONFIG.clone().unwrap(),
-            18232,
         )
         .await;
     }
 
-    /// This test requires Zebrad testnet to be synced using the config file at `zcash_local_net/.config/zebrad.toml`
-    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests due to using a fixed port"]
+    /// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
+    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
+    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests. under development."]
     #[tokio::test]
     async fn get_subtree_roots_orchard() {
         tracing_subscriber::fmt().init();
@@ -695,8 +687,6 @@ mod client_rpcs {
             ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
-            ZEBRAD_TESTNET_CONFIG.clone().unwrap(),
-            18232,
         )
         .await;
     }

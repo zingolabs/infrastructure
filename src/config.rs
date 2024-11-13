@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use portpicker::Port;
 
-use crate::network::ActivationHeights;
+use crate::network::{ActivationHeights, Network};
 
 pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
@@ -82,12 +82,13 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 ///
 /// Canopy (and all earlier netwrok upgrades) must have an activation height of 1 for zebrad regtest mode
 pub(crate) fn zebrad(
-    config_dir: &Path,
-    data_dir: &Path,
+    config_dir: PathBuf,
+    cache_dir: PathBuf,
     network_listen_port: Port,
     rpc_listen_port: Port,
     activation_heights: &ActivationHeights,
     miner_address: &str,
+    network: Network,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -97,7 +98,9 @@ pub(crate) fn zebrad(
     }
     let nu5_activation_height: u32 = activation_heights.nu5.into();
 
-    let chain_cache = data_dir.to_str().unwrap();
+    let chain_cache = cache_dir.to_str().unwrap();
+
+    let network_string = network.to_string();
 
     config_file.write_all(
         format!(
@@ -111,25 +114,24 @@ tx_cost_limit = 80000000
 
 [metrics]
 
-[mining]
-debug_like_zcashd = true
-miner_address = \"{miner_address}\"
-
 [network]
 cache_dir = \"{chain_cache}\"
 crawl_new_peer_interval = \"1m 1s\"
-max_connections_per_ip = 1
-network = \"Regtest\"
-peerset_initial_target_size = 25
+initial_mainnet_peers = [
+    \"dnsseed.z.cash:8233\",
+    \"dnsseed.str4d.xyz:8233\",
+    \"mainnet.seeder.zfnd.org:8233\",
+    \"mainnet.is.yolo.money:8233\",
+]
+initial_testnet_peers = [
+    \"dnsseed.testnet.z.cash:18233\",
+    \"testnet.seeder.zfnd.org:18233\",
+    \"testnet.is.yolo.money:18233\",
+]
 listen_addr = \"127.0.0.1:{network_listen_port}\"
-
-[network.testnet_parameters]
-disable_pow = true
-
-[network.testnet_parameters.activation_heights]
-# Configured activation heights must be greater than or equal to 1,
-# block height 0 is reserved for the Genesis network upgrade in Zebra
-NU5 = {nu5_activation_height} 
+max_connections_per_ip = 1
+network = \"{network_string}\"
+peerset_initial_target_size = 25
 
 [rpc]
 debug_force_finished_sync = false
@@ -157,6 +159,35 @@ use_journald = false"
         )
         .as_bytes(),
     )?;
+
+    if matches!(network, Network::Regtest) {
+        config_file.write_all(
+            format!(
+                "\n\n\
+[mining]
+debug_like_zcashd = true
+miner_address = \"{miner_address}\"
+
+[network.testnet_parameters]
+disable_pow = true
+
+[network.testnet_parameters.activation_heights]
+# Configured activation heights must be greater than or equal to 1,
+# block height 0 is reserved for the Genesis network upgrade in Zebra
+NU5 = {nu5_activation_height}"
+            )
+            .as_bytes(),
+        )?;
+    } else {
+        config_file.write_all(
+            format!(
+                "\n\n\
+[mining]
+debug_like_zcashd = true"
+            )
+            .as_bytes(),
+        )?;
+    }
 
     Ok(config_file_path)
 }

@@ -5,6 +5,27 @@ use zcash_primitives::consensus::BlockHeight;
 
 pub(crate) const LOCALHOST_IPV4: &str = "http://127.0.0.1";
 
+/// Network types
+#[derive(Clone, Copy)]
+pub enum Network {
+    /// Regtest
+    Regtest,
+    /// Testnet
+    Testnet,
+    /// Mainnet
+    Mainnet,
+}
+
+impl std::fmt::Display for Network {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mainnet => write!(f, "Mainnet"),
+            Self::Testnet => write!(f, "Testnet"),
+            Self::Regtest => write!(f, "Regtest"),
+        }
+    }
+}
+
 /// Activation heights for local network upgrades
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivationHeights {
