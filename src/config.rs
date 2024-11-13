@@ -115,7 +115,7 @@ tx_cost_limit = 80000000
 [metrics]
 
 [network]
-cache_dir = \"{chain_cache}\"
+cache_dir = false
 crawl_new_peer_interval = \"1m 1s\"
 initial_mainnet_peers = [
     \"dnsseed.z.cash:8233\",
@@ -134,6 +134,7 @@ network = \"{network_string}\"
 peerset_initial_target_size = 25
 
 [rpc]
+cookie_dir = \"{chain_cache}\"
 debug_force_finished_sync = false
 enable_cookie_auth = false
 parallel_cpu_threads = 0

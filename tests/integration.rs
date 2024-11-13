@@ -663,7 +663,6 @@ mod client_rpcs {
 
     /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
     /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
-    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests. under development."]
     #[tokio::test]
     async fn get_subtree_roots_sapling() {
         tracing_subscriber::fmt().init();
@@ -678,7 +677,6 @@ mod client_rpcs {
 
     /// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
     /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
-    #[ignore = "this test cannot be run concurrently with other get_subtree_roots tests. under development."]
     #[tokio::test]
     async fn get_subtree_roots_orchard() {
         tracing_subscriber::fmt().init();

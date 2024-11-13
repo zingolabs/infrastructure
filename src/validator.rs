@@ -510,7 +510,7 @@ impl Validator for Zebrad {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zainod couldn't be killed")
+        self.handle.kill().expect("zebrad couldn't be killed")
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
