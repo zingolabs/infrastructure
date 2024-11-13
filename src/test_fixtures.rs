@@ -2738,7 +2738,7 @@ pub async fn get_subtree_roots_sapling(
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
 ) {
-    let mut zebrad = Zebrad::launch(ZebradConfig {
+    let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
@@ -2810,8 +2810,6 @@ pub async fn get_subtree_roots_sapling(
         panic!("please sync testnet chain until there are at least 2 subtree roots");
     }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
-
-    zebrad.stop();
 }
 
 /// GetSubtreeRoots RPC test
@@ -2832,7 +2830,7 @@ pub async fn get_subtree_roots_orchard(
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
 ) {
-    let mut zebrad = Zebrad::launch(ZebradConfig {
+    let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
@@ -2904,8 +2902,6 @@ pub async fn get_subtree_roots_orchard(
         panic!("please sync testnet chain until there are at least 2 subtree roots");
     }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
-
-    zebrad.stop();
 }
 
 /// GetAddressUtxos RPC test
