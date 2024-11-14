@@ -23,10 +23,14 @@
 //!
 //! Pre-requisities for running integration tests successfully:
 //! - Build the Zcashd, Zebrad, Zainod and Lightwalletd binaries and add to $PATH.
-//! - Run `cargo test generate_zebrad_large_chain_cache --features test_fixtures -- --ignored` or `cargo nextest run generate_zebrad_large_chain_cache --run-ignored ignored-only --features test_fixtures`
-//! - To run the `get_subtree_roots` tests, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling` and `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard` directories. At least 2 shards for each protocol must be synced to pass. See `zcash_local_net::test_fixtures::get_subtree_roots_sapling` doc comments for more details.
+//! - Run `cargo test generate_zebrad_large_chain_cache --features test_fixtures -- --ignored` or `cargo nextest run generate_zebrad_large_chain_cache --run-ignored ignored-only --features test_fixtures`.
+//! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See `zcash_local_net::test_fixtures::get_subtree_roots_sapling` doc comments for more details.
+//! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See `zcash_local_net::test_fixtures::get_subtree_roots_orchard` doc comments for more details.
 //!
 //! See `src/test_fixtures.rs` doc comments for running client rpc tests from external crates for indexer/validator development.
+//!
+//! Test should be run with the `test_fixtures` feature enabled.
+//!
 
 use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};

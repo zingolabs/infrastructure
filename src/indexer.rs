@@ -126,8 +126,9 @@ impl Indexer for Zainod {
             &mut handle,
             &logs_dir,
             None,
-            "Server Ready.",
-            "Error:",
+            &["Server Ready."],
+            &["Error:"],
+            &[],
         )?;
 
         Ok(Zainod {
@@ -232,8 +233,9 @@ impl Indexer for Lightwalletd {
             &mut handle,
             &logs_dir,
             Some(lwd_log_file_path),
-            "Starting insecure no-TLS (plaintext) server",
-            "error",
+            &["Starting insecure no-TLS (plaintext) server"],
+            &["error"],
+            &[],
         )?;
 
         Ok(Lightwalletd {

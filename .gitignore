@@ -1,5 +1,5 @@
 /target
 /chain_cache/*
 !/chain_cache/client_rpc_tests
-!/chain_cache/testnet_get_subtree_roots_sapling
-!/chain_cache/testnet_get_subtree_roots_orchard
+!/chain_cache/get_subtree_roots_sapling
+!/chain_cache/get_subtree_roots_orchard
