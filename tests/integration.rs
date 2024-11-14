@@ -52,6 +52,7 @@ async fn launch_zebrad() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: None,
+        network: network::Network::Regtest,
     })
     .await
     .unwrap();
@@ -70,6 +71,7 @@ async fn launch_zebrad_with_cache() {
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        network: network::Network::Regtest,
     })
     .await
     .unwrap();
@@ -123,6 +125,7 @@ async fn launch_localnet_zainod_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            network: network::Network::Regtest,
         },
     )
     .await;
@@ -178,6 +181,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            network: network::Network::Regtest,
         },
     )
     .await;
@@ -657,30 +661,28 @@ mod client_rpcs {
         .await;
     }
 
-    // this is not a satisfactory test for this rpc and will return empty vecs.
-    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
     #[tokio::test]
     async fn get_subtree_roots_sapling() {
         tracing_subscriber::fmt().init();
 
         zcash_local_net::test_fixtures::get_subtree_roots_sapling(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
+            ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
         )
         .await;
     }
 
-    // this is not a satisfactory test for this rpc and will return empty vecs.
-    // this rpc should also be tested in testnet/mainnet or a local chain with at least 2 shards should be cached.
+    /// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
+    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
     #[tokio::test]
     async fn get_subtree_roots_orchard() {
         tracing_subscriber::fmt().init();
 
         zcash_local_net::test_fixtures::get_subtree_roots_orchard(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
+            ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
         )
