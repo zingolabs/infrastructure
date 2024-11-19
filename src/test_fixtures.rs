@@ -2911,7 +2911,7 @@ pub async fn get_subtree_roots_orchard(
     println!("");
 
     if lwd_subtree_roots.len() < 2 {
-        panic!("please sync testnet chain until there are at least 2 subtree roots");
+        panic!("please sync mainnet chain until there are at least 2 subtree roots");
     }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
 }
