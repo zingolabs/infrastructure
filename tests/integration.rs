@@ -308,6 +308,8 @@ async fn lightwalletd_basic_send() {
 
 #[cfg(feature = "test_fixtures")]
 mod client_rpcs {
+    use zcash_local_net::network::Network;
+
     use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
 
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
@@ -662,7 +664,7 @@ mod client_rpcs {
     }
 
     /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
-    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
+    /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
     #[tokio::test]
     async fn get_subtree_roots_sapling() {
         tracing_subscriber::fmt().init();
@@ -671,12 +673,13 @@ mod client_rpcs {
             ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
+            Network::Testnet,
         )
         .await;
     }
 
-    /// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
-    /// `zcash_local_net/chain_cache/testnet_get_subtree_roots`
+    /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
+    /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
     #[tokio::test]
     async fn get_subtree_roots_orchard() {
         tracing_subscriber::fmt().init();
@@ -685,6 +688,7 @@ mod client_rpcs {
             ZEBRAD_BIN,
             ZAINOD_BIN,
             LIGHTWALLETD_BIN,
+            Network::Mainnet,
         )
         .await;
     }

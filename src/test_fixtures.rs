@@ -2722,11 +2722,12 @@ pub async fn get_latest_tree_state(
 
 /// GetSubtreeRoots RPC test
 ///
-/// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
-/// `CARGO_MANIFEST_DIR/chain_cache/testnet_get_subtree_roots`
+/// This test requires Zebrad testnet/mainnet to be already synced to at least 2 sapling shards with the cache at
+/// `CARGO_MANIFEST_DIR/chain_cache/get_subtree_roots_sapling`.
+/// `network` should match the network type of the cached chain.
 ///
 /// Example directory tree:
-/// zcash-local-net/chain_cache/testnet_get_subtree_roots/
+/// zcash-local-net/chain_cache/get_subtree_roots_sapling/
 /// └── state
 ///     └── v26
 ///         └── testnet
@@ -2737,15 +2738,20 @@ pub async fn get_subtree_roots_sapling(
     zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
+    network: Network,
 ) {
+    if matches!(network, Network::Regtest) {
+        panic!("this test fixture requires testnet or mainnet network!");
+    }
+
     let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(utils::chain_cache_dir().join("testnet_get_subtree_roots_sapling")),
-        network: Network::Testnet,
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
+        network,
     })
     .await
     .unwrap();
@@ -2814,11 +2820,12 @@ pub async fn get_subtree_roots_sapling(
 
 /// GetSubtreeRoots RPC test
 ///
-/// This test requires Zebrad testnet to be already synced to at least 2 orchard shards with the cache at
-/// `CARGO_MANIFEST_DIR/chain_cache/testnet_get_subtree_roots`
+/// This test requires Zebrad testnet/mainnet to be already synced to at least 2 orchard shards with the cache at
+/// `CARGO_MANIFEST_DIR/chain_cache/get_subtree_roots_orchard`.
+/// `network` should match the network type of the cached chain.
 ///
 /// Example directory tree:
-/// zcash-local-net/chain_cache/testnet_get_subtree_roots/
+/// zcash-local-net/chain_cache/get_subtree_roots_orchard/
 /// └── state
 ///     └── v26
 ///         └── testnet
@@ -2829,15 +2836,20 @@ pub async fn get_subtree_roots_orchard(
     zebrad_bin: Option<PathBuf>,
     zainod_bin: Option<PathBuf>,
     lightwalletd_bin: Option<PathBuf>,
+    network: Network,
 ) {
+    if matches!(network, Network::Regtest) {
+        panic!("this test fixture requires testnet or mainnet network!");
+    }
+
     let zebrad = Zebrad::launch(ZebradConfig {
         zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(utils::chain_cache_dir().join("testnet_get_subtree_roots_orchard")),
-        network: Network::Testnet,
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
+        network,
     })
     .await
     .unwrap();
@@ -2899,7 +2911,7 @@ pub async fn get_subtree_roots_orchard(
     println!("");
 
     if lwd_subtree_roots.len() < 2 {
-        panic!("please sync testnet chain until there are at least 2 subtree roots");
+        panic!("please sync mainnet chain until there are at least 2 subtree roots");
     }
     assert_eq!(zainod_subtree_roots, lwd_subtree_roots);
 }

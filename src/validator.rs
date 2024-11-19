@@ -280,8 +280,9 @@ impl Validator for Zcashd {
             &mut handle,
             &logs_dir,
             None,
-            "init message: Done loading",
-            "Error:",
+            &["init message: Done loading"],
+            &["Error:"],
+            &[],
         )?;
 
         let zcashd = Zcashd {
@@ -480,8 +481,9 @@ impl Validator for Zebrad {
             &mut handle,
             &logs_dir,
             None,
-            "Release always valid in Testnet",
-            "error:",
+            &["Release always valid in Testnet", "starting sync"],
+            &["error:"],
+            &["error: \"failed to lookup address information: Temporary failure in name resolution\""]
         )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
 

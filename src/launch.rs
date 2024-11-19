@@ -10,8 +10,9 @@ pub(crate) fn wait(
     handle: &mut Child,
     logs_dir: &TempDir,
     additional_log_path: Option<PathBuf>,
-    success_indicator: &str,
-    error_indicator: &str,
+    success_indicators: &[&str],
+    error_indicators: &[&str],
+    excluded_errors: &[&str],
 ) -> Result<(), LaunchError> {
     let stdout_log_path = logs_dir.path().join(logs::STDOUT_LOG);
     let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
@@ -54,9 +55,26 @@ pub(crate) fn wait(
 
         stdout_log.read_to_string(&mut stdout).unwrap();
         stderr_log.read_to_string(&mut stderr).unwrap();
-        if stdout.contains(error_indicator) || stderr.contains(error_indicator) {
-            panic!("{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
-        } else if stdout.contains(success_indicator) {
+        let trimmed_stdout = exclude_errors(&stdout, excluded_errors);
+        let trimmed_stderr = exclude_errors(&stderr, excluded_errors);
+        if contains_any(&trimmed_stdout, error_indicators)
+            || contains_any(&trimmed_stderr, error_indicators)
+        {
+            tracing::info!("\nSTDOUT:\n{}", stdout);
+            if additional_log_file.is_some() {
+                let mut log_file = additional_log_file
+                    .take()
+                    .expect("additional log exists in this scope");
+                let mut log = additional_log
+                    .take()
+                    .expect("additional log exists in this scope");
+
+                log_file.read_to_string(&mut log).unwrap();
+                tracing::info!("\nADDITIONAL LOG:\n{}", log);
+            }
+            tracing::error!("\nSTDERR:\n{}", stderr);
+            panic!("\n{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
+        } else if contains_any(&trimmed_stdout, success_indicators) {
             // launch successful
             break;
         }
@@ -70,9 +88,15 @@ pub(crate) fn wait(
                 .expect("additional log exists in this scope");
 
             log_file.read_to_string(&mut log).unwrap();
-            if log.contains(success_indicator) {
+            let trimmed_log = exclude_errors(&log, excluded_errors);
+            if contains_any(&trimmed_log, success_indicators) {
                 // launch successful
                 break;
+            } else if contains_any(&trimmed_log, error_indicators) {
+                tracing::info!("\nSTDOUT:\n{}", stdout);
+                tracing::info!("\nADDITIONAL LOG:\n{}", log);
+                tracing::error!("\nSTDERR:\n{}", stderr);
+                panic!("{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
             } else {
                 additional_log_file = Some(log_file);
                 additional_log = Some(log);
@@ -83,4 +107,15 @@ pub(crate) fn wait(
     }
 
     Ok(())
+}
+
+fn contains_any(log: &str, indicators: &[&str]) -> bool {
+    indicators.iter().any(|indicator| log.contains(indicator))
+}
+
+fn exclude_errors(log: &str, excluded_errors: &[&str]) -> String {
+    log.lines()
+        .filter(|line| !contains_any(line, excluded_errors))
+        .collect::<Vec<&str>>()
+        .join("\n")
 }
