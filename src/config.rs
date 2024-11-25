@@ -12,6 +12,7 @@ pub(crate) const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
+pub(crate) const EMPTY_FILENAME: &str = "empty";
 
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.

@@ -32,7 +32,9 @@
 //! Test should be run with the `test_fixtures` feature enabled.
 //!
 
-use indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig};
+use indexer::{
+    Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
+};
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
 
 pub(crate) mod config;
@@ -56,6 +58,8 @@ enum Process {
     Zebrad,
     Zainod,
     Lightwalletd,
+    #[allow(dead_code)]
+    Empty,
 }
 
 impl std::fmt::Display for Process {
@@ -65,6 +69,7 @@ impl std::fmt::Display for Process {
             Self::Zebrad => "zebrad",
             Self::Zainod => "zainod",
             Self::Lightwalletd => "lightwalletd",
+            Self::Empty => "empty",
         };
         write!(f, "{}", process)
     }
@@ -159,6 +164,26 @@ impl LocalNet<Lightwalletd, Zebrad> {
         let validator = Zebrad::launch(validator_config).await.unwrap();
         indexer_config.zcashd_conf = validator.config_dir().path().join(config::ZCASHD_FILENAME);
         let indexer = Lightwalletd::launch(indexer_config).unwrap();
+
+        LocalNet { indexer, validator }
+    }
+}
+
+impl LocalNet<Empty, Zcashd> {
+    /// Launch LocalNet.
+    pub async fn launch(indexer_config: EmptyConfig, validator_config: ZcashdConfig) -> Self {
+        let validator = Zcashd::launch(validator_config).await.unwrap();
+        let indexer = Empty::launch(indexer_config).unwrap();
+
+        LocalNet { indexer, validator }
+    }
+}
+
+impl LocalNet<Empty, Zebrad> {
+    /// Launch LocalNet.
+    pub async fn launch(indexer_config: EmptyConfig, validator_config: ZebradConfig) -> Self {
+        let validator = Zebrad::launch(validator_config).await.unwrap();
+        let indexer = Empty::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
