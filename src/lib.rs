@@ -58,8 +58,6 @@ enum Process {
     Zebrad,
     Zainod,
     Lightwalletd,
-    #[allow(dead_code)]
-    Empty,
 }
 
 impl std::fmt::Display for Process {
@@ -69,7 +67,6 @@ impl std::fmt::Display for Process {
             Self::Zebrad => "zebrad",
             Self::Zainod => "zainod",
             Self::Lightwalletd => "lightwalletd",
-            Self::Empty => "empty",
         };
         write!(f, "{}", process)
     }

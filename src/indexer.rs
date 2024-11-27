@@ -283,13 +283,8 @@ pub struct Empty {
     config_dir: TempDir,
 }
 
-impl Empty {
-    /// Prints the stdout log.
-    pub fn print_lwd_log(&self) {}
-}
-
 impl Indexer for Empty {
-    const CONFIG_FILENAME: &str = config::EMPTY_FILENAME;
+    const CONFIG_FILENAME: &str = "";
 
     type Config = EmptyConfig;
 
