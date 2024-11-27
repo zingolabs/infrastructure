@@ -39,6 +39,11 @@ pub struct LightwalletdConfig {
     pub zcashd_conf: PathBuf,
 }
 
+/// Empty configuration
+///
+/// For use when not launching an Indexer in zcash-local-net.
+pub struct EmptyConfig {}
+
 /// Functionality for indexer/light-node processes.
 pub trait Indexer: Sized {
     /// Config filename
@@ -261,6 +266,50 @@ impl Indexer for Lightwalletd {
 }
 
 impl Drop for Lightwalletd {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// This struct is used to represent and manage an empty Indexer process.
+///
+/// Dirs are created for integration.
+#[derive(Getters, CopyGetters)]
+#[getset(get = "pub")]
+pub struct Empty {
+    /// Logs directory
+    logs_dir: TempDir,
+    /// Config directory
+    config_dir: TempDir,
+}
+
+impl Indexer for Empty {
+    const CONFIG_FILENAME: &str = "";
+
+    type Config = EmptyConfig;
+
+    fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
+        let logs_dir = tempfile::tempdir().unwrap();
+
+        let config_dir = tempfile::tempdir().unwrap();
+        Ok(Empty {
+            logs_dir,
+            config_dir,
+        })
+    }
+
+    fn stop(&mut self) {}
+
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+}
+
+impl Drop for Empty {
     fn drop(&mut self) {
         self.stop();
     }
