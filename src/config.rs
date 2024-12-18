@@ -312,6 +312,7 @@ nuparams=2bb40e60:3 # Blossom
 nuparams=f5b9230b:4 # Heartwood
 nuparams=e9ff75a6:5 # Canopy
 nuparams=c2d6d0b4:6 # NU5 (Orchard)
+nuparams=c8e71055:7 # NU6
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -369,6 +370,7 @@ nuparams=2bb40e60:3 # Blossom
 nuparams=f5b9230b:4 # Heartwood
 nuparams=e9ff75a6:5 # Canopy
 nuparams=c2d6d0b4:6 # NU5 (Orchard)
+nuparams=c8e71055:7 # NU6
 
 ### MetaData Storage and Retrieval
 # txindex:
