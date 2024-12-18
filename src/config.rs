@@ -30,6 +30,7 @@ pub(crate) fn zcashd(
     let heartwood_activation_height = activation_heights.heartwood;
     let canopy_activation_height = activation_heights.canopy;
     let nu5_activation_height = activation_heights.nu5;
+    let nu6_activation_height = activation_heights.nu6;
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -40,6 +41,7 @@ nuparams=2bb40e60:{blossom_activation_height} # Blossom
 nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
+nuparams=c8e71055:{nu6_activation_height} # NU6
 
 ### MetaData Storage and Retrieval
 # txindex:
