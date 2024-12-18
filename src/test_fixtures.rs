@@ -2035,7 +2035,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     let recipient = Arc::new(recipient);
     recipient.do_sync(false).await.unwrap();
-    LightClient::start_mempool_monitor(recipient.clone());
+    LightClient::start_mempool_monitor(recipient.clone()).unwrap();
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2051,7 +2051,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     let recipient = Arc::new(recipient);
     recipient.do_sync(false).await.unwrap();
-    LightClient::start_mempool_monitor(recipient.clone());
+    LightClient::start_mempool_monitor(recipient.clone()).unwrap();
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2367,7 +2367,7 @@ pub async fn get_mempool_stream(
         client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port()).await;
 
     let recipient = Arc::new(recipient);
-    LightClient::start_mempool_monitor(recipient.clone());
+    LightClient::start_mempool_monitor(recipient.clone()).unwrap();
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2382,7 +2382,7 @@ pub async fn get_mempool_stream(
         client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
 
     let recipient = Arc::new(recipient);
-    LightClient::start_mempool_monitor(recipient.clone());
+    LightClient::start_mempool_monitor(recipient.clone()).unwrap();
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
