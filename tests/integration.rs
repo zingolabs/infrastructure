@@ -194,7 +194,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
 }
 
 #[tokio::test]
-async fn zainod_basic_send() {
+async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
@@ -250,7 +250,72 @@ async fn zainod_basic_send() {
 }
 
 #[tokio::test]
-async fn lightwalletd_basic_send() {
+async fn zainod_zebrad_basic_send() {
+    tracing_subscriber::fmt().init();
+
+    let local_net = LocalNet::<Zainod, Zebrad>::launch(
+        ZainodConfig {
+            zainod_bin: ZAINOD_BIN,
+            listen_port: None,
+            validator_port: 0,
+        },
+        ZebradConfig {
+            zebrad_bin: ZEBRAD_BIN,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ZEBRAD_DEFAULT_MINER,
+            chain_cache: None,
+            network: network::Network::Regtest,
+        },
+    )
+    .await;
+
+    let lightclient_dir = tempfile::tempdir().unwrap();
+    let (faucet, _recipient) = client::build_lightclients(
+        lightclient_dir.path().to_path_buf(),
+        local_net.indexer().port(),
+    )
+    .await;
+
+    local_net.validator().generate_blocks(100).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
+    dbg!(faucet.do_balance().await);
+    faucet.quick_shield().await.unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
+    dbg!(faucet.do_balance().await);
+
+    // faucet.do_sync(false).await.unwrap();
+    // from_inputs::quick_send(
+    //     &faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+    //         100_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
+    // faucet.do_sync(false).await.unwrap();
+    // recipient.do_sync(false).await.unwrap();
+
+    // let recipient_balance = recipient.do_balance().await;
+    // assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+
+    // local_net.validator().print_stdout();
+    // local_net.validator().print_stderr();
+    // local_net.indexer().print_stdout();
+    // local_net.indexer().print_stderr();
+    // println!("faucet balance:");
+    // println!("{:?}\n", faucet.do_balance().await);
+    // println!("recipient balance:");
+    // println!("{:?}\n", recipient_balance);
+}
+
+#[tokio::test]
+async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
@@ -304,6 +369,71 @@ async fn lightwalletd_basic_send() {
     println!("{:?}\n", faucet.do_balance().await);
     println!("recipient balance:");
     println!("{:?}\n", recipient_balance);
+}
+
+#[tokio::test]
+async fn lightwalletd_zebrad_basic_send() {
+    tracing_subscriber::fmt().init();
+
+    let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
+        LightwalletdConfig {
+            lightwalletd_bin: LIGHTWALLETD_BIN,
+            listen_port: None,
+            zcashd_conf: PathBuf::new(),
+        },
+        ZebradConfig {
+            zebrad_bin: ZEBRAD_BIN,
+            network_listen_port: None,
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: ZEBRAD_DEFAULT_MINER,
+            chain_cache: None,
+            network: network::Network::Regtest,
+        },
+    )
+    .await;
+
+    let lightclient_dir = tempfile::tempdir().unwrap();
+    let (faucet, _recipient) = client::build_lightclients(
+        lightclient_dir.path().to_path_buf(),
+        local_net.indexer().port(),
+    )
+    .await;
+
+    local_net.validator().generate_blocks(100).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
+    dbg!(faucet.do_balance().await);
+    faucet.quick_shield().await.unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
+    faucet.do_sync(false).await.unwrap();
+    dbg!(faucet.do_balance().await);
+
+    // faucet.do_sync(false).await.unwrap();
+    // from_inputs::quick_send(
+    //     &faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+    //         100_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
+    // faucet.do_sync(false).await.unwrap();
+    // recipient.do_sync(false).await.unwrap();
+
+    // let recipient_balance = recipient.do_balance().await;
+    // assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+
+    // local_net.validator().print_stdout();
+    // local_net.validator().print_stderr();
+    // local_net.indexer().print_stdout();
+    // local_net.indexer().print_stderr();
+    // println!("faucet balance:");
+    // println!("{:?}\n", faucet.do_balance().await);
+    // println!("recipient balance:");
+    // println!("{:?}\n", recipient_balance);
 }
 
 #[cfg(feature = "test_fixtures")]
