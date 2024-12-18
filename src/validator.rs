@@ -25,8 +25,8 @@ use crate::{
     Process,
 };
 
-/// Zebrad default miner address.
-pub const ZEBRAD_DEFAULT_MINER: &str = "t27eWDgjFYJGVXmzrXeVjnb5J3uXDM9xH9v";
+/// Zebrad default miner address. Regtest/Testnet transparent address for [Abandon Abandon .. Art] seed (entropy all zeros)
+pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 
 /// Zcashd configuration
 ///
@@ -516,7 +516,7 @@ impl Validator for Zebrad {
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
-        let chain_height = dbg!(self.get_chain_height().await);
+        let chain_height = self.get_chain_height().await;
 
         for _ in 0..n {
             let block_template: GetBlockTemplate = self
@@ -527,8 +527,10 @@ impl Validator for Zebrad {
 
             let network_upgrade = if block_template.height < self.activation_heights().nu5.into() {
                 NetworkUpgrade::Canopy
-            } else {
+            } else if block_template.height < self.activation_heights().nu6.into() {
                 NetworkUpgrade::Nu5
+            } else {
+                NetworkUpgrade::Nu6
             };
 
             let block_data = hex::encode(
@@ -549,8 +551,9 @@ impl Validator for Zebrad {
                 .unwrap();
 
             if !submit_block_response.contains(r#""result":null"#) {
-                panic!("failed to submit block!")
-            };
+                dbg!(&submit_block_response);
+                panic!("failed to submit block!");
+            }
         }
         self.poll_chain_height(chain_height + n).await;
 

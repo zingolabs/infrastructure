@@ -97,6 +97,7 @@ pub(crate) fn zebrad(
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
     let nu5_activation_height: u32 = activation_heights.nu5.into();
+    let nu6_activation_height: u32 = activation_heights.nu6.into();
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -175,7 +176,8 @@ disable_pow = true
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
 # block height 0 is reserved for the Genesis network upgrade in Zebra
-NU5 = {nu5_activation_height}"
+NU5 = {nu5_activation_height}
+NU6 = {nu6_activation_height}"
             )
             .as_bytes(),
         )?;
@@ -293,6 +295,7 @@ mod tests {
             heartwood: 4.into(),
             canopy: 5.into(),
             nu5: 6.into(),
+            nu6: 7.into(),
         };
 
         super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
@@ -343,6 +346,7 @@ listen=0"
             heartwood: 4.into(),
             canopy: 5.into(),
             nu5: 6.into(),
+            nu6: 7.into(),
         };
 
         super::zcashd(

@@ -41,6 +41,8 @@ pub struct ActivationHeights {
     pub canopy: BlockHeight,
     /// Nu5 (a.k.a. Orchard) network upgrade activation height
     pub nu5: BlockHeight,
+    /// Nu6 network upgrade activation height
+    pub nu6: BlockHeight,
 }
 
 impl Default for ActivationHeights {
@@ -52,6 +54,7 @@ impl Default for ActivationHeights {
             heartwood: 1.into(),
             canopy: 1.into(),
             nu5: 1.into(),
+            nu6: 1.into(),
         }
     }
 }
