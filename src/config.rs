@@ -13,7 +13,7 @@ pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
-const _CONFIG_STR: &str = "\
+const _EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
 regtest=1
 nuparams=5ba81b19:1 # Overwinter
@@ -317,7 +317,7 @@ zcash-conf-path: {validator_conf}"
 mod tests {
     use std::path::PathBuf;
 
-    use crate::{config::_CONFIG_STR, logs, network};
+    use crate::{config::_EXPECTED_CONFIG, logs, network};
 
     #[test]
     fn zcashd() {
@@ -336,7 +336,7 @@ mod tests {
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
-            format!("{}", _CONFIG_STR),
+            format!("{}", _EXPECTED_CONFIG),
         );
     }
 
@@ -363,7 +363,7 @@ mod tests {
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
-            format!("{}{}", _CONFIG_STR , "
+            format!("{}{}", _EXPECTED_CONFIG , "
 
 ### Zcashd Help provides documentation of the following:
 mineraddress=test_addr_1234
