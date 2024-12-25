@@ -287,23 +287,7 @@ mod tests {
 
     use crate::{logs, network};
 
-    #[test]
-    fn zcashd() {
-        let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = network::ActivationHeights {
-            overwinter: 1.into(),
-            sapling: 2.into(),
-            blossom: 3.into(),
-            heartwood: 4.into(),
-            canopy: 5.into(),
-            nu5: 6.into(),
-            nu6: 7.into(),
-        };
-
-        super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
-
-        assert_eq!(std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
-                        format!("\
+    const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
 regtest=1
 nuparams=5ba81b19:1 # Overwinter
@@ -333,9 +317,26 @@ rpcallowip=127.0.0.1
 
 # Buried config option to allow non-canonical RPC-PORT:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#zcash-conf-guide
-listen=0"
-                        )
+listen=0";
 
+    #[test]
+    fn zcashd() {
+        let config_dir = tempfile::tempdir().unwrap();
+        let activation_heights = network::ActivationHeights {
+            overwinter: 1.into(),
+            sapling: 2.into(),
+            blossom: 3.into(),
+            heartwood: 4.into(),
+            canopy: 5.into(),
+            nu5: 6.into(),
+            nu6: 7.into(),
+        };
+
+        super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
+            format!("{}", EXPECTED_CONFIG),
         );
     }
 
@@ -360,44 +361,14 @@ listen=0"
         )
         .unwrap();
 
-        assert_eq!(std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
-                        format!("\
-### Blockchain Configuration
-regtest=1
-nuparams=5ba81b19:1 # Overwinter
-nuparams=76b809bb:2 # Sapling
-nuparams=2bb40e60:3 # Blossom
-nuparams=f5b9230b:4 # Heartwood
-nuparams=e9ff75a6:5 # Canopy
-nuparams=c2d6d0b4:6 # NU5 (Orchard)
-nuparams=c8e71055:7 # NU6
-
-### MetaData Storage and Retrieval
-# txindex:
-# https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#miscellaneous-options
-txindex=1
-# insightexplorer:
-# https://zcash.readthedocs.io/en/latest/rtd_pages/insight_explorer.html?highlight=insightexplorer#additional-getrawtransaction-fields
-insightexplorer=1
-experimentalfeatures=1
-lightwalletd=1
-
-### RPC Server Interface Options:
-# https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#json-rpc-options
-rpcuser=xxxxxx
-rpcpassword=xxxxxx
-rpcport=1234
-rpcallowip=127.0.0.1
-
-# Buried config option to allow non-canonical RPC-PORT:
-# https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#zcash-conf-guide
-listen=0
+        assert_eq!(
+            std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
+            format!("{}{}", EXPECTED_CONFIG , "
 
 ### Zcashd Help provides documentation of the following:
 mineraddress=test_addr_1234
 minetolocalwallet=0 # This is set to false so that we can mine to a wallet, other than the zcashd wallet."
-                        )
-
+            )
         );
     }
 
