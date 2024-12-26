@@ -2,6 +2,7 @@
 name = "zcash_local_net"
 version = "0.1.0"
 edition = "2021"
+resolver = "2"
 
 [features]
 client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
