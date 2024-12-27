@@ -1939,7 +1939,7 @@ pub async fn get_mempool_tx(
     txid_1_rev.reverse();
     let mut txid_3_rev = txids_3.first().as_ref().to_vec();
     txid_3_rev.reverse();
-    let mut txids = vec![txid_1_rev, txid_3_rev];
+    let mut txids = [txid_1_rev, txid_3_rev];
     txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
@@ -2153,7 +2153,7 @@ pub async fn get_mempool_stream(
     // start mempool tasks
     let (zainod_sender, mut zainod_receiver) =
         unbounded_channel::<proto::service::RawTransaction>();
-    let zainod_port = zainod.port().clone();
+    let zainod_port = zainod.port();
     let _zainod_handle = tokio::spawn(async move {
         let mut zainod_client = client::build_client(network::localhost_uri(zainod_port))
             .await
@@ -2173,7 +2173,7 @@ pub async fn get_mempool_stream(
     });
 
     let (lwd_sender, mut lwd_receiver) = unbounded_channel::<proto::service::RawTransaction>();
-    let lwd_port = lightwalletd.port().clone();
+    let lwd_port = lightwalletd.port();
     let _lwd_handle = tokio::spawn(async move {
         let mut lwd_client = client::build_client(network::localhost_uri(lwd_port))
             .await
@@ -2270,12 +2270,12 @@ pub async fn get_mempool_stream(
 
     println!();
 
-    let mut txids = vec![txids_1.first().clone(), txids_2.first().clone()];
+    let mut txids = vec![txids_1.first(), txids_2.first()];
     txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
-    assert_eq!(lwd_txs[0].txid(), txids[0]);
-    assert_eq!(lwd_txs[1].txid(), txids[1]);
+    assert_eq!(&lwd_txs[0].txid(), txids[0]);
+    assert_eq!(&lwd_txs[1].txid(), txids[1]);
     assert_eq!(zainod_txs, lwd_txs);
 
     // send more txs to mempool
@@ -2349,15 +2349,15 @@ pub async fn get_mempool_stream(
 
     println!();
 
-    txids.push(txids_3.first().clone());
-    txids.push(txids_4.first().clone());
+    txids.push(txids_3.first());
+    txids.push(txids_4.first());
     txids.sort();
 
     assert_eq!(lwd_txs.len(), 4);
-    assert_eq!(lwd_txs[0].txid(), txids[0]);
-    assert_eq!(lwd_txs[1].txid(), txids[1]);
-    assert_eq!(lwd_txs[2].txid(), txids[2]);
-    assert_eq!(lwd_txs[3].txid(), txids[3]);
+    assert_eq!(&lwd_txs[0].txid(), txids[0]);
+    assert_eq!(&lwd_txs[1].txid(), txids[1]);
+    assert_eq!(&lwd_txs[2].txid(), txids[2]);
+    assert_eq!(&lwd_txs[3].txid(), txids[3]);
     assert_eq!(zainod_txs, lwd_txs);
 
     drop(recipient);
@@ -2559,7 +2559,7 @@ pub async fn get_tree_state_by_hash(
         .unwrap();
     let request = tonic::Request::new(block_id.clone());
     let block = lwd_client.get_block(request).await.unwrap().into_inner();
-    let mut block_hash = block.hash().clone().0.to_vec();
+    let mut block_hash = block.hash().0.to_vec();
     block_hash.reverse();
 
     let block_id = proto::service::BlockId {
