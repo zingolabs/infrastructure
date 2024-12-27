@@ -9,8 +9,8 @@
 //!
 //!   - light-clients
 //!   - light-wallets
-//!   - light-nodes (aka indexers)
-//!   - full-nodes (aka validators)
+//!   - indexers
+//!   - validators
 //!
 //! as it provides a simple and configurable interface for launching and managing other processes in the
 //! local network to simulate a Zcash environment.
