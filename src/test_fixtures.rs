@@ -2778,7 +2778,7 @@ pub async fn get_subtree_roots_sapling(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
         .await
@@ -2792,7 +2792,7 @@ pub async fn get_subtree_roots_sapling(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
         .await
@@ -2876,7 +2876,7 @@ pub async fn get_subtree_roots_orchard(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
         .await
@@ -2890,7 +2890,7 @@ pub async fn get_subtree_roots_orchard(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
         .await
