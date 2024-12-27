@@ -1940,7 +1940,7 @@ pub async fn get_mempool_tx(
     let mut txid_3_rev = txids_3.first().as_ref().to_vec();
     txid_3_rev.reverse();
     let mut txids = vec![txid_1_rev, txid_3_rev];
-    txids.sort_by(|a, b| a.cmp(&b));
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
     assert_eq!(lwd_txs[0].hash, txids[0]);
@@ -2271,7 +2271,7 @@ pub async fn get_mempool_stream(
     println!();
 
     let mut txids = vec![txids_1.first().clone(), txids_2.first().clone()];
-    txids.sort_by(|a, b| a.cmp(&b));
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
     assert_eq!(lwd_txs[0].txid(), txids[0]);
@@ -2351,7 +2351,7 @@ pub async fn get_mempool_stream(
 
     txids.push(txids_3.first().clone());
     txids.push(txids_4.first().clone());
-    txids.sort_by(|a, b| a.cmp(&b));
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 4);
     assert_eq!(lwd_txs[0].txid(), txids[0]);
