@@ -90,7 +90,7 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
-            miner_address: &ZEBRAD_DEFAULT_MINER,
+            miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: Network::Regtest,
         }
@@ -157,7 +157,7 @@ pub trait Validator: Sized {
 
         std::process::Command::new("cp")
             .arg("-r")
-            .arg(self.data_dir().path().to_path_buf())
+            .arg(self.data_dir().path())
             .arg(chain_cache)
             .output()
             .unwrap()
@@ -463,11 +463,12 @@ impl Validator for Zebrad {
         command
             .args([
                 "--config",
-                format!(
-                    "{}",
-                    config_file_path.to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
+                "{}",
+                config_file_path
+                    .to_str()
+                    .expect("should be valid UTF-8")
+                    .to_string()
+                    .as_str(),
                 "start",
             ])
             .stdout(std::process::Stdio::piped())

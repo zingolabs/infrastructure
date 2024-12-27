@@ -185,12 +185,11 @@ NU6 = {nu6_activation_height}"
         )?;
     } else {
         config_file.write_all(
-            format!(
-                "\n\n\
+            "\n\n\
 [mining]
 debug_like_zcashd = true"
-            )
-            .as_bytes(),
+                .to_string()
+                .as_bytes(),
         )?;
     }
 
