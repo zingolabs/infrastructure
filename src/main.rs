@@ -1,5 +1,6 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
+use std::os::unix::fs::FileExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::{env, ffi::OsString};
@@ -38,19 +39,19 @@ async fn main() {
 }
 
 async fn validate_binary(bin_path: PathBuf) {
-    //println!("{:?}",)
     println!("{:?}", bin_path);
+    // TODO (what about symlinks?)
     // see if file is there
-    // if file is there,
-    // (what about symlinks?)
     if bin_path.is_file() {
+        //see if file is readable and spit out first 64 bytes.
         let file_read_sample = File::open(bin_path).expect("file to be readable");
-        let buf_reader = BufReader::with_capacity(32, file_read_sample);
-        println!("first 32 bytes of readable file: {:?}", buf_reader);
+        let mut reader = BufReader::with_capacity(64, file_read_sample);
+        let bytes_read = reader.fill_buf().expect("ys");
+        println!("demo : {:?}", bytes_read);
         return;
     } else {
-        //have to go get it
-        panic!("temporary panic, no fetch yet!");
+        println!("temporary problems, no fetch yet!");
+        //have to go get it!
     }
     // TODO check hash,
     // signatures, metadata?
