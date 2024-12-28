@@ -1,3 +1,4 @@
+set -e -x
 rm -rf pre_cache.txt post_cache.txt chain_cache/
 git checkout HEAD chain_cache/
 tree -s --noreport chain_cache/ > pre_cache.txt
