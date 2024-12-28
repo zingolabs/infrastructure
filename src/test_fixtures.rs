@@ -302,7 +302,8 @@ pub async fn get_lightd_info(
     println!("zcashd build: {}", lwd_response.zcashd_build);
     println!("zcashd subversion: {}", lwd_response.zcashd_subversion);
 
-    println!("");
+    println!();
+    println!();
 
     assert_eq!(zainod_response.taddr_support, lwd_response.taddr_support);
     assert_eq!(zainod_response.chain_name, lwd_response.chain_name);
@@ -384,7 +385,7 @@ pub async fn get_latest_block(
     println!("\nLightwalletd response:");
     println!("block id: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -444,7 +445,7 @@ pub async fn get_block(
     println!("\nLightwalletd response:");
     println!("compact block: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -504,7 +505,7 @@ pub async fn get_block_out_of_bounds(
     println!("\nLightwalletd response:");
     println!("error status: {:?}", lwd_err_status);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_err_status.code(), lwd_err_status.code());
     assert_eq!(zainod_err_status.message(), lwd_err_status.message());
@@ -573,7 +574,7 @@ pub async fn get_block_nullifiers(
     println!("\nLightwalletd response:");
     println!("compact block: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -655,7 +656,7 @@ pub async fn get_block_range_nullifiers(
     println!("\nLightwalletd response:");
     println!("compact blocks: {:?}", lwd_blocks);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
 }
@@ -737,7 +738,7 @@ pub async fn get_block_range_nullifiers_reverse(
     println!("\nLightwalletd response:");
     println!("compact blocks: {:?}", lwd_blocks);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
 }
@@ -819,7 +820,7 @@ pub async fn get_block_range_lower(
     println!("\nLightwalletd response:");
     println!("compact blocks: {:?}", lwd_blocks);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
 }
@@ -901,7 +902,7 @@ pub async fn get_block_range_upper(
     println!("\nLightwalletd response:");
     println!("compact blocks: {:?}", lwd_blocks);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
 }
@@ -983,7 +984,7 @@ pub async fn get_block_range_reverse(
     println!("\nLightwalletd response:");
     println!("compact blocks: {:?}", lwd_blocks);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
 }
@@ -1084,7 +1085,7 @@ pub async fn get_block_range_out_of_bounds(
     println!("compact blocks: {:?}", lwd_blocks);
     println!("error status: {:?}", lwd_err_status);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_blocks, lwd_blocks);
     assert_eq!(zainod_err_status.code(), lwd_err_status.code());
@@ -1172,7 +1173,7 @@ pub async fn get_transaction(
     println!("\nLightwalletd response:");
     println!("raw transaction: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -1320,7 +1321,7 @@ pub async fn send_transaction(
     println!("\nLightwalletd:");
     println!("transaction: {:?}", lwd_tx);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_tx, lwd_tx);
 }
@@ -1396,7 +1397,7 @@ pub async fn get_taddress_txids_all(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    zainod_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    zainod_txs.sort_by_key(|a| a.txid());
 
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
@@ -1421,7 +1422,7 @@ pub async fn get_taddress_txids_all(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    lwd_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    lwd_txs.sort_by_key(|a| a.txid());
 
     println!("Asserting GetTaddressTxids responses...");
 
@@ -1431,7 +1432,7 @@ pub async fn get_taddress_txids_all(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_txs.len(), 3);
     assert_eq!(zainod_raw_txs, lwd_raw_txs);
@@ -1508,7 +1509,7 @@ pub async fn get_taddress_txids_lower(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    zainod_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    zainod_txs.sort_by_key(|a| a.txid());
 
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
@@ -1533,7 +1534,7 @@ pub async fn get_taddress_txids_lower(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    lwd_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    lwd_txs.sort_by_key(|a| a.txid());
 
     println!("Asserting GetTaddressTxids responses...");
 
@@ -1543,7 +1544,7 @@ pub async fn get_taddress_txids_lower(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_txs.len(), 1);
     assert_eq!(zainod_raw_txs, lwd_raw_txs);
@@ -1620,7 +1621,7 @@ pub async fn get_taddress_txids_upper(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    zainod_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    zainod_txs.sort_by_key(|a| a.txid());
 
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
@@ -1645,7 +1646,7 @@ pub async fn get_taddress_txids_upper(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    lwd_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    lwd_txs.sort_by_key(|a| a.txid());
 
     println!("Asserting GetTaddressTxids responses...");
 
@@ -1655,7 +1656,7 @@ pub async fn get_taddress_txids_upper(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_txs.len(), 2);
     assert_eq!(zainod_raw_txs, lwd_raw_txs);
@@ -1726,7 +1727,7 @@ pub async fn get_taddress_balance(
     println!("\nLightwalletd response:");
     println!("balance: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response.value_zat, 210_000i64);
     assert_eq!(zainod_response, lwd_response);
@@ -1799,7 +1800,7 @@ pub async fn get_taddress_balance_stream(
     println!("\nLightwalletd response:");
     println!("balance: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response.value_zat, 210_000i64);
     assert_eq!(zainod_response, lwd_response);
@@ -1931,15 +1932,15 @@ pub async fn get_mempool_tx(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
     // the response txid is the reverse of the txid returned from quick send
     let mut txid_1_rev = txids_1.first().as_ref().to_vec();
     txid_1_rev.reverse();
     let mut txid_3_rev = txids_3.first().as_ref().to_vec();
     txid_3_rev.reverse();
-    let mut txids = vec![txid_1_rev, txid_3_rev];
-    txids.sort_by(|a, b| a.cmp(&b));
+    let mut txids = [txid_1_rev, txid_3_rev];
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
     assert_eq!(lwd_txs[0].hash, txids[0]);
@@ -2074,7 +2075,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         println!("\nLightwalletd transaction {}:", i);
         println!("{}", lwd_tx_summaries[i]);
 
-        println!("");
+        println!();
 
         assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
         assert_eq!(
@@ -2152,7 +2153,7 @@ pub async fn get_mempool_stream(
     // start mempool tasks
     let (zainod_sender, mut zainod_receiver) =
         unbounded_channel::<proto::service::RawTransaction>();
-    let zainod_port = zainod.port().clone();
+    let zainod_port = zainod.port();
     let _zainod_handle = tokio::spawn(async move {
         let mut zainod_client = client::build_client(network::localhost_uri(zainod_port))
             .await
@@ -2172,7 +2173,7 @@ pub async fn get_mempool_stream(
     });
 
     let (lwd_sender, mut lwd_receiver) = unbounded_channel::<proto::service::RawTransaction>();
-    let lwd_port = lightwalletd.port().clone();
+    let lwd_port = lightwalletd.port();
     let _lwd_handle = tokio::spawn(async move {
         let mut lwd_client = client::build_client(network::localhost_uri(lwd_port))
             .await
@@ -2238,7 +2239,7 @@ pub async fn get_mempool_stream(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    zainod_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    zainod_txs.sort_by_key(|a| a.txid());
 
     let mut lwd_raw_txs = Vec::new();
     while let Some(raw_tx) = lwd_receiver.recv().await {
@@ -2257,7 +2258,7 @@ pub async fn get_mempool_stream(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    lwd_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    lwd_txs.sort_by_key(|a| a.txid());
 
     println!("Asserting GetMempoolStream responses...");
 
@@ -2267,14 +2268,14 @@ pub async fn get_mempool_stream(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
-    let mut txids = vec![txids_1.first().clone(), txids_2.first().clone()];
-    txids.sort_by(|a, b| a.cmp(&b));
+    let mut txids = vec![txids_1.first(), txids_2.first()];
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
-    assert_eq!(lwd_txs[0].txid(), txids[0]);
-    assert_eq!(lwd_txs[1].txid(), txids[1]);
+    assert_eq!(&lwd_txs[0].txid(), txids[0]);
+    assert_eq!(&lwd_txs[1].txid(), txids[1]);
     assert_eq!(zainod_txs, lwd_txs);
 
     // send more txs to mempool
@@ -2318,7 +2319,7 @@ pub async fn get_mempool_stream(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    zainod_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    zainod_txs.sort_by_key(|a| a.txid());
 
     while let Some(raw_tx) = lwd_receiver.recv().await {
         lwd_raw_txs.push(raw_tx);
@@ -2336,7 +2337,7 @@ pub async fn get_mempool_stream(
             .unwrap()
         })
         .collect::<Vec<_>>();
-    lwd_txs.sort_by(|a, b| a.txid().cmp(&b.txid()));
+    lwd_txs.sort_by_key(|a| a.txid());
 
     println!("Asserting GetMempoolStream responses (pt2)...");
 
@@ -2346,17 +2347,17 @@ pub async fn get_mempool_stream(
     println!("\nLightwalletd response:");
     println!("transactions: {:?}", lwd_txs);
 
-    println!("");
+    println!();
 
-    txids.push(txids_3.first().clone());
-    txids.push(txids_4.first().clone());
-    txids.sort_by(|a, b| a.cmp(&b));
+    txids.push(txids_3.first());
+    txids.push(txids_4.first());
+    txids.sort();
 
     assert_eq!(lwd_txs.len(), 4);
-    assert_eq!(lwd_txs[0].txid(), txids[0]);
-    assert_eq!(lwd_txs[1].txid(), txids[1]);
-    assert_eq!(lwd_txs[2].txid(), txids[2]);
-    assert_eq!(lwd_txs[3].txid(), txids[3]);
+    assert_eq!(&lwd_txs[0].txid(), txids[0]);
+    assert_eq!(&lwd_txs[1].txid(), txids[1]);
+    assert_eq!(&lwd_txs[2].txid(), txids[2]);
+    assert_eq!(&lwd_txs[3].txid(), txids[3]);
     assert_eq!(zainod_txs, lwd_txs);
 
     drop(recipient);
@@ -2405,7 +2406,7 @@ pub async fn get_mempool_stream(
         println!("\nLightwalletd transaction {}:", i);
         println!("{}", lwd_tx_summaries[i]);
 
-        println!("");
+        println!();
 
         assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
         assert_eq!(
@@ -2513,7 +2514,7 @@ pub async fn get_tree_state_by_height(
     println!("\nLightwalletd response:");
     println!("tree state: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -2558,7 +2559,7 @@ pub async fn get_tree_state_by_hash(
         .unwrap();
     let request = tonic::Request::new(block_id.clone());
     let block = lwd_client.get_block(request).await.unwrap().into_inner();
-    let mut block_hash = block.hash().clone().0.to_vec();
+    let mut block_hash = block.hash().0.to_vec();
     block_hash.reverse();
 
     let block_id = proto::service::BlockId {
@@ -2591,7 +2592,7 @@ pub async fn get_tree_state_by_hash(
     println!("\nLightwalletd response:");
     println!("tree state: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -2651,7 +2652,7 @@ pub async fn get_tree_state_out_of_bounds(
     println!("\nLightwalletd response:");
     println!("error status: {:?}", lwd_err_status);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_err_status.code(), lwd_err_status.code());
     assert_eq!(zainod_err_status.message(), lwd_err_status.message());
@@ -2715,7 +2716,7 @@ pub async fn get_latest_tree_state(
     println!("\nLightwalletd response:");
     println!("tree state: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(zainod_response, lwd_response);
 }
@@ -2777,7 +2778,7 @@ pub async fn get_subtree_roots_sapling(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
         .await
@@ -2791,7 +2792,7 @@ pub async fn get_subtree_roots_sapling(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
         .await
@@ -2810,7 +2811,7 @@ pub async fn get_subtree_roots_sapling(
     println!("\nLightwalletd response:");
     println!("subtree roots: {:?}", lwd_subtree_roots);
 
-    println!("");
+    println!();
 
     if lwd_subtree_roots.len() < 2 {
         panic!("please sync testnet chain until there are at least 2 subtree roots");
@@ -2875,7 +2876,7 @@ pub async fn get_subtree_roots_orchard(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
         .await
@@ -2889,7 +2890,7 @@ pub async fn get_subtree_roots_orchard(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(subtree_roots_arg.clone());
+    let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
         .await
@@ -2908,7 +2909,7 @@ pub async fn get_subtree_roots_orchard(
     println!("\nLightwalletd response:");
     println!("subtree roots: {:?}", lwd_subtree_roots);
 
-    println!("");
+    println!();
 
     if lwd_subtree_roots.len() < 2 {
         panic!("please sync mainnet chain until there are at least 2 subtree roots");
@@ -2983,7 +2984,7 @@ pub async fn get_address_utxos_all(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_response.address_utxos.len(), 2);
     assert_eq!(zainod_response, lwd_response);
@@ -3056,7 +3057,7 @@ pub async fn get_address_utxos_lower(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_response.address_utxos.len(), 1);
     assert_eq!(lwd_response.address_utxos.first().unwrap().height, 6);
@@ -3130,7 +3131,7 @@ pub async fn get_address_utxos_upper(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_response.address_utxos.len(), 1);
     assert_eq!(lwd_response.address_utxos.first().unwrap().height, 7);
@@ -3204,7 +3205,7 @@ pub async fn get_address_utxos_out_of_bounds(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_response);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_response.address_utxos.len(), 0);
     assert_eq!(zainod_response, lwd_response);
@@ -3285,7 +3286,7 @@ pub async fn get_address_utxos_stream_all(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_address_utxo_replies);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_address_utxo_replies.len(), 2);
     assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
@@ -3366,7 +3367,7 @@ pub async fn get_address_utxos_stream_lower(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_address_utxo_replies);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_address_utxo_replies.len(), 1);
     assert_eq!(lwd_address_utxo_replies.first().unwrap().height, 6);
@@ -3448,7 +3449,7 @@ pub async fn get_address_utxos_stream_upper(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_address_utxo_replies);
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_address_utxo_replies.len(), 1);
     assert_eq!(lwd_address_utxo_replies.first().unwrap().height, 7);
@@ -3530,9 +3531,9 @@ pub async fn get_address_utxos_stream_out_of_bounds(
     println!("\nLightwalletd response:");
     println!("address utxos replies: {:?}", lwd_address_utxo_replies);
 
-    println!("");
+    println!();
 
-    println!("");
+    println!();
 
     assert_eq!(lwd_address_utxo_replies.len(), 0);
     assert_eq!(zainod_address_utxo_replies, lwd_address_utxo_replies);
