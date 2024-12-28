@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::{env, ffi::OsString};
 
 use tokio::task::JoinSet;
@@ -8,30 +9,32 @@ async fn main() {
     // look for zingo-blessed binaries.
     let mut seek_binaries: JoinSet<()> = JoinSet::new();
 
-    let rootdir: OsString = env::var("CARGO_MANIFEST_DIR")
+    let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
     //println!("{:?}",)
-    println!("{:?}", rootdir);
+    println!("{:?}", crate_dir);
 
-    let path_to_binaries = Path::new(&rootdir).join("test_binaries");
-    println!("{:?}", path_to_binaries);
+    let binary_dir = Path::new(&crate_dir).join("test_binaries");
+    println!("{:?}", binary_dir);
 
-    // we're looking for howevermany binaries
     let bin_names = vec!["lightwalletd", "zainod", "zcashd", "zebrad", "zingo-cli"];
 
     for n in bin_names {
         println!("working with : {:?}", n);
-        seek_binaries.spawn(validate_binaries(n));
+        let bin_path = binary_dir.join(n);
+        seek_binaries.spawn(validate_binary(bin_path));
     }
-    //
-    //check hash
-    //check signatures, metadata?
 
     seek_binaries.join_all().await;
 }
 
-async fn validate_binaries(name: &str) {
+async fn validate_binary(bin_path: PathBuf) {
     //println!("{:?}",)
-    println!("{:?}", name);
+    println!("{:?}", bin_path);
+    // see if file is there
+    // if file is there,
+    // (what about symlinks?)
+    //check hash
+    //check signatures, metadata?
 }
