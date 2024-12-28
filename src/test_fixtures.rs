@@ -2828,12 +2828,15 @@ pub async fn get_subtree_roots_sapling(
 /// `network` should match the network type of the cached chain.
 ///
 /// Example directory tree:
+///
+/// ```BASH
 /// zcash-local-net/chain_cache/get_subtree_roots_orchard/
 /// └── state
 ///     └── v26
 ///         └── testnet
 ///             ├── 000008.sst
 ///             ├── 000010.sst
+/// ```
 ///
 pub async fn get_subtree_roots_orchard(
     zebrad_bin: Option<PathBuf>,
