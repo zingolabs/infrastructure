@@ -3,26 +3,24 @@
 //!
 //! ## Overview
 //!
-//! Utilities that launch and manage Zcash processes (regtest/localnet mode). This is used for integration
+//! Utilities that launch and manage Zcash processes. This is used for integration
 //! testing in the development of:
 //!
-//!   - light-clients
-//!   - light-wallets
+//!   - lightclients
 //!   - indexers
 //!   - validators
 //!
-//! as it provides a simple and configurable interface for launching and managing other processes in the
-//! local network to simulate a Zcash environment.
 //!
-//! ## List of Processes
+//! ## List of Manged Processes
+//! - Zebrad
 //! - Zcashd
 //! - Zainod
 //! - Lightwalletd
 //!
 //! ## Prerequisites
 //!
-//! Ensure that any processes used in this crate are installed on your system. The binaries can be in
-//! $PATH or the path to the binaries can be specified when launching a process.
+//! Ensure that any binaries manged by this crate are installed on your system.
+//! The binaries can be referenced via $PATH or the path to the binaries can be specified when launching a process.
 //!
 //! ## Testing
 //!
