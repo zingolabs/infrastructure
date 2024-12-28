@@ -3,9 +3,8 @@
 //!
 //! ## Overview
 //!
-//! A Rust test utility crate that facilitates launching and managing Zcash processes
-//! on a local network (regtest/localnet mode). This crate is ideal for integration testing in the
-//! development of:
+//! Utilities that launch and manage Zcash processes (regtest/localnet mode). This is used for integration
+//! testing in the development of:
 //!
 //!   - light-clients
 //!   - light-wallets
