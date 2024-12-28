@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
 
@@ -39,14 +40,15 @@ async fn main() {
 
 async fn validate_binary(bin_path: PathBuf) {
     println!("{:?}", bin_path);
-    // TODO (what about symlinks?)
-    // see if file is there
     if bin_path.is_file() {
-        //see if file is readable and spit out first 64 bytes.
+        //see if file is readable and print out the first 64 bytes, which should be unique.
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
         let mut reader = BufReader::with_capacity(64, file_read_sample);
         let bytes_read = reader.fill_buf().expect("reader to fill_buf");
         println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+        let mut mc = Command::new(bin_path);
+        mc.arg("--version");
+        println!("{:?}", mc.spawn().expect("mc spawn to work").stdout);
         return;
     } else {
         println!("{:?} = temporary problems, no fetch yet!", &bin_path);
