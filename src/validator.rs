@@ -463,7 +463,6 @@ impl Validator for Zebrad {
         command
             .args([
                 "--config",
-                "{}",
                 config_file_path
                     .to_str()
                     .expect("should be valid UTF-8")
