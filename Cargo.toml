@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = {version ="1.42.0", features =["macros", "fs", "rt-multi-thread"]}
+reqwest = {version = "0.12.11", features = ["zstd", "rustls-tls-manual-roots"]}
+tokio = {version ="1.42.0", features = ["macros", "fs", "rt-multi-thread"]}
