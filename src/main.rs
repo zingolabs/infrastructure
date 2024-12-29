@@ -10,8 +10,8 @@ use tokio::task::JoinSet;
 #[tokio::main]
 async fn main() {
     // look for zingo-blessed binaries.
-    //
-    // deafult is idle sockets being kept-alive 90 seconds
+
+    // Client deafult is idle sockets being kept-alive 90 seconds
     let req_client = reqwest::ClientBuilder::new()
         .connection_verbose(true)
         .zstd(true)
@@ -22,7 +22,7 @@ async fn main() {
         // TODO address these:
         .danger_accept_invalid_hostnames(true)
         .danger_accept_invalid_certs(true)
-        // if this works it should take care of that stuff...
+        // TODO if this works it should take care of that stuff...
         // .add_root_certificate(Certificate) // reqwest::Certificate
         // .resolve_to_addrs(domain, addrs) // Override DNS resolution for specific domains to a particular IP address.
         .build()
@@ -49,7 +49,6 @@ async fn main() {
     ];
 
     for n in bin_names {
-        println!("working with : {:?}", n);
         let bin_path = binary_dir.join(n);
         // Client uses an Arc internally.
         seek_binaries.spawn(validate_binary(bin_path, req_client.clone()));
@@ -59,7 +58,6 @@ async fn main() {
 }
 
 async fn validate_binary(bin_path: PathBuf, r_client: Client) {
-    println!("{:?}", bin_path);
     if bin_path.is_file() {
         //see if file is readable and print out the first 64 bytes, which should be unique.
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
@@ -67,8 +65,9 @@ async fn validate_binary(bin_path: PathBuf, r_client: Client) {
         let bytes_read = reader.fill_buf().expect("reader to fill_buf");
         println!("{:?} bytes : {:?}", &bin_path, bytes_read);
 
-        // TODO check version string outs
+        // TODO check version strings
         //print out version stdouts - maybe for logging or tracing later
+        // lwd and zaino don't like --version
         let mut _mc = Command::new(bin_path);
         _mc.arg("--version");
         //println!("{:?}", mc.spawn().expect("mc spawn to work").stdout);
@@ -80,18 +79,17 @@ async fn validate_binary(bin_path: PathBuf, r_client: Client) {
             &bin_path
         );
         // we have to go get it!
+        // TODO helper function?
         // TODO temp directory?
-        // TODO content length header
 
         // reqwest some stuff
         // suppports native_tls (openssl on linux) by default, but rustls is a feature
         //r_client.get(URL);
         let fetch_url = Url::parse("127.0.0.1:3953").expect("fetch_url to parse");
         let resp = r_client.get(fetch_url).send().await;
+        println!("{:?}", resp.unwrap())
 
         //.basic_auth(username, password);
-
-        //println!("{:?}",)
     }
     // TODO check hash,
     // signatures, metadata?
