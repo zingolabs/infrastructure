@@ -3,3 +3,6 @@
 !/chain_cache/client_rpc_tests
 !/chain_cache/get_subtree_roots_sapling
 !/chain_cache/get_subtree_roots_orchard
+pre_cache.txt
+post_cache.txt
+testnet_zebrad.toml
