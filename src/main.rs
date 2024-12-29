@@ -66,12 +66,13 @@ async fn validate_binary(bin_path: PathBuf, r_client: Client) {
         println!("{:?} bytes : {:?}", &bin_path, bytes_read);
 
         // TODO check version strings
-        //print out version stdouts - maybe for logging or tracing later
         // lwd and zaino don't like --version
-        let mut _mc = Command::new(bin_path);
-        _mc.arg("--version");
-        //println!("{:?}", mc.spawn().expect("mc spawn to work").stdout);
-
+        if !bin_path.ends_with("zainod") && !bin_path.ends_with("lightwalletd") {
+            let mut _vc = Command::new(bin_path);
+            _vc.arg("--version");
+            // print out version stdouts - maybe for logging or tracing later
+            //println!("{:?}", vc.spawn().expect("mc spawn to work").stdout);
+        }
         return;
     } else {
         println!(
@@ -85,9 +86,13 @@ async fn validate_binary(bin_path: PathBuf, r_client: Client) {
         // reqwest some stuff
         // suppports native_tls (openssl on linux) by default, but rustls is a feature
         //r_client.get(URL);
-        let fetch_url = Url::parse("127.0.0.1:3953").expect("fetch_url to parse");
-        let resp = r_client.get(fetch_url).send().await;
-        println!("{:?}", resp.unwrap())
+        let fetch_url = Url::parse("https://127.0.0.1:3953/getme").expect("fetch_url to parse");
+        let resp = r_client
+            .get(fetch_url)
+            .send()
+            .await
+            .expect("Response to be ok");
+        println!("R : {:?}", resp.text().await);
 
         //.basic_auth(username, password);
     }
