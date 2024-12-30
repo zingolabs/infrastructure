@@ -37,6 +37,7 @@ async fn main() {
         "zcash-cli",
         "zebrad",
         "zingo-cli",
+        "badname-cli",
     ];
 
     for n in bin_names {
@@ -81,15 +82,15 @@ async fn validate_binary(n: &str, r_client: Client) {
 
         // reqwest some stuff
         //r_client.get(URL);
-        let furl = format!("https://127.0.0.1:3953/{}", n);
-        let fetch_url = Url::parse(&furl).expect("fetch_url to parse");
-        let resp = r_client
+        let asset_url = format!("https://127.0.0.1:3953/{}", n);
+        let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
+        let res = r_client
             .get(fetch_url)
             //.basic_auth(username, password);
             .send()
             .await
             .expect("Response to be ok");
-        println!("R : {:?} {:?}", resp.status(), resp.text().await);
+        println!("R : {:?} {:?}", res.status(), res.text().await);
     }
 
     // TODO check hash,
