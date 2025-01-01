@@ -1,6 +1,7 @@
 use reqwest::{Certificate, Client, Url};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Write};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::process::Command;
 use std::{env, ffi::OsString};
@@ -10,6 +11,23 @@ use tokio::task::JoinSet;
 async fn main() {
     // look for zingo-blessed binaries.
 
+    // const version strings for soft-confirming binaries when found
+    const VS_ZEBRAD: &str = "zebrad 2.1.0";
+    const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
+    const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
+    const VS_LWD: &str =
+        "Use \"lightwalletd [command] --help\" for more information about a command.";
+    const VS_ZAINOD: &str = "zainod [OPTIONS]";
+    const VS_ZINGOCLI: &str = "Zingo CLI 0.1.1";
+
+    // find locally comitted cert for binary-dealer remote
+    let cert: Certificate = reqwest::Certificate::from_pem(
+        &fs::read("cert/cert.pem").expect("cert file to be readable"),
+    )
+    .expect("reqwest to ingest cert");
+    println!("{:?}", cert);
+
+    let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
     // Client deafult is idle sockets being kept-alive 90 seconds
     let req_client = reqwest::ClientBuilder::new()
         .connection_verbose(true)
@@ -19,11 +37,11 @@ async fn main() {
         //.connect_timeout(Duration) // to connect // defaults to None
         //.read_timeout(Duration) // how long to we wait for a read operation // defaults to no timeout
         // TODO address these:
-        .danger_accept_invalid_hostnames(true)
+        //.danger_accept_invalid_hostnames(true)
         .danger_accept_invalid_certs(true)
         // TODO if this works it should take care of that stuff...
-        // .add_root_certificate(Certificate) // reqwest::Certificate
-        // .resolve_to_addrs(domain, addrs) // Override DNS resolution for specific domains to a particular IP address.
+        //.add_root_certificate(cert)
+        .resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
 
@@ -36,6 +54,9 @@ async fn main() {
         "zcash-cli",
         "zebrad",
         "zingo-cli",
+        //"shasum.txt",
+        //"shasums.txt",
+        //"cert.pem",
     ];
 
     for n in bin_names {
@@ -73,12 +94,11 @@ async fn validate_binary(n: &str, r_client: Client) {
     } else {
         println!("{:?} = file not found!", &bin_path);
         // we have to go get it!
-        // TODO helper function?
         // TODO temp directory?
 
         // reqwest some stuff
         //r_client.get(URL);
-        let asset_url = format!("https://127.0.0.1:3953/{}", n);
+        let asset_url = format!("https://zingo-1.decentcloud.net/{}", n);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
         let mut res = r_client
             .get(fetch_url)
@@ -93,6 +113,7 @@ async fn validate_binary(n: &str, r_client: Client) {
         // simple progress bar
         let progress = vec!["/", "-", "\\", "-", "o"];
         let mut counter: usize = 0;
+
         while let Some(chunk) = res.chunk().await.expect("result to chunk ok") {
             target_binary
                 .write_all(&chunk)
@@ -101,7 +122,6 @@ async fn validate_binary(n: &str, r_client: Client) {
                 "\rplease wait, fetching data chunks : {}",
                 progress[counter]
             );
-            //print!("\r");
             counter = counter + 1;
             if counter == 5 {
                 counter = 0;
