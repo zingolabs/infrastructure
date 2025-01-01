@@ -1,24 +1,17 @@
+use core::panic;
 use reqwest::{Certificate, Client, Url};
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::time::Duration;
 use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
 
 #[tokio::main]
 async fn main() {
     // look for zingo-blessed binaries.
-
-    // const version strings for soft-confirming binaries when found
-    const VS_ZEBRAD: &str = "zebrad 2.1.0";
-    const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
-    const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
-    const VS_LWD: &str =
-        "Use \"lightwalletd [command] --help\" for more information about a command.";
-    const VS_ZAINOD: &str = "zainod [OPTIONS]";
-    const VS_ZINGOCLI: &str = "Zingo CLI 0.1.1";
 
     // find locally comitted cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
@@ -29,19 +22,20 @@ async fn main() {
 
     let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
     // Client deafult is idle sockets being kept-alive 90 seconds
+
     let req_client = reqwest::ClientBuilder::new()
         .connection_verbose(true)
         .zstd(true)
         .use_rustls_tls()
         .tls_info(true)
-        //.connect_timeout(Duration) // to connect // defaults to None
-        //.read_timeout(Duration) // how long to we wait for a read operation // defaults to no timeout
+        // .connect_timeout(Duration::from_secs(5)) // to connect // defaults to None
+        // .read_timeout(Duration::from_secs(8)) // how long to we wait for a read operation // defaults to no timeout
         // TODO address these:
         //.danger_accept_invalid_hostnames(true)
         .danger_accept_invalid_certs(true)
         // TODO if this works it should take care of that stuff...
         //.add_root_certificate(cert)
-        .resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
+        //.resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
 
@@ -65,9 +59,20 @@ async fn main() {
     }
 
     seek_binaries.join_all().await;
+    println!("program exiting");
 }
 
 async fn validate_binary(n: &str, r_client: Client) {
+    // const version strings for soft-confirming binaries when found
+    // lwd and zaino don't like --version
+    const VS_ZEBRAD: &str = "zebrad 2.1.0";
+    const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
+    const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
+    const VS_LWD: &str =
+        "Use \"lightwalletd [command] --help\" for more information about a command.";
+    const VS_ZAINOD: &str = "zainod [OPTIONS]";
+    const VS_ZINGOCLI: &str = "Zingo CLI 0.1.1";
+
     let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
@@ -83,12 +88,68 @@ async fn validate_binary(n: &str, r_client: Client) {
         println!("{:?} bytes : {:?}", &bin_path, bytes_read);
 
         // TODO check version strings
-        // lwd and zaino don't like --version
-        if !bin_path.ends_with("zainod") && !bin_path.ends_with("lightwalletd") {
-            let mut _vc = Command::new(bin_path);
-            _vc.arg("--version");
-            // print out version stdouts - maybe for logging or tracing later
-            // println!("{:?}", vc.spawn().expect("mc spawn to work").stdout);
+        let mut vs = Command::new(bin_path);
+        vs.arg("--version")
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .output()
+            .expect("ouch");
+        // print out version stdouts - maybe for logging or tracing later
+        // noisey out println!("{:?}", vc.spawn().expect("vc spawn to work").stdout);
+        let mut std_out = String::new();
+        let mut std_err = String::new();
+        vs.spawn()
+            .expect("vs spawn to work")
+            .stdout
+            .expect("stdout to happen")
+            .read_to_string(&mut std_out)
+            .expect("writing to buffer to complete");
+        vs.spawn()
+            .expect("vs spawn to work")
+            .stderr
+            .expect("stderr to happen")
+            .read_to_string(&mut std_err)
+            .expect("writing to buffer to complete");
+
+        // SO NOISEY println!("{:?}", std_out);
+        match n {
+            "lightwalletd" => {
+                if !std_err.contains(VS_LWD) {
+                    panic!("expected LWD version string incorrect")
+                }
+                println!("lightwalletd okay!");
+            }
+            "zainod" => {
+                if !std_err.contains(VS_ZAINOD) {
+                    panic!("expected Zainod version string incorrect")
+                }
+                println!("zainod okay!");
+            }
+            "zcashd" => {
+                if !std_out.contains(VS_ZCASHD) {
+                    panic!("ZCD version string incorrect")
+                }
+                println!("zcashd okay!");
+            }
+            "zcash-cli" => {
+                if !std_out.contains(VS_ZCASHCLI) {
+                    panic!("ZCC version string incorrect")
+                }
+                println!("Zcash-cli okay!");
+            }
+            "zebrad" => {
+                if !std_out.contains(VS_ZEBRAD) {
+                    panic!("Zebrad version string incorrect")
+                }
+                println!("zebrad okay!");
+            }
+            "zingo-cli" => {
+                if !std_out.contains(VS_ZINGOCLI) {
+                    panic!("Zingo-cli version string incorrect")
+                }
+                println!("Zingo-cli okay!");
+            }
+            _ => println!("unknown binary returned stdout"),
         }
         return;
     } else {
@@ -98,7 +159,8 @@ async fn validate_binary(n: &str, r_client: Client) {
 
         // reqwest some stuff
         //r_client.get(URL);
-        let asset_url = format!("https://zingo-1.decentcloud.net/{}", n);
+        // let asset_url = format!("https://zingo-1.decentcloud.net/{}", n);
+        let asset_url = format!("https://199.167.151.146/{}", n);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
         let mut res = r_client
             .get(fetch_url)
