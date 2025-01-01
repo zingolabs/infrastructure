@@ -2,7 +2,7 @@ use core::panic;
 use reqwest::{Certificate, Client, Url};
 use std::fmt::Debug;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -45,9 +45,6 @@ async fn main() {
         "zcash-cli",
         "zebrad",
         "zingo-cli",
-        //"shasum.txt",
-        //"shasums.txt",
-        //"cert.pem",
     ];
 
     for n in bin_names {
@@ -75,6 +72,21 @@ async fn validate_binary(n: &str, r_client: Client) {
         .into();
 
     let binary_dir = Path::new(&crate_dir).join("test_binaries");
+
+    // hashes for confirming expected binaries
+    // TODO signatures, metadata?
+    let lines: Vec<String> =
+        BufReader::new(File::open(binary_dir.join("shasum.txt")).expect("shasum.txt to open"))
+            .lines()
+            .collect::<Result<_, _>>()
+            .expect("collection of lines to unwrap");
+    for l in lines {
+        if l.contains(n) {
+            println!("{:?}", l);
+        }
+    }
+    //
+    //
     let bin_path = binary_dir.join(n);
     if bin_path.is_file() {
         // see if file is readable and print out the first 64 bytes, which should be unique among them.
@@ -83,7 +95,6 @@ async fn validate_binary(n: &str, r_client: Client) {
         let _bytes_read = reader.fill_buf().expect("reader to fill_buf");
         println!("{:?} bytes : {:?}", &bin_path, _bytes_read);
 
-        // TODO check version strings
         let mut vs = Command::new(bin_path);
         vs.arg("--version")
             .stderr(Stdio::piped())
@@ -146,7 +157,6 @@ async fn validate_binary(n: &str, r_client: Client) {
             }
             _ => println!("looked for --version of unknown binary"),
         }
-        return;
     } else {
         println!("{:?} = file not found!", &bin_path);
         // we have to go get it!
@@ -185,7 +195,7 @@ async fn validate_binary(n: &str, r_client: Client) {
         }
         println!("\nfile {} write complete!\n", n);
     }
-    // TODO check hash,
-    // signatures, metadata?
-    // TODO set file permissions
+    // TODO confirm all binaries should be in place, or program fails with info
+
+    // TODO actively set file permissions
 }
