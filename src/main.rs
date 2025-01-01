@@ -1,8 +1,9 @@
 use core::panic;
 use reqwest::{Certificate, Client, Url};
+use std::fmt::Debug;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Duration;
@@ -18,9 +19,9 @@ async fn main() {
         &fs::read("cert/cert.pem").expect("cert file to be readable"),
     )
     .expect("reqwest to ingest cert");
-    println!("{:?}", cert);
+    println!("cert ingested : {:?}", cert);
 
-    let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
+    // let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
     // Client deafult is idle sockets being kept-alive 90 seconds
 
     let req_client = reqwest::ClientBuilder::new()
@@ -28,13 +29,9 @@ async fn main() {
         .zstd(true)
         .use_rustls_tls()
         .tls_info(true)
-        // .connect_timeout(Duration::from_secs(5)) // to connect // defaults to None
-        // .read_timeout(Duration::from_secs(8)) // how long to we wait for a read operation // defaults to no timeout
-        // TODO address these:
-        //.danger_accept_invalid_hostnames(true)
-        .danger_accept_invalid_certs(true)
-        // TODO if this works it should take care of that stuff...
-        //.add_root_certificate(cert)
+        .connect_timeout(Duration::from_secs(5)) // to connect // defaults to None
+        .read_timeout(Duration::from_secs(8)) // how long to we wait for a read operation // defaults to no timeout
+        .add_root_certificate(cert)
         //.resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
@@ -64,7 +61,7 @@ async fn main() {
 
 async fn validate_binary(n: &str, r_client: Client) {
     // const version strings for soft-confirming binaries when found
-    // lwd and zaino don't like --version
+    // lwd and zaino don't like --version, they return stderr
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
     const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
@@ -76,16 +73,15 @@ async fn validate_binary(n: &str, r_client: Client) {
     let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
-    // INFO println!("{:?}", crate_dir);
 
     let binary_dir = Path::new(&crate_dir).join("test_binaries");
     let bin_path = binary_dir.join(n);
     if bin_path.is_file() {
-        //see if file is readable and print out the first 64 bytes, which should be unique.
+        // see if file is readable and print out the first 64 bytes, which should be unique among them.
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
         let mut reader = BufReader::with_capacity(64, file_read_sample);
-        let bytes_read = reader.fill_buf().expect("reader to fill_buf");
-        println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+        let _bytes_read = reader.fill_buf().expect("reader to fill_buf");
+        println!("{:?} bytes : {:?}", &bin_path, _bytes_read);
 
         // TODO check version strings
         let mut vs = Command::new(bin_path);
@@ -93,9 +89,9 @@ async fn validate_binary(n: &str, r_client: Client) {
             .stderr(Stdio::piped())
             .stdout(Stdio::piped())
             .output()
-            .expect("ouch");
-        // print out version stdouts - maybe for logging or tracing later
-        // noisey out println!("{:?}", vc.spawn().expect("vc spawn to work").stdout);
+            .expect("command with --version argument and stddout + stderr to be created");
+
+        // we have to collect both becayse LWD and Zaino don't print to stdout with --version
         let mut std_out = String::new();
         let mut std_err = String::new();
         vs.spawn()
@@ -111,7 +107,6 @@ async fn validate_binary(n: &str, r_client: Client) {
             .read_to_string(&mut std_err)
             .expect("writing to buffer to complete");
 
-        // SO NOISEY println!("{:?}", std_out);
         match n {
             "lightwalletd" => {
                 if !std_err.contains(VS_LWD) {
@@ -149,18 +144,17 @@ async fn validate_binary(n: &str, r_client: Client) {
                 }
                 println!("Zingo-cli okay!");
             }
-            _ => println!("unknown binary returned stdout"),
+            _ => println!("looked for --version of unknown binary"),
         }
         return;
     } else {
         println!("{:?} = file not found!", &bin_path);
         // we have to go get it!
-        // TODO temp directory?
 
         // reqwest some stuff
-        //r_client.get(URL);
-        // let asset_url = format!("https://zingo-1.decentcloud.net/{}", n);
-        let asset_url = format!("https://199.167.151.146/{}", n);
+        let asset_url = format!("https://zingo-1.decentcloud.net:3953/{}", n);
+        // let asset_url = format!("https://199.167.151.146:3953/{}", n);
+        println!("{:?}", asset_url);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
         let mut res = r_client
             .get(fetch_url)
@@ -190,9 +184,8 @@ async fn validate_binary(n: &str, r_client: Client) {
             }
         }
         println!("\nfile {} write complete!\n", n);
-        //println!("{:?}",)
     }
-
     // TODO check hash,
     // signatures, metadata?
+    // TODO set file permissions
 }
