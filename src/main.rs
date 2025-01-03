@@ -1,40 +1,17 @@
-use core::panic;
 use hex;
 use reqwest::{Certificate, Client, Url};
-use std::collections::BinaryHeap;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Error, Read, Write};
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use sha2::{Digest, Sha512};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+// use std::process::{Command, Stdio};
 use std::time::Duration;
 use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
 
 #[tokio::main]
 async fn main() {
-    // find locally comitted cert for binary-dealer remote
-    let cert: Certificate = reqwest::Certificate::from_pem(
-        &fs::read("cert/cert.pem").expect("cert file to be readable"),
-    )
-    .expect("reqwest to ingest cert");
-    println!("cert ingested : {:?}", cert);
-
-    // let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
-    // Client deafult is idle sockets being kept-alive 90 seconds
-    let req_client = reqwest::ClientBuilder::new()
-        .connection_verbose(true)
-        .zstd(true)
-        .use_rustls_tls()
-        .tls_info(true)
-        .connect_timeout(Duration::from_secs(5)) // to connect // defaults to None
-        .read_timeout(Duration::from_secs(10)) // how long to we wait for a read operation // defaults to no timeout
-        .add_root_certificate(cert)
-        //.resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
-        .build()
-        .expect("client builder to read system configuration and initialize TLS backend");
-
     // find or fetch zingo-blessed binaries.
     let mut seek_binaries: JoinSet<()> = JoinSet::new();
 
@@ -49,71 +26,41 @@ async fn main() {
 
     for n in bin_names {
         // Client uses an Arc internally.
-        seek_binaries.spawn(validate_binary(n, req_client.clone()));
+        seek_binaries.spawn(validate_binary(n));
     }
 
     seek_binaries.join_all().await;
     println!("program exiting, declare victory!");
 }
 
-async fn validate_binary(n: &str, r_client: Client) {
-    // TODO currently this function checks validity of existing file (though reprecussions only for missing shasum)
-    // should fetch a missing one first - helper funtion would allow for test->delete->fetch
+async fn validate_binary(n: &str) {
     let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
+    let bin_dir = Path::new(&crate_dir).join("test_binaries");
+    let bin_path = bin_dir.join(n);
 
-    let binary_dir = Path::new(&crate_dir).join("test_binaries");
-
-    let bin_path = binary_dir.join(n);
-
-    // TODO make fn file check -> Pass / Fail (rm file, get file)
-    if bin_path.is_file() {
-        //file is found, perform soft checks
-        confirm_binary(&binary_dir, &bin_path, n).await
-    }
-    if !bin_path.is_file() {
-        println!("{:?} = file not found!", &bin_path);
-        // we have to go get it!
-
-        // reqwest some stuff
-        let asset_url = format!("https://zingo-1.decentcloud.net:3953/{}", n);
-        // let asset_url = format!("https://199.167.151.146:3953/{}", n);
-        println!("fetching from {:?}", asset_url);
-        let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
-        let mut res = r_client
-            .get(fetch_url)
-            //.basic_auth(username, password);
-            .send()
-            .await
-            .expect("Response to be ok");
-        let mut target_binary: File = File::create(&bin_path).expect("file to be created");
-        println!("new empty file for {} made. write about to start!", n);
-
-        // simple progress bar
-        let progress = vec!["/", "-", "\\", "-", "o"];
-        let mut counter: usize = 0;
-
-        while let Some(chunk) = res
-            .chunk()
-            .await
-            .expect("result to chunk ok.. *NOT A FAILED TRANSFER!")
-        {
-            target_binary
-                .write_all(&chunk)
-                .expect("chunk writes to binary");
-            print!(
-                "\rplease wait, fetching data chunks : {}",
-                progress[counter]
-            );
-            counter = (counter + 1) % 5;
+    loop {
+        if !bin_path.is_file() {
+            println!("{:?} = file not found!", &bin_path);
+            // we have to go get it!
+            fetch_binary(&bin_path, n).await
         }
-        println!("\nfile {} write complete!\n", n);
+        if bin_path.is_file() {
+            //file is found, perform checks
+            match confirm_binary(&bin_dir, &bin_path, n).await {
+                Ok(()) => {
+                    println!("{} binary confirmed.", &n);
+                    break;
+                }
+                _ => println!("binary confirmation failure, deleted found binary. plz fetch again"),
+            }
+        }
     }
+    // TODO actively set or check file permissions
 }
-// TODO actively set  or check file permissions
 
-async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
+async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Result<(), ()> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(&bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
@@ -191,6 +138,10 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
                 println!("lightwalletd bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
             /*
             if !std_err.contains(VS_LWD) {
@@ -202,7 +153,12 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "zainod" => {
             if bytes_read == ZAI_BYTES {
                 println!("zainod bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
+
             /*
             if !std_err.contains(VS_ZAINOD) {
                 panic!("expected Zainod version string incorrect")
@@ -213,6 +169,10 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "zcashd" => {
             if bytes_read == ZCD_BYTES {
                 println!("zcashd bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
             /*
             if !std_out.contains(VS_ZCASHD) {
@@ -224,6 +184,10 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "zcash-cli" => {
             if bytes_read == ZCC_BYTES {
                 println!("Zcash-cli bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
             /*
             if !std_out.contains(VS_ZCASHCLI) {
@@ -235,6 +199,10 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "zebrad" => {
             if bytes_read == ZEBRA_BYTES {
                 println!("zebrad bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
             /*
             if !std_out.contains(VS_ZEBRAD) {
@@ -246,6 +214,10 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         "zingo-cli" => {
             if bytes_read == ZINGO_BYTES {
                 println!("Zingo-cli bytes okay!");
+            } else {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                println!("binary {} removed!", n);
+                return Err(());
             }
             /*
             if !std_out.contains(VS_ZINGOCLI) {
@@ -257,9 +229,9 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
         _ => println!("looked for unknown binary"),
     }
     println!("confirming {} hashsum against local record", n);
+    // TODO signatures, metadata?
 
     // hashes for confirming expected binaries
-    // TODO signatures, metadata?
     let lines: Vec<String> =
         BufReader::new(File::open(binary_dir.join("shasum.txt")).expect("shasum.txt to open"))
             .lines()
@@ -279,12 +251,77 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) {
                 l
             );
             println!("{:?} :: {:?}", res, hash);
-            assert_eq!(res, hash);
-            // TODO case where comparison fails but attempt to purge and fetch binary again
+
+            // assert_eq!(res, hash);
+            if !(res == hash) {
+                fs::remove_file(bin_path).expect("bin to be deleted");
+                return Err(());
+            }
             println!(
                 "binary hash matches local record! Completing validation process for {}",
                 n
             );
         }
     }
+    return Ok(());
+}
+
+async fn fetch_binary(bin_path: &PathBuf, n: &str) {
+    // find locally comitted cert for binary-dealer remote
+    let cert: Certificate = reqwest::Certificate::from_pem(
+        &fs::read("cert/cert.pem").expect("cert file to be readable"),
+    )
+    .expect("reqwest to ingest cert");
+    println!("cert ingested : {:?}", cert);
+
+    // let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(199, 167, 151, 146)), 3953);
+    // Client deafult is idle sockets being kept-alive 90 seconds
+    let req_client = reqwest::ClientBuilder::new()
+        .connection_verbose(true)
+        .zstd(true)
+        .use_rustls_tls()
+        .tls_info(true)
+        .connect_timeout(Duration::from_secs(10)) // to connect // defaults to None
+        .read_timeout(Duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
+        .add_root_certificate(cert)
+        //.resolve_to_addrs("zingo-1.decentcloud.net", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
+        .build()
+        .expect("client builder to read system configuration and initialize TLS backend");
+
+    // reqwest some stuff
+    let asset_url = format!("https://zingo-1.decentcloud.net:3953/{}", n);
+    // let asset_url = format!("https://199.167.151.146:3953/{}", n);
+    println!("fetching from {:?}", asset_url);
+    let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
+
+    // TODO improve chunking method to non-legacy solution
+    // TODO this is a Response, hyper_util::client::legacy::Error emitted from expect
+    let mut res = req_client
+        .get(fetch_url)
+        //.basic_auth(username, password);
+        .send()
+        .await
+        .expect("Response to be ok");
+    let mut target_binary: File = File::create(&bin_path).expect("file to be created");
+    println!("new empty file for {} made. write about to start!", n);
+
+    // simple progress bar
+    let progress = vec!["/", "-", "\\", "-", "o"];
+    let mut counter: usize = 0;
+
+    while let Some(chunk) = res
+        .chunk()
+        .await
+        .expect("result to chunk ok.. *NOT A FAILED TRANSFER!")
+    {
+        target_binary
+            .write_all(&chunk)
+            .expect("chunk writes to binary");
+        print!(
+            "\rplease wait, fetching data chunks : {}",
+            progress[counter]
+        );
+        counter = (counter + 1) % 5;
+    }
+    println!("\nfile {} write complete!\n", n);
 }
