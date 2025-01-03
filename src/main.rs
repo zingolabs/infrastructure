@@ -57,7 +57,6 @@ async fn validate_binary(n: &str) {
             }
         }
     }
-    // TODO actively set or check file permissions
 }
 
 async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Result<(), ()> {
@@ -229,7 +228,6 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Re
         _ => println!("looked for unknown binary"),
     }
     println!("confirming {} hashsum against local record", n);
-    // TODO signatures, metadata?
 
     // hashes for confirming expected binaries
     let lines: Vec<String> =
@@ -294,8 +292,6 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
     println!("fetching from {:?}", asset_url);
     let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
-    // TODO improve chunking method to non-legacy solution
-    // TODO this is a Response, hyper_util::client::legacy::Error emitted from expect
     let mut res = req_client
         .get(fetch_url)
         //.basic_auth(username, password);
