@@ -29,6 +29,7 @@ async fn main() {
         seek_binaries.spawn(validate_binary(n));
     }
 
+    // TODO print helpful message if some threads return an error
     seek_binaries.join_all().await;
     println!("program exiting, declare victory!");
 }
@@ -298,6 +299,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .send()
         .await
         .expect("Response to be ok");
+    // TODO instead of panicking, try again
     let mut target_binary: File = File::create(&bin_path).expect("file to be created");
     println!("new empty file for {} made. write about to start!", n);
 
