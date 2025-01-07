@@ -1,7 +1,7 @@
 use hex;
 use reqwest::{Certificate, Client, Url};
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Error, Read, Write};
+use std::io::{BufRead, BufReader, Write};
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use sha2::{Digest, Sha512};
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
 
 #[tokio::main]
-async fn main() {
+pub async fn main() {
     // find or fetch zingo-blessed binaries.
     let mut seek_binaries: JoinSet<()> = JoinSet::new();
 
