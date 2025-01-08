@@ -3,6 +3,7 @@ name = "zcash_local_net"
 version = "0.1.0"
 edition = "2021"
 resolver = "2"
+build="src/build.rs"
 
 [features]
 client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
@@ -60,3 +61,9 @@ zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "zaino_dep
 
 # Runtime
 tokio = "1.25.0"
+
+[build-dependencies]
+hex = "0.4.3"
+reqwest = {version = "0.12.11", features = ["zstd", "rustls-tls-manual-roots"]}
+sha2 = "0.10.8"
+tokio = {version ="1.42.0", features = ["macros", "fs", "rt-multi-thread"]}
