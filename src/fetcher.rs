@@ -38,7 +38,7 @@ async fn validate_binary(n: &str) {
     let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
-    let bin_dir = Path::new(&crate_dir).join("test_binaries");
+    let bin_dir = Path::new(&crate_dir).join("test_binaries/bin");
     let bin_path = bin_dir.join(n);
 
     loop {
@@ -231,7 +231,7 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Re
 
     // hashes for confirming expected binaries
     let lines: Vec<String> =
-        BufReader::new(File::open(binary_dir.join("shasum.txt")).expect("shasum.txt to open"))
+        BufReader::new(File::open(binary_dir.join("../shasum.txt")).expect("shasum.txt to open"))
             .lines()
             .collect::<Result<_, _>>()
             .expect("collection of lines to unwrap");

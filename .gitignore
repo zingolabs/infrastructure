@@ -6,3 +6,8 @@
 pre_cache.txt
 post_cache.txt
 testnet_zebrad.toml
+
+# ignore files in test_binaries
+test_binaries/bin/*
+# dont ignore the folder itself
+!test_binaries/bin
