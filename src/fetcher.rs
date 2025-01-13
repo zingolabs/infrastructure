@@ -38,8 +38,11 @@ async fn validate_binary(n: &str) {
     let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
         .expect("cargo manifest path to be found")
         .into();
-    let bin_dir = Path::new(&crate_dir).join("test_binaries/bin");
+    let bin_dir = Path::new(&crate_dir)
+        .join("fetched_resources/test_binaries")
+        .join(n);
     let bin_path = bin_dir.join(n);
+    let shasum_path = bin_dir.join("shasum");
 
     loop {
         if !bin_path.is_file() {
@@ -49,7 +52,7 @@ async fn validate_binary(n: &str) {
         }
         if bin_path.is_file() {
             //file is found, perform checks
-            match confirm_binary(&bin_dir, &bin_path, n).await {
+            match confirm_binary(&bin_path, &shasum_path, n).await {
                 Ok(()) => {
                     println!("{} binary confirmed.", &n);
                     break;
@@ -60,7 +63,7 @@ async fn validate_binary(n: &str) {
     }
 }
 
-async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Result<(), ()> {
+async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(&bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
@@ -230,11 +233,11 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Re
     println!("confirming {} hashsum against local record", n);
 
     // hashes for confirming expected binaries
-    let lines: Vec<String> =
-        BufReader::new(File::open(binary_dir.join("../shasum.txt")).expect("shasum.txt to open"))
-            .lines()
-            .collect::<Result<_, _>>()
-            .expect("collection of lines to unwrap");
+    let lines: Vec<String> = BufReader::new(File::open(shasum_path).expect("shasum to open"))
+        .lines()
+        .collect::<Result<_, _>>()
+        .expect("collection of lines to unwrap");
+
     for l in lines {
         if l.contains(n) {
             let hash = l.split_whitespace().next().expect("line to be splitable");
@@ -261,6 +264,7 @@ async fn confirm_binary(binary_dir: &PathBuf, bin_path: &PathBuf, n: &str) -> Re
             );
         }
     }
+
     return Ok(());
 }
 
