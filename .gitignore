@@ -8,3 +8,4 @@ post_cache.txt
 testnet_zebrad.toml
 
 !.gitkeep
+/fetched_resources/test_binaries/*/binary
