@@ -247,7 +247,7 @@ impl Zcashd {
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut command = match &self.zcash_cli_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcash-cli"),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::ZcashCli)),
         };
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
@@ -280,7 +280,7 @@ impl Validator for Zcashd {
 
         let mut command = match config.zcashd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcashd"),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zcashd)),
         };
         command
             .args([
@@ -486,7 +486,7 @@ impl Validator for Zebrad {
 
         let mut command = match config.zebrad_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zebrad"),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zebrad)),
         };
         command
             .args([
