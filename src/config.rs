@@ -263,9 +263,9 @@ pub(crate) fn lightwalletd(
     config_dir: &Path,
     grpc_bind_addr_port: Port,
     log_file: PathBuf,
-    validator_conf: PathBuf,
+    zcashd_conf: PathBuf,
 ) -> std::io::Result<PathBuf> {
-    let validator_conf = validator_conf.to_str().unwrap();
+    let zcashd_conf = zcashd_conf.to_str().unwrap();
     let log_file = log_file.to_str().unwrap();
 
     let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
@@ -278,7 +278,7 @@ grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
 cache-size: 10
 log-file: {log_file}
 log-level: 10
-zcash-conf-path: {validator_conf}"
+zcash-conf-path: {zcashd_conf}"
         )
         .as_bytes(),
     )?;

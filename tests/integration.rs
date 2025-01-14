@@ -30,7 +30,7 @@ async fn launch_zcashd() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin: ZCASHD_BIN,
         zcash_cli_bin: ZCASH_CLI_BIN,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: None,
@@ -95,7 +95,7 @@ async fn launch_localnet_zainod_zcashd() {
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
             zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
@@ -151,7 +151,7 @@ async fn launch_localnet_lightwalletd_zcashd() {
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
             zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
@@ -209,7 +209,7 @@ async fn zainod_zcashd_basic_send() {
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
             zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
@@ -328,7 +328,7 @@ async fn lightwalletd_zcashd_basic_send() {
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
             zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,

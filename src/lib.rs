@@ -12,6 +12,7 @@
 //!
 //!
 //! ## List of Managed Processes
+//!
 //! - Zebrad
 //! - Zcashd
 //! - Zainod
@@ -19,8 +20,14 @@
 //!
 //! ## Prerequisites
 //!
-//! Ensure that any binaries manged by this crate are installed on your system.
+//! Ensure that any binaries managed by this crate are installed on your system.
 //! The binaries can be referenced via $PATH or the path to the binaries can be specified when launching a process.
+//! Each processes `launch` fn and [`crate::LocalNet::launch`] take config structs for defining parameters such as path
+//! locations. See the config structs for each process in validator.rs and indexer.rs for more details.
+//!
+//! ## Launching multiple processes
+//!
+//! See [`crate::LocalNet`].
 //!
 //! ## Testing
 //!
@@ -74,6 +81,7 @@ pub mod test_fixtures;
 #[cfg(feature = "client")]
 pub mod client;
 
+/// All processes currently supported
 #[derive(Clone, Copy)]
 enum Process {
     Zcashd,
@@ -95,6 +103,10 @@ impl std::fmt::Display for Process {
 }
 
 /// This stuct is used to represent and manage the local network.
+///
+/// May be used to launch an indexer and validator together. This simplifies launching a Zcash test environment and
+/// managing multiple processes as well as allowing generic test framework of processes that implement the
+/// [`crate::validator::Validator`] or [`crate::indexer::Indexer`] trait.
 pub struct LocalNet<I, V>
 where
     I: Indexer,
