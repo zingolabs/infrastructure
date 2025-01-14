@@ -202,9 +202,12 @@ pub(crate) fn zainod(
     config_dir: &Path,
     listen_port: Port,
     validator_port: Port,
+    network: Network,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
+
+    let network_string = network.to_string();
 
     config_file.write_all(
         format!(
@@ -242,7 +245,10 @@ max_queue_size = 1024
 max_worker_pool_size = 64
 
 # Minimum number of workers held in the worker pool when idle
-idle_worker_pool_size = 4"
+idle_worker_pool_size = 4
+
+# Network chain type (Mainnet, Testnet, Regtest)
+network = \"{network_string}\""
         )
         .as_bytes(),
     )?;
@@ -375,7 +381,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     fn zainod() {
         let config_dir = tempfile::tempdir().unwrap();
 
-        super::zainod(config_dir.path(), 1234, 18232).unwrap();
+        super::zainod(config_dir.path(), 1234, 18232, network::Network::Regtest).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZAINOD_FILENAME)).unwrap(),
@@ -414,7 +420,10 @@ max_queue_size = 1024
 max_worker_pool_size = 64
 
 # Minimum number of workers held in the worker pool when idle
-idle_worker_pool_size = 4"
+idle_worker_pool_size = 4
+
+# Network chain type (Mainnet, Testnet, Regtest)
+network = \"Regtest\""
             )
         )
     }

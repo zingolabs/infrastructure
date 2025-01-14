@@ -90,6 +90,7 @@ async fn launch_localnet_zainod_zcashd() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            network: network::Network::Regtest,
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
@@ -117,6 +118,7 @@ async fn launch_localnet_zainod_zebrad() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            network: network::Network::Regtest,
         },
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
@@ -202,6 +204,7 @@ async fn zainod_zcashd_basic_send() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            network: network::Network::Regtest,
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
@@ -258,6 +261,7 @@ async fn zainod_zebrad_basic_send() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            network: network::Network::Regtest,
         },
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
