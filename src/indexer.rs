@@ -9,7 +9,13 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
-use crate::{config, error::LaunchError, launch, logs, network, Process};
+use crate::{
+    config,
+    error::LaunchError,
+    launch, logs,
+    network::{self, Network},
+    Process,
+};
 
 /// Zainod configuration
 ///
@@ -23,6 +29,11 @@ pub struct ZainodConfig {
     pub listen_port: Option<Port>,
     /// Validator RPC port
     pub validator_port: Port,
+    /// Network type.
+    ///
+    /// Can be used for testing against cached testnet / mainnet chains where large chains are needed.
+    /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
+    pub network: Network,
 }
 
 /// Lightwalletd configuration
@@ -108,8 +119,13 @@ impl Indexer for Zainod {
 
         let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path =
-            config::zainod(config_dir.path(), port, config.validator_port).unwrap();
+        let config_file_path = config::zainod(
+            config_dir.path(),
+            port,
+            config.validator_port,
+            config.network,
+        )
+        .unwrap();
 
         let mut command = match config.zainod_bin {
             Some(path) => std::process::Command::new(path),
