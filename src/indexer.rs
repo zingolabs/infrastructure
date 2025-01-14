@@ -10,7 +10,11 @@ use portpicker::Port;
 use tempfile::TempDir;
 
 use crate::{
-    config, error::LaunchError, launch, logs, network, validator::get_testing_bin_path, Process,
+    config,
+    error::LaunchError,
+    launch, logs, network,
+    utils::{get_testing_bin_path, TestingBinary},
+    Process,
 };
 
 /// Zainod configuration
@@ -115,9 +119,7 @@ impl Indexer for Zainod {
 
         let mut command = match config.zainod_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_testing_bin_path(
-                crate::validator::TestingBinary::Zainod,
-            )),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zainod)),
         };
         command
             .args([
@@ -217,9 +219,7 @@ impl Indexer for Lightwalletd {
 
         let mut command = match config.lightwalletd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_testing_bin_path(
-                crate::validator::TestingBinary::Lightwalletd,
-            )),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Lightwalletd)),
         };
         command
             .args([
