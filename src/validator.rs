@@ -29,7 +29,7 @@ use crate::{
 pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 
 /// Testing binaries: these are managed and fetched automagically by fetcher.rs
-enum TestingBinary {
+pub enum TestingBinary {
     Lightwalletd,
     Zainod,
     ZcashCli,
@@ -39,7 +39,7 @@ enum TestingBinary {
 }
 
 /// Gets the right binary path for a certain Testing Binary
-fn get_testing_bin_path(binary: TestingBinary) -> PathBuf {
+pub fn get_testing_bin_path(binary: TestingBinary) -> PathBuf {
     let crate_dir: String =
         env::var("CARGO_MANIFEST_DIR").expect("cargo manifest path to be found");
     let bins_dir = Path::new(&crate_dir).join("fetched_resources/test_binaries");
