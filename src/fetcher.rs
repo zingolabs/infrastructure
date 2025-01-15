@@ -3,6 +3,7 @@ use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::fs::PermissionsExt;
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -64,6 +65,10 @@ async fn validate_binary(n: &str) {
 }
 
 async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
+    // set permissions
+    let meta = bin_path.metadata().expect("binary metadata to be accessed");
+    let mut permission = meta.permissions();
+    permission.set_mode(0o700);
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(&bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
