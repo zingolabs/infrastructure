@@ -1,11 +1,11 @@
 use hex;
-use reqwest::{Certificate, Client, Url};
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
-// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader, Read, Write};
+// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
-// use std::process::{Command, Stdio};
+use std::process::{Command, Stdio};
 use std::time::Duration;
 use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
@@ -101,7 +101,6 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         0, 14, 0, 64, 0, 34, 0, 33, 0,
     ];
 
-    /*
     // const version strings for soft-confirming binaries when found
     // lwd and zaino don't like --version, they return stderr
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
@@ -135,7 +134,6 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
 
-        */
     match n {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
@@ -145,12 +143,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-            /*
             if !std_err.contains(VS_LWD) {
                 panic!("expected LWD version string incorrect")
             }
             println!("lightwalletd version string okay!");
-            */
         }
         "zainod" => {
             if bytes_read == ZAI_BYTES {
@@ -161,12 +157,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 return Err(());
             }
 
-            /*
             if !std_err.contains(VS_ZAINOD) {
                 panic!("expected Zainod version string incorrect")
             }
             println!("zainod version string okay!");
-             */
         }
         "zcashd" => {
             if bytes_read == ZCD_BYTES {
@@ -176,12 +170,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-            /*
             if !std_out.contains(VS_ZCASHD) {
                 panic!("ZCD version string incorrect")
             }
             println!("zcashd version string okay!");
-             */
         }
         "zcash-cli" => {
             if bytes_read == ZCC_BYTES {
@@ -191,12 +183,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-            /*
             if !std_out.contains(VS_ZCASHCLI) {
                 panic!("ZCC version string incorrect")
             }
             println!("Zcash-cli version string okay!");
-             */
         }
         "zebrad" => {
             if bytes_read == ZEBRA_BYTES {
@@ -206,12 +196,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-            /*
             if !std_out.contains(VS_ZEBRAD) {
                 panic!("Zebrad version string incorrect")
             }
             println!("zebrad version string okay!");
-             */
         }
         "zingo-cli" => {
             if bytes_read == ZINGO_BYTES {
@@ -221,12 +209,10 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-            /*
             if !std_out.contains(VS_ZINGOCLI) {
                 panic!("Zingo-cli version string incorrect")
             }
             println!("Zingo-cli version string okay!");
-             */
         }
         _ => println!("looked for unknown binary"),
     }
@@ -292,7 +278,6 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
 
     // reqwest some stuff
     let asset_url = format!("https://zingoproxy.com:9073/{}", n);
-    // let asset_url = format!("https://9.9.9.9:9073/{}", n);
     println!("fetching from {:?}", asset_url);
     let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
