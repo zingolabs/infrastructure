@@ -33,23 +33,25 @@ pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 /// Use `zcashd_bin` and `zcash_cli_bin` to specify the paths to the binaries.
 /// If these binaries are in $PATH, `None` can be specified to run "zcashd" / "zcash-cli".
 ///
-/// Use `fixed_port` to specify a port for Zcashd. Otherwise, a port is picked at random between 15000-25000.
+/// If `rpc_listen_port` is `None`, a port is picked at random between 15000-25000.
 ///
-/// Use `activation_heights` to specify custom network upgrade activation heights
+/// Use `activation_heights` to specify custom network upgrade activation heights.
 ///
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
+///
+/// If `chain_cache` path is `None`, a new chain is launched.
 pub struct ZcashdConfig {
     /// Zcashd binary location
     pub zcashd_bin: Option<PathBuf>,
     /// Zcash-cli binary location
     pub zcash_cli_bin: Option<PathBuf>,
-    /// Zcashd RPC port
-    pub rpc_port: Option<Port>,
+    /// Zcashd RPC listen port
+    pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
     pub activation_heights: network::ActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
-    /// Chain cache location. If `None`, launches a new chain.
+    /// Chain cache path
     pub chain_cache: Option<PathBuf>,
 }
 
@@ -58,11 +60,16 @@ pub struct ZcashdConfig {
 /// Use `zebrad_bin` to specify the binary location.
 /// If the binary is in $PATH, `None` can be specified to run "zebrad".
 ///
-/// Use `fixed_port` to specify a port for Zebrad. Otherwise, a port is picked at random between 15000-25000.
+/// If `rpc_listen_port` is `None`, a port is picked at random between 15000-25000.
 ///
-/// Use `activation_heights` to specify custom network upgrade activation heights
+/// Use `activation_heights` to specify custom network upgrade activation heights.
 ///
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
+///
+/// If `chain_cache` path is `None`, a new chain is launched.
+///
+/// `network` can be used for testing against cached testnet / mainnet chains where large chains are needed.
+/// `activation_heights` and `miner_address` will be ignored while not using regtest network.
 pub struct ZebradConfig {
     /// Zebrad binary location
     pub zebrad_bin: Option<PathBuf>,
@@ -74,12 +81,9 @@ pub struct ZebradConfig {
     pub activation_heights: network::ActivationHeights,
     /// Miner address
     pub miner_address: &'static str,
-    /// Chain cache location. If `None`, launches a new chain.
+    /// Chain cache path
     pub chain_cache: Option<PathBuf>,
-    /// Network type.
-    ///
-    /// Can be used for testing against cached testnet / mainnet chains where large chains are needed.
-    /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
+    /// Network type
     pub network: Network,
 }
 
@@ -240,7 +244,7 @@ impl Validator for Zcashd {
             Self::load_chain(cache, data_dir.path().to_path_buf(), Network::Regtest);
         }
 
-        let port = network::pick_unused_port(config.rpc_port);
+        let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zcashd(
             config_dir.path(),
