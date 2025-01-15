@@ -6,3 +6,19 @@
 pre_cache.txt
 post_cache.txt
 testnet_zebrad.toml
+
+# do not ignore directories
+!/fetched_resources/test_binaries/**/zcashd/
+!/fetched_resources/test_binaries/**/zcash-cli/
+!/fetched_resources/test_binaries/**/zainod/
+!/fetched_resources/test_binaries/**/lightwalletd/
+!/fetched_resources/test_binaries/**/zingo-cli/
+!/fetched_resources/test_binaries/**/zebrad/
+
+# ignore binaries
+/fetched_resources/test_binaries/**/*/zcashd
+/fetched_resources/test_binaries/**/*/zcash-cli
+/fetched_resources/test_binaries/**/*/zainod
+/fetched_resources/test_binaries/**/*/lightwalletd
+/fetched_resources/test_binaries/**/zingo-cli
+/fetched_resources/test_binaries/**/*/zebrad
