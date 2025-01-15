@@ -1,7 +1,5 @@
 #![warn(missing_docs)]
-//! # Zcash Local Net
-//!
-//! ## Overview
+//! # Overview
 //!
 //! Utilities that launch and manage Zcash processes. This is used for integration
 //! testing in the development of:
@@ -11,18 +9,18 @@
 //!   - validators
 //!
 //!
-//! ## List of Managed Processes
+//! # List of Managed Processes
 //! - Zebrad
 //! - Zcashd
 //! - Zainod
 //! - Lightwalletd
 //!
-//! ## Prerequisites
+//! # Prerequisites
 //!
 //! Ensure that any binaries manged by this crate are installed on your system.
 //! The binaries can be referenced via $PATH or the path to the binaries can be specified when launching a process.
 //!
-//! ## Testing
+//! # Testing
 //!
 //! Pre-requisities for running integration tests successfully:
 //! - Build the Zcashd, Zebrad, Zainod and Lightwalletd binaries and add to $PATH.
