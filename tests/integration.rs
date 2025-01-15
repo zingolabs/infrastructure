@@ -791,36 +791,6 @@ mod client_rpcs {
         .await;
     }
 
-    /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
-    /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
-    #[tokio::test]
-    async fn get_subtree_roots_sapling() {
-        tracing_subscriber::fmt().init();
-
-        zcash_local_net::test_fixtures::get_subtree_roots_sapling(
-            ZEBRAD_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-            Network::Testnet,
-        )
-        .await;
-    }
-
-    /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
-    /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
-    #[tokio::test]
-    async fn get_subtree_roots_orchard() {
-        tracing_subscriber::fmt().init();
-
-        zcash_local_net::test_fixtures::get_subtree_roots_orchard(
-            ZEBRAD_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-            Network::Mainnet,
-        )
-        .await;
-    }
-
     #[tokio::test]
     async fn get_address_utxos_all() {
         tracing_subscriber::fmt().init();
@@ -923,5 +893,61 @@ mod client_rpcs {
             LIGHTWALLETD_BIN,
         )
         .await;
+    }
+    mod get_subtree_roots {
+        //! - In order to generate a cached blockchain from zebrad run:
+        //! ```BASH
+        //! ./utils/compare_chain_caches.sh
+        //! ```
+        //! This command generates new data in the `chain_cache` directory.  The new structure should have the following added
+        //!
+        //! ```BASH
+        //!  ├── [       4096]  client_rpc_tests_large
+        //!  └── [       4096]  state
+        //!      └── [       4096]  v26
+        //!          └── [       4096]  regtest
+        //!              ├── [     139458]  000004.log
+        //!              ├── [         16]  CURRENT
+        //!              ├── [         36]  IDENTITY
+        //!              ├── [          0]  LOCK
+        //!              ├── [     174621]  LOG
+        //!              ├── [       1708]  MANIFEST-000005
+        //!              ├── [     114923]  OPTIONS-000007
+        //!              └── [          3]  version
+        //! ```
+        //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
+        //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
+        use super::*;
+        /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+        /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
+        #[ignore = "this test requires manual setup"]
+        #[tokio::test]
+        async fn sapling() {
+            tracing_subscriber::fmt().init();
+
+            zcash_local_net::test_fixtures::get_subtree_roots_sapling(
+                ZEBRAD_BIN,
+                ZAINOD_BIN,
+                LIGHTWALLETD_BIN,
+                Network::Testnet,
+            )
+            .await;
+        }
+
+        /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
+        /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
+        #[ignore = "this test requires manual setup"]
+        #[tokio::test]
+        async fn orchard() {
+            tracing_subscriber::fmt().init();
+
+            zcash_local_net::test_fixtures::get_subtree_roots_orchard(
+                ZEBRAD_BIN,
+                ZAINOD_BIN,
+                LIGHTWALLETD_BIN,
+                Network::Mainnet,
+            )
+            .await;
+        }
     }
 }
