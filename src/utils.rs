@@ -40,5 +40,5 @@ pub fn get_testing_bin_path(binary: TestingBinary) -> PathBuf {
         TestingBinary::ZingoCli => "zingo-cli",
     };
 
-    bins_dir.join(name).join("binary")
+    bins_dir.join(name).join(name)
 }
