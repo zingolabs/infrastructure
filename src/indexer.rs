@@ -20,9 +20,11 @@ use crate::{
 
 /// Zainod configuration
 ///
-/// Use `fixed_port` to specify a port for Zainod. Otherwise, a port is picked at random between 15000-25000.
+/// If `listen_port` is `None`, a port is picked at random between 15000-25000.
 ///
 /// The `validator_port` must be specified and the validator process must be running before launching Zainod.
+///
+/// `network` must match the configured network of the validator.
 pub struct ZainodConfig {
     /// Zainod binary location
     pub zainod_bin: Option<PathBuf>,
@@ -31,29 +33,28 @@ pub struct ZainodConfig {
     /// Validator RPC port
     pub validator_port: Port,
     /// Network type.
-    ///
-    /// Can be used for testing against cached testnet / mainnet chains where large chains are needed.
-    /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
     pub network: Network,
 }
 
 /// Lightwalletd configuration
 ///
-/// Use `fixed_port` to specify a port for Lightwalletd. Otherwise, a port is picked at random between 15000-25000.
+/// If `listen_port` is `None`, a port is picked at random between 15000-25000.
 ///
-/// The `validator_port` must be specified and the validator process must be running before launching Lightwalletd.
+/// The `zcash_conf` path must be specified and the validator process must be running before launching Lightwalletd.
+/// When running a validator that is not Zcashd (i.e. Zebrad), a zcash config file must still be created to specify the
+/// validator port. This is automatically handled by [`crate::LocalNet::launch`] when using [`crate::LocalNet`].
 pub struct LightwalletdConfig {
     /// Lightwalletd binary location
     pub lightwalletd_bin: Option<PathBuf>,
     /// Listen RPC port
     pub listen_port: Option<Port>,
-    /// Zcashd configuration file location
+    /// Zcashd configuration file location. Required even when running non-Zcashd validators.
     pub zcashd_conf: PathBuf,
 }
 
 /// Empty configuration
 ///
-/// For use when not launching an Indexer in zcash-local-net.
+/// For use when not launching an Indexer with [`crate::LocalNet::launch`].
 pub struct EmptyConfig {}
 
 /// Functionality for indexer/light-node processes.
@@ -307,8 +308,8 @@ impl Indexer for Empty {
 
     fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
-
         let config_dir = tempfile::tempdir().unwrap();
+
         Ok(Empty {
             logs_dir,
             config_dir,

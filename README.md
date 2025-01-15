@@ -2,27 +2,56 @@
 
 ## Overview
 
-A Rust test utility crate designed to facilitate the launching and management of Zcash processes on a local network (regtest/localnet mode). This crate is ideal for integration testing in the development of light-clients/light-wallets, indexers/light-nodes and validators/full-nodes as it provides a simple and configurable interface for launching and managing other proccesses in the local network to simulate a Zcash environment.
+Utilities that launch and manage Zcash processes. This is used for integration
+testing in the development of:
+  - lightclients
+  - indexers
+  - validators
+  
+## List of Managed Processes
 
-## List of Processes
-
+- Zebrad
 - Zcashd
 - Zainod
 - Lightwalletd
 
 ## Prerequisites
 
-Ensure that any processes used in this crate are installed on your system. The binaries can be in $PATH or the path to the binaries can be specified when launching a process.
+Ensure that any binaries managed by this crate are installed on your system.
+The binaries can be referenced via $PATH or the path to the binaries can be specified when launching a process.
+Each processes `launch` fn and [`crate::LocalNet::launch`] take config structs for defining parameters such as path
+locations. See the config structs for each process in validator.rs and indexer.rs for more details.
+
+## Launching multiple processes
+
+See [`crate::LocalNet`].
 
 ## Testing
 
 Pre-requisities for running integration tests successfully:
 - Build the Zcashd, Zebrad, Zainod and Lightwalletd binaries and add to $PATH.
-- Run `cargo test generate_zebrad_large_chain_cache --features test_fixtures -- --ignored` or `cargo nextest run generate_zebrad_large_chain_cache --run-ignored ignored-only --features test_fixtures`.
-- To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See `zcash_local_net::test_fixtures::get_subtree_roots_sapling` doc comments for more details.
-- To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See `zcash_local_net::test_fixtures::get_subtree_roots_orchard` doc comments for more details.
+- In order to generate a cached blockchain from zebrad run:
+```BASH
+./utils/compare_chain_caches.sh
+```
+This command generates new data in the `chain_cache` directory.  The new structure should have the following added
+```BASH
+ ├── [       4096]  client_rpc_tests_large
+ └── [       4096]  state
+     └── [       4096]  v26
+         └── [       4096]  regtest
+             ├── [     139458]  000004.log
+             ├── [         16]  CURRENT
+             ├── [         36]  IDENTITY
+             ├── [          0]  LOCK
+             ├── [     174621]  LOG
+             ├── [       1708]  MANIFEST-000005
+             ├── [     114923]  OPTIONS-000007
+             └── [          3]  version
+```
+- To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
+- To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
 
-See `src/test_fixtures.rs` doc comments for running client rpc tests from external crates for indexer/validator development.
+See [crate::test_fixtures] doc comments for running client rpc tests from external crates for indexer/validator development.
 
 Test should be run with the `test_fixtures` feature enabled.
-
