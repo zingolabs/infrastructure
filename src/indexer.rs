@@ -12,9 +12,9 @@ use tempfile::TempDir;
 use crate::{
     config,
     error::LaunchError,
-    launch, logs, network,
-    utils::{get_testing_bin_path, TestingBinary},
+    launch, logs,
     network::{self, Network},
+    utils::{get_testing_bin_path, TestingBinary},
     Process,
 };
 
