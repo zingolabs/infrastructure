@@ -11,8 +11,8 @@ testing in the development of:
   - indexers
   - validators
 
-
 ## List of Managed Processes
+
 - Zebrad
 - Zcashd
 - Zainod
@@ -22,6 +22,12 @@ testing in the development of:
 
 Ensure that any binaries manged by this crate are installed on your system.
 The binaries can be referenced via $PATH or the path to the binaries can be specified when launching a process.
+Each processes `launch` fn and [`crate::LocalNet::launch`] take config structs for defining parameters such as path
+locations. See the config structs for each process in validator.rs and indexer.rs for more details.
+
+## Launching multiple processes
+
+See [`crate::LocalNet`].
 
 ## Testing
 
@@ -53,7 +59,6 @@ This command generates new data in the `chain_cache` directory.  The new structu
 See [crate::test_fixtures] doc comments for running client rpc tests from external crates for indexer/validator development.
 
 Test should be run with the `test_fixtures` feature enabled.
-
 
 Current version: 0.1.0
 

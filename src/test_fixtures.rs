@@ -94,7 +94,7 @@ pub async fn generate_zcashd_chain_cache(
         ZcashdConfig {
             zcashd_bin,
             zcash_cli_bin,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
@@ -231,7 +231,7 @@ pub async fn get_lightd_info(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -338,7 +338,7 @@ pub async fn get_latest_block(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -402,7 +402,7 @@ pub async fn get_block(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -463,7 +463,7 @@ pub async fn get_block_out_of_bounds(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -525,7 +525,7 @@ pub async fn get_block_nullifiers(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -594,7 +594,7 @@ pub async fn get_block_range_nullifiers(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -677,7 +677,7 @@ pub async fn get_block_range_nullifiers_reverse(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -760,7 +760,7 @@ pub async fn get_block_range_lower(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -843,7 +843,7 @@ pub async fn get_block_range_upper(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -926,7 +926,7 @@ pub async fn get_block_range_reverse(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1009,7 +1009,7 @@ pub async fn get_block_range_out_of_bounds(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1113,7 +1113,7 @@ pub async fn get_transaction(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1209,7 +1209,7 @@ pub async fn send_transaction(
         ZcashdConfig {
             zcashd_bin: zcashd_bin.clone(),
             zcash_cli_bin: zcash_cli_bin.clone(),
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1265,7 +1265,7 @@ pub async fn send_transaction(
         ZcashdConfig {
             zcashd_bin,
             zcash_cli_bin,
-            rpc_port: None,
+            rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1350,7 +1350,7 @@ pub async fn get_taddress_txids_all(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1463,7 +1463,7 @@ pub async fn get_taddress_txids_lower(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1576,7 +1576,7 @@ pub async fn get_taddress_txids_upper(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1689,7 +1689,7 @@ pub async fn get_taddress_balance(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1761,7 +1761,7 @@ pub async fn get_taddress_balance_stream(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1835,7 +1835,7 @@ pub async fn get_mempool_tx(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -1978,7 +1978,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2151,7 +2151,7 @@ pub async fn get_mempool_stream(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2483,7 +2483,7 @@ pub async fn get_tree_state_by_height(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2552,7 +2552,7 @@ pub async fn get_tree_state_by_hash(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2631,7 +2631,7 @@ pub async fn get_tree_state_out_of_bounds(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2693,7 +2693,7 @@ pub async fn get_latest_tree_state(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -2960,7 +2960,7 @@ pub async fn get_address_utxos_all(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3034,7 +3034,7 @@ pub async fn get_address_utxos_lower(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3109,7 +3109,7 @@ pub async fn get_address_utxos_upper(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3184,7 +3184,7 @@ pub async fn get_address_utxos_out_of_bounds(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3258,7 +3258,7 @@ pub async fn get_address_utxos_stream_all(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3340,7 +3340,7 @@ pub async fn get_address_utxos_stream_lower(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3423,7 +3423,7 @@ pub async fn get_address_utxos_stream_upper(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
@@ -3506,7 +3506,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
         zcash_cli_bin,
-        rpc_port: None,
+        rpc_listen_port: None,
         activation_heights: network::ActivationHeights::default(),
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
