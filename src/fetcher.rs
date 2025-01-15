@@ -219,36 +219,37 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     println!("confirming {} hashsum against local record", n);
 
     // hashes for confirming expected binaries
-    let lines: Vec<String> = BufReader::new(File::open(shasum_path).expect("shasum to open"))
-        .lines()
-        .collect::<Result<_, _>>()
-        .expect("collection of lines to unwrap");
+    let mut buf: BufReader<File> =
+        BufReader::new(File::open(shasum_path).expect("shasum to open")).into();
+    let mut line = String::new();
+    buf.read_to_string(&mut line).expect("nothing");
 
-    for l in lines {
-        if l.contains(n) {
-            let hash = l.split_whitespace().next().expect("line to be splitable");
+    if line.contains(n) {
+        let hash = line
+            .split_whitespace()
+            .next()
+            .expect("line to be splitable");
 
-            // run sha512sum against file and see result
-            let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
-            let mut hasher = Sha512::new();
-            hasher.update(&file_bytes);
-            let res = hex::encode(hasher.finalize());
-            println!(
-                "found sha512sum of binary. asserting hash equality of local record {}",
-                l
-            );
-            println!("{:?} :: {:?}", res, hash);
+        // run sha512sum against file and see result
+        let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
+        let mut hasher = Sha512::new();
+        hasher.update(&file_bytes);
+        let res = hex::encode(hasher.finalize());
+        println!(
+            "found sha512sum of binary. asserting hash equality of local record {}",
+            line
+        );
+        println!("{:?} :: {:?}", res, hash);
 
-            // assert_eq!(res, hash);
-            if !(res == hash) {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                return Err(());
-            }
-            println!(
-                "binary hash matches local record! Completing validation process for {}",
-                n
-            );
+        // assert_eq!(res, hash);
+        if !(res == hash) {
+            fs::remove_file(bin_path).expect("bin to be deleted");
+            return Err(());
         }
+        println!(
+            "binary hash matches local record! Completing validation process for {}",
+            n
+        );
     }
 
     return Ok(());
