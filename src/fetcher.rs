@@ -3,7 +3,7 @@ use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::OpenOptionsExt;
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -65,15 +65,12 @@ async fn validate_binary(n: &str) {
 }
 
 async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
-    // set permissions
-    let meta = bin_path.metadata().expect("binary metadata to be accessed");
-    let mut permission = meta.permissions();
-    permission.set_mode(0o700);
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(&bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
     let bytes_read = reader.fill_buf().expect("reader to fill_buf");
     println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+
     // fast, soft binary check
     const LWD_BYTES: [u8; 64] = [
         127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 62, 0, 1, 0, 0, 0, 64, 188, 71,
@@ -161,7 +158,6 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-
             if !std_err.contains(VS_ZAINOD) {
                 panic!("expected Zainod version string incorrect")
             }
@@ -293,7 +289,16 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .await
         .expect("Response to be ok");
     // TODO instead of panicking, try again
-    let mut target_binary: File = File::create(&bin_path).expect("file to be created");
+
+    // with create_new, no file is allowed to exist at the target location
+    // with mode we are able to set permissions as the file is created.
+    let mut target_binary: File = File::options()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .mode(0o100775)
+        .open(&bin_path)
+        .expect("new binary file to be created");
     println!("new empty file for {} made. write about to start!", n);
 
     // simple progress bar
