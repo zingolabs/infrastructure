@@ -1,4 +1,3 @@
-use hex;
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::fs::{self, File};
@@ -66,7 +65,7 @@ async fn validate_binary(n: &str) {
 
 async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
-    let file_read_sample = File::open(&bin_path).expect("file to be readable");
+    let file_read_sample = File::open(bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
     let bytes_read = reader.fill_buf().expect("reader to fill_buf");
     println!("{:?} bytes : {:?}", &bin_path, bytes_read);
@@ -113,7 +112,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     const VS_ZAINOD: &str = "zainod [OPTIONS]";
     const VS_ZINGOCLI: &str = "Zingo CLI 0.1.1";
 
-    let mut vs = Command::new(&bin_path);
+    let mut vs = Command::new(bin_path);
     vs.arg("--version")
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -230,7 +229,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
             let hash = l.split_whitespace().next().expect("line to be splitable");
 
             // run sha512sum against file and see result
-            let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
+            let file_bytes = std::fs::read(bin_path).expect("to be able to read binary");
             let mut hasher = Sha512::new();
             hasher.update(&file_bytes);
             let res = hex::encode(hasher.finalize());
@@ -241,7 +240,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
             println!("{:?} :: {:?}", res, hash);
 
             // assert_eq!(res, hash);
-            if !(res == hash) {
+            if res != hash {
                 fs::remove_file(bin_path).expect("bin to be deleted");
                 return Err(());
             }
@@ -297,12 +296,12 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .write(true)
         .create_new(true)
         .mode(0o100775)
-        .open(&bin_path)
+        .open(bin_path)
         .expect("new binary file to be created");
     println!("new empty file for {} made. write about to start!", n);
 
     // simple progress bar
-    let progress = vec!["/", "-", "\\", "-", "o"];
+    let progress = ["/", "-", "\\", "-", "o"];
     let mut counter: usize = 0;
 
     while let Some(chunk) = res
