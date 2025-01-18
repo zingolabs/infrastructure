@@ -106,7 +106,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     // const version strings for soft-confirming binaries when found
     // lwd and zaino don't like --version, they return stderr
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
-    const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
+    const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
     const VS_LWD: &str =
         "Use \"lightwalletd [command] --help\" for more information about a command.";
