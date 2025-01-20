@@ -234,11 +234,8 @@ async fn confirm_binary(
             .next()
             .expect("shasum_record to be splittable");
 
-        // run sha512sum against file and see result
-        let file_bytes = std::fs::read(bin_path).expect("to be able to read binary");
-        let mut hasher = Sha512::new();
-        hasher.update(&file_bytes);
-        let res = hex::encode(hasher.finalize());
+        // run sha512sum against file and return hex encoded String
+        let res = sha512sum_file(bin_path);
         println!(
             "found sha512sum of binary. asserting hash equality of local record {}",
             shasum_record
@@ -324,4 +321,11 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         counter = (counter + 1) % 5;
     }
     println!("\nfile {} write complete!\n", n);
+}
+
+fn sha512sum_file(file_path: &PathBuf) -> String {
+    let file_bytes = std::fs::read(file_path).expect("to be able to read binary");
+    let mut hasher = Sha512::new();
+    hasher.update(&file_bytes);
+    hex::encode(hasher.finalize())
 }
