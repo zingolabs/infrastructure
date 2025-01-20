@@ -219,8 +219,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     println!("confirming {} hashsum against local record", n);
 
     // hashes for confirming expected binaries
-    let mut buf: BufReader<File> =
-        BufReader::new(File::open(shasum_path).expect("shasum to open")).into();
+    let mut buf: BufReader<File> = BufReader::new(File::open(shasum_path).expect("shasum to open"));
     let mut shasum_record = String::new();
     buf.read_to_string(&mut shasum_record)
         .expect("buffer to write into String");
@@ -232,7 +231,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
             .expect("shasum_record to be splitable");
 
         // run sha512sum against file and see result
-        let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
+        let file_bytes = std::fs::read(bin_path).expect("to be able to read binary");
         let mut hasher = Sha512::new();
         hasher.update(&file_bytes);
         let res = hex::encode(hasher.finalize());
@@ -257,7 +256,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
 }
 
 async fn fetch_binary(bin_path: &PathBuf, n: &str) {
-    // find locally comitted cert for binary-dealer remote
+    // find locally committed cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
         &fs::read("cert/cert.pem").expect("cert file to be readable"),
     )
