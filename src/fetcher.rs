@@ -221,14 +221,15 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     // hashes for confirming expected binaries
     let mut buf: BufReader<File> =
         BufReader::new(File::open(shasum_path).expect("shasum to open")).into();
-    let mut line = String::new();
-    buf.read_to_string(&mut line).expect("nothing");
+    let mut shasum_record = String::new();
+    buf.read_to_string(&mut shasum_record)
+        .expect("buffer to write into String");
 
-    if line.contains(n) {
-        let hash = line
+    if shasum_record.contains(n) {
+        let hash = shasum_record
             .split_whitespace()
             .next()
-            .expect("line to be splitable");
+            .expect("shasum_record to be splitable");
 
         // run sha512sum against file and see result
         let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
@@ -237,12 +238,12 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         let res = hex::encode(hasher.finalize());
         println!(
             "found sha512sum of binary. asserting hash equality of local record {}",
-            line
+            shasum_record
         );
         println!("{:?} :: {:?}", res, hash);
 
         // assert_eq!(res, hash);
-        if !(res == hash) {
+        if res != hash {
             fs::remove_file(bin_path).expect("bin to be deleted");
             return Err(());
         }
@@ -291,7 +292,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
     // TODO instead of panicking, try again
 
     // with create_new, no file is allowed to exist at the target location
-    // with mode we are able to set permission s as the file is created.
+    // with .mode() we are able to set permissions as the file is created.
     let mut target_binary: File = File::options()
         .read(true)
         .write(true)
