@@ -82,7 +82,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 /// Writes the Zebrad config file to the specified config directory.
 /// Returns the path to the config file.
 ///
-/// Canopy (and all earlier netwrok upgrades) must have an activation height of 1 for zebrad regtest mode
+/// Canopy (and all earlier network upgrades) must have an activation height of 1 for zebrad regtest mode
 pub(crate) fn zebrad(
     config_dir: PathBuf,
     cache_dir: PathBuf,
