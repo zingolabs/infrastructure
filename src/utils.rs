@@ -7,7 +7,7 @@ use std::{
 
 /// Returns path to cargo manifest directory (project root)
 pub(crate) fn cargo_manifest_dir() -> PathBuf {
-    PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("cargo manifest to resolve to pathbuf")
+    PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("cargo manifest to resolve to pathbuf"))
 }
 
 /// Returns path to chain cache directory
