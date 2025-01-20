@@ -1,8 +1,8 @@
-use hex;
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::fs::OpenOptionsExt;
 // use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -65,10 +65,11 @@ async fn validate_binary(n: &str) {
 
 async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
-    let file_read_sample = File::open(&bin_path).expect("file to be readable");
+    let file_read_sample = File::open(bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
     let bytes_read = reader.fill_buf().expect("reader to fill_buf");
     println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+
     // fast, soft binary check
     const LWD_BYTES: [u8; 64] = [
         127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 62, 0, 1, 0, 0, 0, 64, 188, 71,
@@ -104,14 +105,14 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     // const version strings for soft-confirming binaries when found
     // lwd and zaino don't like --version, they return stderr
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
-    const VS_ZCASHD: &str = "Zcash Daemon version v6.0.0";
-    const VS_ZCASHCLI: &str = "Zcash RPC client version v6.0.0";
+    const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
+    const VS_ZCASHCLI: &str = "Zcash RPC client version v6.1.0";
     const VS_LWD: &str =
         "Use \"lightwalletd [command] --help\" for more information about a command.";
     const VS_ZAINOD: &str = "zainod [OPTIONS]";
     const VS_ZINGOCLI: &str = "Zingo CLI 0.1.1";
 
-    let mut vs = Command::new(&bin_path);
+    let mut vs = Command::new(bin_path);
     vs.arg("--version")
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
@@ -156,7 +157,6 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("binary {} removed!", n);
                 return Err(());
             }
-
             if !std_err.contains(VS_ZAINOD) {
                 panic!("expected Zainod version string incorrect")
             }
@@ -289,11 +289,20 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .await
         .expect("Response to be ok");
     // TODO instead of panicking, try again
-    let mut target_binary: File = File::create(&bin_path).expect("file to be created");
+
+    // with create_new, no file is allowed to exist at the target location
+    // with mode we are able to set permission s as the file is created.
+    let mut target_binary: File = File::options()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .mode(0o100775)
+        .open(bin_path)
+        .expect("new binary file to be created");
     println!("new empty file for {} made. write about to start!", n);
 
     // simple progress bar
-    let progress = vec!["/", "-", "\\", "-", "o"];
+    let progress = ["/", "-", "\\", "-", "o"];
     let mut counter: usize = 0;
 
     while let Some(chunk) = res
