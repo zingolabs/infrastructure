@@ -16,6 +16,7 @@ pub fn chain_cache_dir() -> PathBuf {
 }
 
 /// Testing binaries: these are managed and fetched automagically by fetcher.rs
+#[allow(missing_docs)]
 pub enum TestingBinary {
     /// [Lightwalletd](https://github.com/zcash/lightwalletd) is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain.
     Lightwalletd,
