@@ -63,7 +63,11 @@ async fn validate_binary(n: &str) {
     }
 }
 
-async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> Result<(), ()> {
+async fn confirm_binary(
+    bin_path: &PathBuf,
+    shasum_path: &PathBuf,
+    binary_name: &str,
+) -> Result<(), ()> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
@@ -135,13 +139,13 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
 
-    match n {
+    match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
                 println!("lightwalletd bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_err.contains(VS_LWD) {
@@ -154,7 +158,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("zainod bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_err.contains(VS_ZAINOD) {
@@ -167,7 +171,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("zcashd bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_out.contains(VS_ZCASHD) {
@@ -180,7 +184,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("Zcash-cli bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_out.contains(VS_ZCASHCLI) {
@@ -193,7 +197,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("zebrad bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_out.contains(VS_ZEBRAD) {
@@ -206,7 +210,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
                 println!("Zingo-cli bytes okay!");
             } else {
                 fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", n);
+                println!("binary {} removed!", binary_name);
                 return Err(());
             }
             if !std_out.contains(VS_ZINGOCLI) {
@@ -216,7 +220,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         }
         _ => println!("looked for unknown binary"),
     }
-    println!("confirming {} hashsum against local record", n);
+    println!("confirming {} hashsum against local record", binary_name);
 
     // hashes for confirming expected binaries
     let mut buf: BufReader<File> = BufReader::new(File::open(shasum_path).expect("shasum to open"));
@@ -224,11 +228,11 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
     buf.read_to_string(&mut shasum_record)
         .expect("buffer to write into String");
 
-    if shasum_record.contains(n) {
+    if shasum_record.contains(binary_name) {
         let hash = shasum_record
             .split_whitespace()
             .next()
-            .expect("shasum_record to be splitable");
+            .expect("shasum_record to be splittable");
 
         // run sha512sum against file and see result
         let file_bytes = std::fs::read(bin_path).expect("to be able to read binary");
@@ -248,7 +252,7 @@ async fn confirm_binary(bin_path: &PathBuf, shasum_path: &PathBuf, n: &str) -> R
         }
         println!(
             "binary hash matches local record! Completing validation process for {}",
-            n
+            binary_name
         );
     }
 
