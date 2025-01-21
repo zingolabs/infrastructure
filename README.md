@@ -31,7 +31,7 @@ See [`crate::LocalNet`].
 
 ## Testing
 
-See [crate::test_fixtures] doc comments for running client rpc tests from external crates for indexer/validator development.
+See [`crate::test_fixtures`] doc comments for running client rpc tests from external crates for indexer/validator development.
 
 Test should be run with the `test_fixtures` feature enabled.
 
