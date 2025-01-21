@@ -14,6 +14,7 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self, Network},
+    utils::{get_testing_bin_path, TestingBinary},
     Process,
 };
 
@@ -130,7 +131,7 @@ impl Indexer for Zainod {
 
         let mut command = match config.zainod_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zainod"),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zainod)),
         };
         command
             .args([
@@ -230,7 +231,7 @@ impl Indexer for Lightwalletd {
 
         let mut command = match config.lightwalletd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("lightwalletd"),
+            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Lightwalletd)),
         };
         command
             .args([

@@ -28,7 +28,7 @@
 //!
 //! # Testing
 //!
-//! Pre-requisities for running integration tests successfully:
+//! Pre-requisites for running integration tests successfully:
 //! - Build the Zcashd, Zebrad, Zainod and Lightwalletd binaries and add to $PATH.
 //!
 //! See [crate::test_fixtures] doc comments for running client rpc tests from external crates for indexer/validator development.
@@ -77,7 +77,7 @@ impl std::fmt::Display for Process {
     }
 }
 
-/// This stuct is used to represent and manage the local network.
+/// This struct is used to represent and manage the local network.
 ///
 /// May be used to launch an indexer and validator together. This simplifies launching a Zcash test environment and
 /// managing multiple processes as well as allowing generic test framework of processes that implement the
