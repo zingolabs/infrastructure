@@ -3,7 +3,11 @@ name = "zcash_local_net"
 version = "0.1.0"
 edition = "2021"
 resolver = "2"
+license = "MIT License"
 build="src/build.rs"
+
+[badges]
+github = { repository = "zingolabs/zcash-local-net" }
 
 [features]
 client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
