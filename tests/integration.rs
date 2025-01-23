@@ -436,6 +436,26 @@ async fn lightwalletd_zebrad_basic_send() {
 
 #[cfg(feature = "test_fixtures")]
 mod client_rpcs {
+    //! - In order to generate a cached blockchain from zebrad run:
+    //! ```BASH
+    //! ./utils/regenerate_chain_caches_report_diff.sh
+    //! ```
+    //! This command generates new data in the `chain_cache` directory.  The new structure should have the following added
+    //!
+    //! ```BASH
+    //!  ├── [       4096]  client_rpc_tests_large
+    //!  └── [       4096]  state
+    //!      └── [       4096]  v26
+    //!          └── [       4096]  regtest
+    //!              ├── [     139458]  000004.log
+    //!              ├── [         16]  CURRENT
+    //!              ├── [         36]  IDENTITY
+    //!              ├── [          0]  LOCK
+    //!              ├── [     174621]  LOG
+    //!              ├── [       1708]  MANIFEST-000005
+    //!              ├── [     114923]  OPTIONS-000007
+    //!              └── [          3]  version
+    //! ```
     use zcash_local_net::network::Network;
 
     use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
@@ -895,26 +915,6 @@ mod client_rpcs {
         .await;
     }
     mod get_subtree_roots {
-        //! - In order to generate a cached blockchain from zebrad run:
-        //! ```BASH
-        //! ./utils/compare_chain_caches.sh
-        //! ```
-        //! This command generates new data in the `chain_cache` directory.  The new structure should have the following added
-        //!
-        //! ```BASH
-        //!  ├── [       4096]  client_rpc_tests_large
-        //!  └── [       4096]  state
-        //!      └── [       4096]  v26
-        //!          └── [       4096]  regtest
-        //!              ├── [     139458]  000004.log
-        //!              ├── [         16]  CURRENT
-        //!              ├── [         36]  IDENTITY
-        //!              ├── [          0]  LOCK
-        //!              ├── [     174621]  LOG
-        //!              ├── [       1708]  MANIFEST-000005
-        //!              ├── [     114923]  OPTIONS-000007
-        //!              └── [          3]  version
-        //! ```
         //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
         //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
         use super::*;

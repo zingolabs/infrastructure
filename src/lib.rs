@@ -32,7 +32,7 @@
 //!
 //! See [`crate::test_fixtures`] doc comments for running client rpc tests from external crates for indexer/validator development.
 //!
-//! Test should be run with the `test_fixtures` feature enabled.
+//! The `test_fixtures` feature is enabled by default to allow tests to run.
 //!
 
 use indexer::{

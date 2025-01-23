@@ -253,7 +253,7 @@ async fn confirm_binary(
         );
     }
 
-    return Ok(());
+    Ok(())
 }
 
 async fn fetch_binary(bin_path: &PathBuf, n: &str) {
