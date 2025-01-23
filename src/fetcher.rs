@@ -274,12 +274,12 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .connect_timeout(Duration::from_secs(10)) // to connect // defaults to None
         .read_timeout(Duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
         .add_root_certificate(cert)
-        //.resolve_to_addrs("zingoproxy.com", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
+        //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
 
     // reqwest some stuff
-    let asset_url = format!("https://zingoproxy.com:9073/{}", n);
+    let asset_url = format!("https://zingolabs.nexus:9073/{}", n);
     println!("fetching from {:?}", asset_url);
     let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
