@@ -2679,8 +2679,12 @@ pub async fn get_tree_state_out_of_bounds(
 
     println!();
 
-    assert_eq!(zainod_err_status.code(), lwd_err_status.code());
-    assert_eq!(zainod_err_status.message(), lwd_err_status.message());
+    assert_eq!(
+        zainod_err_status.message(),
+        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10].");
+    assert_eq!(lwd_err_status.message(), "-8: Block height out of range");
+    assert_eq!(zainod_err_status.code(), tonic::Code::OutOfRange);
+    assert_eq!(lwd_err_status.code(), tonic::Code::Unknown);
 }
 
 /// GetLatestTreeState RPC test
