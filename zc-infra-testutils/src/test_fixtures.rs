@@ -38,13 +38,15 @@ use zingolib::{
 
 use crate::{
     client, config,
-    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, Network},
     utils,
-    validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
-    LocalNet,
 };
 
+use zc_infra_nodes::{
+    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
+    validator::Validator as _,
+    LocalNet, Zcashd, ZcashdConfig, Zebrad, ZebradConfig,
+};
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache(
     zebrad_bin: Option<PathBuf>,

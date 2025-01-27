@@ -13,6 +13,9 @@ use zc_infra_testutils::{
     client,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
+};
+
+use zc_infra_nodes::{
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
