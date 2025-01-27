@@ -1,21 +1,15 @@
 [package]
-name = "zc-infra-testutils"
+name = "zc-infra-nodes"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
 build="src/build.rs"
 
 [badges]
-github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
-
-[features]
-default = [ "test_fixtures" ]
-test_fixtures = [ "client", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
-client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
+github = { repository = "zingolabs/zc-infrastructure/zc-infra-nodes" }
 
 [dependencies]
 # Zcash
-zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"], optional = true }
 zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
 
@@ -23,13 +17,6 @@ zcash_protocol = { workspace = true }
 zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc = { workspace = true, features = ["getblocktemplate-rpcs"] }
 zebra-chain = { workspace = true }
-
-# Lightclient
-zingo-netutils = { workspace = true, optional = true }
-zingolib = { workspace = true, features = ["test-elevation"], optional = true }
-
-# RPC
-tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"], optional = true }
 
 # File
 tempfile = { workspace = true }
@@ -43,7 +30,6 @@ thiserror = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 
 # Boilerplate reduction
 getset = { workspace = true }
@@ -54,14 +40,6 @@ serde_json = { workspace = true }
 
 # Encoding
 hex = { workspace = true }
-
-# Runtime
-tokio = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true }
-
-[dev-dependencies]
-# Lightclient
-zingolib = { workspace = true, features = ["test-elevation"] }
 
 [build-dependencies]
 hex = { workspace = true }

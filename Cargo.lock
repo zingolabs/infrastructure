@@ -5019,6 +5019,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "zc-infra-nodes"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "hex",
+ "http",
+ "json",
+ "portpicker",
+ "reqwest",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "zcash_primitives 0.19.0 (git+https://github.com/zingolabs/librustzcash.git?tag=zcash_client_sqlite-0.12.1_plus_zingolabs_changes-test_2)",
+ "zcash_protocol 0.4.0",
+ "zebra-chain",
+ "zebra-node-services",
+ "zebra-rpc",
+]
+
+[[package]]
+name = "zc-infra-testutils"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "hex",
+ "http",
+ "json",
+ "portpicker",
+ "reqwest",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "zcash_client_backend",
+ "zcash_primitives 0.19.0 (git+https://github.com/zingolabs/librustzcash.git?tag=zcash_client_sqlite-0.12.1_plus_zingolabs_changes-test_2)",
+ "zcash_protocol 0.4.0",
+ "zebra-chain",
+ "zebra-node-services",
+ "zebra-rpc",
+ "zingo-netutils",
+ "zingolib",
+]
+
+[[package]]
 name = "zcash_address"
 version = "0.6.0"
 source = "git+https://github.com/zingolabs/librustzcash.git?tag=zcash_client_sqlite-0.12.1_plus_zingolabs_changes-test_2#db6efd6a2fdac955c7eb6929a043d19d9e451429"
@@ -5145,35 +5197,6 @@ dependencies = [
  "zcash_primitives 0.19.0 (git+https://github.com/zingolabs/librustzcash.git?tag=zcash_client_sqlite-0.12.1_plus_zingolabs_changes-test_2)",
  "zcash_protocol 0.4.0",
  "zip32",
-]
-
-[[package]]
-name = "zcash_local_net"
-version = "0.1.0"
-dependencies = [
- "getset",
- "hex",
- "http",
- "json",
- "portpicker",
- "reqwest",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tonic",
- "tracing",
- "tracing-subscriber",
- "zcash_client_backend",
- "zcash_primitives 0.19.0 (git+https://github.com/zingolabs/librustzcash.git?tag=zcash_client_sqlite-0.12.1_plus_zingolabs_changes-test_2)",
- "zcash_protocol 0.4.0",
- "zebra-chain",
- "zebra-node-services",
- "zebra-rpc",
- "zingo-netutils",
- "zingolib",
 ]
 
 [[package]]
