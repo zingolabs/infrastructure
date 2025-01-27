@@ -8,12 +8,16 @@ license = "MIT License"
 github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
 
 [dependencies]
+# Local
 zc-infra-nodes = { path = "../zc-infra-nodes" }
+# Zingo
+zingo-netutils = { workspace = true }
+zingolib = { workspace = true, features = ["test-elevation"] }
+#Zcash
 zcash_client_backend = { workspace = true }
 zcash_protocol = { workspace = true }
 zcash_primitives = { workspace = true }
-zingo-netutils = { workspace = true }
-zingolib = { workspace = true, features = ["test-elevation"] }
+#Community
 tonic = { workspace = true }
 tempfile = { workspace = true }
 portpicker = { workspace = true }
