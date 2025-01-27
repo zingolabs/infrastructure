@@ -7,16 +7,11 @@ license = "MIT License"
 [badges]
 github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
 
-[features]
-default = [ "test_fixtures" ]
-test_fixtures = [ "client", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
-client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
-
 [dependencies]
 # zc-infrastructure
 zc-infra-nodes = { path = "../zc-infra-nodes" }
 # Zcash
-zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"], optional = true }
+zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"] }
 zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
 
@@ -26,11 +21,11 @@ zebra-rpc = { workspace = true, features = ["getblocktemplate-rpcs"] }
 zebra-chain = { workspace = true }
 
 # Lightclient
-zingo-netutils = { workspace = true, optional = true }
-zingolib = { workspace = true, features = ["test-elevation"], optional = true }
+zingo-netutils = { workspace = true }
+zingolib = { workspace = true, features = ["test-elevation"] }
 
 # RPC
-tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"], optional = true }
+tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"] }
 
 # File
 tempfile = { workspace = true }
@@ -57,9 +52,5 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 
 # Runtime
-tokio = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true }
-
-[dev-dependencies]
-# Lightclient
-zingolib = { workspace = true, features = ["test-elevation"] }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }

@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::path::PathBuf;
 
 use zcash_protocol::{PoolType, ShieldedProtocol};
@@ -436,7 +434,6 @@ async fn lightwalletd_zebrad_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
-#[cfg(feature = "test_fixtures")]
 mod client_rpcs {
     //! - In order to generate a cached blockchain from zebrad run:
     //! ```BASH

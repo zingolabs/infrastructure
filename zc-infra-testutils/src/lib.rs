@@ -34,8 +34,5 @@
 //!
 //! The `test_fixtures` feature is enabled by default to allow tests to run.
 //!
-#[cfg(feature = "test_fixtures")]
-pub mod test_fixtures;
-
-#[cfg(feature = "client")]
 pub mod client;
+pub mod test_fixtures;
