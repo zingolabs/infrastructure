@@ -35,19 +35,21 @@
 //! The `test_fixtures` feature is enabled by default to allow tests to run.
 //!
 
+/// The pub interface
+pub mod config;
+pub mod indexer;
+pub mod network;
+pub mod utils;
+pub mod validator;
+
+mod error;
+mod launch;
+mod logs;
+
 use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
-
-pub mod config;
-pub mod error;
-pub mod indexer;
-pub(crate) mod launch;
-pub(crate) mod logs;
-pub mod network;
-pub mod utils;
-pub mod validator;
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
