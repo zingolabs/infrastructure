@@ -1,6 +1,6 @@
 [workspace]
 members = ["zc-infra-testutils", "zc-infra-nodes"]
-resolver = "3"
+resolver = "2"
 
 [workspace.dependencies]
 getset = "0.1.3"
