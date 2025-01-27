@@ -36,15 +36,12 @@ use zingolib::{
     wallet::data::summaries::TransactionSummaryInterface,
 };
 
-use crate::{
-    client, config,
-    network::{self, Network},
-    utils,
-};
+use crate::{client, config, utils};
 
 use zc_infra_nodes::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    validator::Validator as _,
+    network::{self, Network},
+    validator::{Validator as _, ZEBRAD_DEFAULT_MINER},
     LocalNet, Zcashd, ZcashdConfig, Zebrad, ZebradConfig,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
