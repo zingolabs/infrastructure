@@ -14,6 +14,8 @@ test_fixtures = [ "client", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
 client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
 
 [dependencies]
+# zc-infrastructure
+zc-infra-nodes = { path = "../zc-infra-nodes" }
 # Zcash
 zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"], optional = true }
 zcash_primitives = { workspace = true }
