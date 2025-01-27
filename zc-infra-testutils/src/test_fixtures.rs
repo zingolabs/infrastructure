@@ -41,8 +41,8 @@ use crate::{client, config, utils};
 use zc_infra_nodes::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, Network},
-    validator::{Validator as _, ZEBRAD_DEFAULT_MINER},
-    LocalNet, Zcashd, ZcashdConfig, Zebrad, ZebradConfig,
+    validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache(

@@ -38,7 +38,7 @@
 use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
-pub use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
+use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
 
 pub mod config;
 pub mod error;
