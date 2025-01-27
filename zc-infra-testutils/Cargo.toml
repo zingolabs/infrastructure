@@ -3,68 +3,25 @@ name = "zc-infra-testutils"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
-build="src/build.rs"
 
 [badges]
 github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
 
-[features]
-default = [ "test_fixtures" ]
-test_fixtures = [ "client", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
-client = [ "dep:zcash_client_backend", "dep:zingo-netutils", "dep:zingolib" ]
-
 [dependencies]
-# Zcash
-zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"], optional = true }
-zcash_primitives = { workspace = true }
+# Local
+zc-infra-nodes = { path = "../zc-infra-nodes" }
+# Zingo
+zingo-netutils = { workspace = true }
+zingolib = { workspace = true, features = ["test-elevation"] }
+#Zcash
+zcash_client_backend = { workspace = true }
 zcash_protocol = { workspace = true }
-
-# Zebra
-zebra-node-services = { workspace = true, features = ["rpc-client"] }
-zebra-rpc = { workspace = true, features = ["getblocktemplate-rpcs"] }
-zebra-chain = { workspace = true }
-
-# Lightclient
-zingo-netutils = { workspace = true, optional = true }
-zingolib = { workspace = true, features = ["test-elevation"], optional = true }
-
-# RPC
-tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"], optional = true }
-
-# File
+zcash_primitives = { workspace = true }
+#Community
+tonic = { workspace = true }
 tempfile = { workspace = true }
-
-# Network
 portpicker = { workspace = true }
 http = { workspace = true }
-
-# Error handling
-thiserror = { workspace = true }
-
-# Logging
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-
-# Boilerplate reduction
-getset = { workspace = true }
-
-# Parsing
-json = { workspace = true }
-serde_json = { workspace = true }
-
-# Encoding
-hex = { workspace = true }
-
-# Runtime
-tokio = { workspace = true, optional = true }
-tokio-stream = { workspace = true, optional = true }
-
-[dev-dependencies]
-# Lightclient
-zingolib = { workspace = true, features = ["test-elevation"] }
-
-[build-dependencies]
-hex = { workspace = true }
-reqwest = { workspace = true, features = ["zstd", "rustls-tls-manual-roots"] }
-sha2 = { workspace = true }
-tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }

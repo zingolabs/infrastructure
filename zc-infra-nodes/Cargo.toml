@@ -12,33 +12,19 @@ github = { repository = "zingolabs/zc-infrastructure/zc-infra-nodes" }
 # Zcash
 zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
-
 # Zebra
-zebra-node-services = { workspace = true, features = ["rpc-client"] }
+zebra-node-services = { workspace = true }
 zebra-rpc = { workspace = true, features = ["getblocktemplate-rpcs"] }
 zebra-chain = { workspace = true }
-
-# File
+# Community
 tempfile = { workspace = true }
-
-# Network
 portpicker = { workspace = true }
 http = { workspace = true }
-
-# Error handling
 thiserror = { workspace = true }
-
-# Logging
 tracing = { workspace = true }
-
-# Boilerplate reduction
 getset = { workspace = true }
-
-# Parsing
 json = { workspace = true }
 serde_json = { workspace = true }
-
-# Encoding
 hex = { workspace = true }
 
 [build-dependencies]

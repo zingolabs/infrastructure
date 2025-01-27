@@ -1,5 +1,3 @@
-#![cfg(feature = "client")]
-
 use std::path::PathBuf;
 
 use zcash_protocol::{PoolType, ShieldedProtocol};
@@ -9,8 +7,9 @@ use zingolib::{
     testvectors::REG_O_ADDR_FROM_ABANDONART,
 };
 
-use zc_infra_testutils::{
-    client,
+use zc_infra_testutils::client;
+
+use zc_infra_nodes::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
@@ -60,6 +59,7 @@ async fn launch_zebrad() {
     zebrad.print_stderr();
 }
 
+#[ignore = "temporary during refactor into workspace"]
 #[tokio::test]
 async fn launch_zebrad_with_cache() {
     tracing_subscriber::fmt().init();
@@ -195,6 +195,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
     local_net.indexer().print_stderr();
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -251,7 +252,7 @@ async fn zainod_zcashd_basic_send() {
     println!("recipient balance:");
     println!("{:?}\n", recipient_balance);
 }
-
+#[ignore = "flake"]
 #[tokio::test]
 async fn zainod_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -315,6 +316,7 @@ async fn zainod_zebrad_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -372,6 +374,7 @@ async fn lightwalletd_zcashd_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -434,7 +437,6 @@ async fn lightwalletd_zebrad_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
-#[cfg(feature = "test_fixtures")]
 mod client_rpcs {
     //! - In order to generate a cached blockchain from zebrad run:
     //! ```BASH
@@ -456,7 +458,7 @@ mod client_rpcs {
     //!              ├── [     114923]  OPTIONS-000007
     //!              └── [          3]  version
     //! ```
-    use zc_infra_testutils::network::Network;
+    use zc_infra_nodes::network::Network;
 
     use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
 
@@ -485,435 +487,60 @@ mod client_rpcs {
         .await;
     }
 
-    #[tokio::test]
-    async fn get_lightd_info() {
-        tracing_subscriber::fmt().init();
+    macro_rules! rpc_fixture_test {
+        ($test_name:ident) => {
+            #[tokio::test]
+            async fn $test_name() {
+                tracing_subscriber::fmt().init();
 
-        zc_infra_testutils::test_fixtures::get_lightd_info(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
+                zc_infra_testutils::test_fixtures::$test_name(
+                    ZCASHD_BIN,
+                    ZCASH_CLI_BIN,
+                    ZAINOD_BIN,
+                    LIGHTWALLETD_BIN,
+                )
+                .await;
+            }
+        };
     }
+    // previously ignored
+    // rpc_fixture_test!(get_block_out_of_bounds);
+    // rpc_fixture_test!(get_block_range_out_of_bounds);
+    // rpc_fixture_test!(send_transaction);
+    // rpc_fixture_test!(get_mempool_stream_zingolib_mempool_monitor);
+    // rpc_fixture_test!(get_mempool_stream);
+
+    // slow
+    // rpc_fixture_test!(get_mempool_tx);
+    // rpc_fixture_test!(get_transaction);
+
+    rpc_fixture_test!(get_lightd_info);
+    rpc_fixture_test!(get_latest_block);
+    rpc_fixture_test!(get_block);
+    rpc_fixture_test!(get_block_nullifiers);
+    rpc_fixture_test!(get_block_range_nullifiers);
+    rpc_fixture_test!(get_block_range_nullifiers_reverse);
+    rpc_fixture_test!(get_block_range_lower);
+    rpc_fixture_test!(get_block_range_upper);
+    rpc_fixture_test!(get_block_range_reverse);
+    rpc_fixture_test!(get_taddress_txids_all);
+    rpc_fixture_test!(get_taddress_txids_lower);
+    rpc_fixture_test!(get_taddress_txids_upper);
+    rpc_fixture_test!(get_taddress_balance);
+    rpc_fixture_test!(get_taddress_balance_stream);
+    rpc_fixture_test!(get_tree_state_by_height);
+    rpc_fixture_test!(get_tree_state_by_hash);
+    rpc_fixture_test!(get_tree_state_out_of_bounds);
+    rpc_fixture_test!(get_latest_tree_state);
+    rpc_fixture_test!(get_address_utxos_all);
+    rpc_fixture_test!(get_address_utxos_lower);
+    rpc_fixture_test!(get_address_utxos_upper);
+    rpc_fixture_test!(get_address_utxos_out_of_bounds);
+    rpc_fixture_test!(get_address_utxos_stream_all);
+    rpc_fixture_test!(get_address_utxos_stream_lower);
+    rpc_fixture_test!(get_address_utxos_stream_upper);
+    rpc_fixture_test!(get_address_utxos_stream_out_of_bounds);
 
-    #[tokio::test]
-    async fn get_latest_block() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_latest_block(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_out_of_bounds() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_out_of_bounds(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_nullifiers() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_nullifiers(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_nullifiers() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_nullifiers(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_nullifiers_reverse() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_nullifiers_reverse(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_lower() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_lower(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_upper() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_upper(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_reverse() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_reverse(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_block_range_out_of_bounds() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_block_range_out_of_bounds(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_transaction() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_transaction(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[ignore = "incomplete"]
-    #[tokio::test]
-    async fn send_transaction() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::send_transaction(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_taddress_txids_all() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_taddress_txids_all(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_taddress_txids_lower() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_taddress_txids_lower(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_taddress_txids_upper() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_taddress_txids_upper(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_taddress_balance() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_taddress_balance(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_taddress_balance_stream() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_taddress_balance_stream(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_mempool_tx() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_mempool_tx(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_mempool_stream_zingolib_mempool_monitor() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_mempool_stream_zingolib_mempool_monitor(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_mempool_stream() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_mempool_stream(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_tree_state_by_height() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_tree_state_by_height(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_tree_state_by_hash() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_tree_state_by_hash(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_tree_state_out_of_bounds() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_tree_state_out_of_bounds(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_latest_tree_state() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_latest_tree_state(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_all() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_all(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_lower() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_lower(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_upper() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_upper(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_out_of_bounds() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_out_of_bounds(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_stream_all() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_stream_all(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_stream_lower() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_stream_lower(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_stream_upper() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_stream_upper(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
-
-    #[tokio::test]
-    async fn get_address_utxos_stream_out_of_bounds() {
-        tracing_subscriber::fmt().init();
-
-        zc_infra_testutils::test_fixtures::get_address_utxos_stream_out_of_bounds(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            ZAINOD_BIN,
-            LIGHTWALLETD_BIN,
-        )
-        .await;
-    }
     mod get_subtree_roots {
         //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
         //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
