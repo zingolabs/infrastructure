@@ -37,13 +37,6 @@ http = { workspace = true }
 # Logging
 tracing-subscriber = { workspace = true }
 
-# Boilerplate reduction
-getset = { workspace = true }
-
-# Parsing
-json = { workspace = true }
-serde_json = { workspace = true }
-
 # Encoding
 hex = { workspace = true }
 

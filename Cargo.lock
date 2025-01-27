@@ -5029,12 +5029,9 @@ dependencies = [
 name = "zc-infra-testutils"
 version = "0.1.0"
 dependencies = [
- "getset",
  "hex",
  "http",
- "json",
  "portpicker",
- "serde_json",
  "tempfile",
  "tokio",
  "tokio-stream",
