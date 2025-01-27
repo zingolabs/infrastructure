@@ -31,7 +31,7 @@ Additionally some low-hanging boilerplate was DRY'd with a macro, and spurious d
 
 NOTE:  `zc-infra-utils` depends on `zc-infra-nodes` and hence **indirectly** on `zebra-*`
 
-Particularly given occasional, but quite significant, problems with incompatible versions in dependency trees this clean separation seems desireable. 
+Particularly given occasional, but quite significant, problems with incompatible versions in dependency trees this clean separation seems desireable.
 
 Remaining work:
 
