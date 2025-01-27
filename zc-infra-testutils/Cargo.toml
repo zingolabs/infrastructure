@@ -30,15 +30,11 @@ tonic = { workspace = true, features = ["tls", "tls-roots", "tls-webpki-roots"] 
 # File
 tempfile = { workspace = true }
 
-# Network
+# Client
 portpicker = { workspace = true }
 http = { workspace = true }
 
-# Error handling
-thiserror = { workspace = true }
-
 # Logging
-tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 # Boilerplate reduction
