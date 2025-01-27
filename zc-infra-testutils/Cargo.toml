@@ -3,7 +3,6 @@ name = "zc-infra-testutils"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
-build="src/build.rs"
 
 [badges]
 github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }

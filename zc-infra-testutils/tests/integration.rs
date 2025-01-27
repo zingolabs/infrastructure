@@ -9,11 +9,11 @@ use zingolib::{
     testvectors::REG_O_ADDR_FROM_ABANDONART,
 };
 
-use zc_infra_testutils::{client, utils};
+use zc_infra_testutils::client;
 
 use zc_infra_nodes::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network,
+    network, utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
