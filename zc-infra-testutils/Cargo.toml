@@ -37,9 +37,6 @@ http = { workspace = true }
 # Logging
 tracing-subscriber = { workspace = true }
 
-# Encoding
-hex = { workspace = true }
-
 # Runtime
 tokio = { workspace = true }
 tokio-stream = { workspace = true }
