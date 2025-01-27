@@ -9,13 +9,11 @@ use zingolib::{
     testvectors::REG_O_ADDR_FROM_ABANDONART,
 };
 
-use zc_infra_testutils::{
-    client,
-    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network, utils,
-};
+use zc_infra_testutils::{client, utils};
 
 use zc_infra_nodes::{
+    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
+    network,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
@@ -459,7 +457,7 @@ mod client_rpcs {
     //!              ├── [     114923]  OPTIONS-000007
     //!              └── [          3]  version
     //! ```
-    use zc_infra_testutils::network::Network;
+    use zc_infra_nodes::network::Network;
 
     use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
 
