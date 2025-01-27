@@ -9,7 +9,7 @@ github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
 
 [dependencies]
 zc-infra-nodes = { path = "../zc-infra-nodes" }
-zcash_client_backend = { workspace = true, features = ["lightwalletd-tonic"] }
+zcash_client_backend = { workspace = true }
 zcash_protocol = { workspace = true }
 zcash_primitives = { workspace = true }
 zingo-netutils = { workspace = true }
