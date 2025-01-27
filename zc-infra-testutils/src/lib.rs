@@ -35,38 +35,11 @@
 //! The `test_fixtures` feature is enabled by default to allow tests to run.
 //!
 
-pub(crate) mod config;
 pub mod error;
-pub mod indexer;
-pub(crate) mod launch;
-pub(crate) mod logs;
-pub mod network;
 pub mod utils;
-pub mod validator;
 
 #[cfg(feature = "test_fixtures")]
 pub mod test_fixtures;
 
 #[cfg(feature = "client")]
 pub mod client;
-
-/// All processes currently supported
-#[derive(Clone, Copy)]
-enum Process {
-    Zcashd,
-    Zebrad,
-    Zainod,
-    Lightwalletd,
-}
-
-impl std::fmt::Display for Process {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let process = match self {
-            Self::Zcashd => "zcashd",
-            Self::Zebrad => "zebrad",
-            Self::Zainod => "zainod",
-            Self::Lightwalletd => "lightwalletd",
-        };
-        write!(f, "{}", process)
-    }
-}

@@ -10,7 +10,7 @@ use zingolib::{
     testvectors::seeds,
 };
 
-use crate::network;
+use zc_infra_nodes::network;
 
 /// Builds a client for creating RPC requests to the indexer/light-node
 pub fn build_client(

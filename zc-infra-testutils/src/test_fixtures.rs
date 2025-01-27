@@ -36,9 +36,10 @@ use zingolib::{
     wallet::data::summaries::TransactionSummaryInterface,
 };
 
-use crate::{client, config, utils};
+use crate::{client, utils};
 
 use zc_infra_nodes::{
+    config,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, Network},
     validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
