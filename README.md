@@ -1,18 +1,16 @@
 # Overview
 
-These two crates are siblings in a workspace.
+This repository is a cargo "workspace" that manages two sibling crates.
+
+**zc-infra-nodes**
+
+
+**zc-infra-testutils**
 
 One crate fetches and stashes network binaries zcashd, zebrad, zainod, lightwalletd, etc. and controls their state, on off etc.
 
 The other crate consumes the first crate as a dependency, provides a test framework for testing the components, and uses the framework to offer a suite of integration tests.
 
-Core crate:
-
-**zc-infra-nodes**
-
-Test Harness:
-
-**zc-infra-testutils**
 
 
 Benefits of this approach:
