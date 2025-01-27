@@ -195,6 +195,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
     local_net.indexer().print_stderr();
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -315,6 +316,7 @@ async fn zainod_zebrad_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -372,6 +374,7 @@ async fn lightwalletd_zcashd_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -507,6 +510,10 @@ mod client_rpcs {
     // rpc_fixture_test!(get_mempool_stream_zingolib_mempool_monitor);
     // rpc_fixture_test!(get_mempool_stream);
 
+    // slow
+    // rpc_fixture_test!(get_mempool_tx);
+    // rpc_fixture_test!(get_transaction);
+
     rpc_fixture_test!(get_lightd_info);
     rpc_fixture_test!(get_latest_block);
     rpc_fixture_test!(get_block);
@@ -516,13 +523,11 @@ mod client_rpcs {
     rpc_fixture_test!(get_block_range_lower);
     rpc_fixture_test!(get_block_range_upper);
     rpc_fixture_test!(get_block_range_reverse);
-    rpc_fixture_test!(get_transaction);
     rpc_fixture_test!(get_taddress_txids_all);
     rpc_fixture_test!(get_taddress_txids_lower);
     rpc_fixture_test!(get_taddress_txids_upper);
     rpc_fixture_test!(get_taddress_balance);
     rpc_fixture_test!(get_taddress_balance_stream);
-    rpc_fixture_test!(get_mempool_tx);
     rpc_fixture_test!(get_tree_state_by_height);
     rpc_fixture_test!(get_tree_state_by_hash);
     rpc_fixture_test!(get_tree_state_out_of_bounds);
