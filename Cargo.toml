@@ -1,7 +1,7 @@
 [workspace]
 members = [
-  "infrastructure/services",
-  "infrastructure/testutils"
+  "services",
+  "testutils"
 ]
 resolver = "2"
 

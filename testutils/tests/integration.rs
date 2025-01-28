@@ -7,9 +7,9 @@ use zingolib::{
     testvectors::REG_O_ADDR_FROM_ABANDONART,
 };
 
-use zc_infra_testutils::client;
+use zingo_infra_testutils::client;
 
-use zc_infra_nodes::{
+use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network, utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
@@ -458,7 +458,7 @@ mod client_rpcs {
     //!              ├── [     114923]  OPTIONS-000007
     //!              └── [          3]  version
     //! ```
-    use zc_infra_nodes::network::Network;
+    use zingo_infra_services::network::Network;
 
     use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
 
@@ -467,7 +467,7 @@ mod client_rpcs {
     async fn generate_zebrad_large_chain_cache() {
         tracing_subscriber::fmt().init();
 
-        zc_infra_testutils::test_fixtures::generate_zebrad_large_chain_cache(
+        zingo_infra_testutils::test_fixtures::generate_zebrad_large_chain_cache(
             ZEBRAD_BIN,
             LIGHTWALLETD_BIN,
         )
@@ -479,7 +479,7 @@ mod client_rpcs {
     async fn generate_zcashd_chain_cache() {
         tracing_subscriber::fmt().init();
 
-        zc_infra_testutils::test_fixtures::generate_zcashd_chain_cache(
+        zingo_infra_testutils::test_fixtures::generate_zcashd_chain_cache(
             ZCASHD_BIN,
             ZCASH_CLI_BIN,
             LIGHTWALLETD_BIN,
@@ -493,7 +493,7 @@ mod client_rpcs {
             async fn $test_name() {
                 tracing_subscriber::fmt().init();
 
-                zc_infra_testutils::test_fixtures::$test_name(
+                zingo_infra_testutils::test_fixtures::$test_name(
                     ZCASHD_BIN,
                     ZCASH_CLI_BIN,
                     ZAINOD_BIN,
@@ -552,7 +552,7 @@ mod client_rpcs {
         async fn sapling() {
             tracing_subscriber::fmt().init();
 
-            zc_infra_testutils::test_fixtures::get_subtree_roots_sapling(
+            zingo_infra_testutils::test_fixtures::get_subtree_roots_sapling(
                 ZEBRAD_BIN,
                 ZAINOD_BIN,
                 LIGHTWALLETD_BIN,
@@ -568,7 +568,7 @@ mod client_rpcs {
         async fn orchard() {
             tracing_subscriber::fmt().init();
 
-            zc_infra_testutils::test_fixtures::get_subtree_roots_orchard(
+            zingo_infra_testutils::test_fixtures::get_subtree_roots_orchard(
                 ZEBRAD_BIN,
                 ZAINOD_BIN,
                 LIGHTWALLETD_BIN,
