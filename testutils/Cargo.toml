@@ -8,7 +8,7 @@ license = "MIT License"
 github = { repository = "zingolabs/infrastructure/testutils" }
 
 [features]
-reexport_services = []
+services = []
 
 [dependencies]
 # Local

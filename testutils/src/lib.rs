@@ -37,7 +37,7 @@
 pub mod client;
 pub mod test_fixtures;
 
-#[cfg(feature = "reexport_services")]
+#[cfg(feature = "services")]
 /// By default we reexport services, expecting experts to
 pub mod services {
     pub use zingo_infra_services::error;
