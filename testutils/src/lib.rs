@@ -36,5 +36,6 @@
 //!
 pub mod client;
 pub mod test_fixtures;
+pub use zingo_infra_services::indexer;
 pub use zingo_infra_services::network;
 pub use zingo_infra_services::validator;
