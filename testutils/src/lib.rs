@@ -40,3 +40,4 @@ pub use zingo_infra_services::error;
 pub use zingo_infra_services::indexer;
 pub use zingo_infra_services::network;
 pub use zingo_infra_services::validator;
+pub use zingo_infra_services::LocalNet;
