@@ -36,8 +36,13 @@
 //!
 pub mod client;
 pub mod test_fixtures;
-pub use zingo_infra_services::error;
-pub use zingo_infra_services::indexer;
-pub use zingo_infra_services::network;
-pub use zingo_infra_services::validator;
-pub use zingo_infra_services::LocalNet;
+
+#[cfg(feature = "reexport_services")]
+/// By default we reexport services, expecting experts to
+pub mod services {
+    pub use zingo_infra_services::error;
+    pub use zingo_infra_services::indexer;
+    pub use zingo_infra_services::network;
+    pub use zingo_infra_services::validator;
+    pub use zingo_infra_services::LocalNet;
+}

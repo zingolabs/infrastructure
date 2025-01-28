@@ -7,6 +7,9 @@ license = "MIT License"
 [badges]
 github = { repository = "zingolabs/infrastructure/testutils" }
 
+[features]
+reexport_services = []
+
 [dependencies]
 # Local
 zingo-infra-services = { path = "../services" }
