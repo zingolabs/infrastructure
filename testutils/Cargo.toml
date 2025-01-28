@@ -1,15 +1,15 @@
 [package]
-name = "zc-infra-testutils"
+name = "zingo-infra-testutils"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
 
 [badges]
-github = { repository = "zingolabs/zc-infrastructure/zc-infra-testutils" }
+github = { repository = "zingolabs/infrastructure/testutils" }
 
 [dependencies]
 # Local
-zc-infra-nodes = { path = "../zc-infra-nodes" }
+zingo-infra-services = { path = "../services" }
 # Zingo
 zingo-netutils = { workspace = true }
 zingolib = { workspace = true, features = ["test-elevation"] }

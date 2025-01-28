@@ -38,7 +38,7 @@ use zingolib::{
 
 use crate::client;
 
-use zc_infra_nodes::{
+use zingo_infra_services::{
     config,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, Network},

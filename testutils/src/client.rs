@@ -4,13 +4,12 @@ use std::path::PathBuf;
 
 use portpicker::Port;
 use zcash_client_backend::proto::service::compact_tx_streamer_client::CompactTxStreamerClient;
+use zingo_infra_services::network;
 use zingo_netutils::{GetClientError, GrpcConnector, UnderlyingService};
 use zingolib::{
     config::RegtestNetwork, lightclient::LightClient, testutils::scenarios::setup::ClientBuilder,
     testvectors::seeds,
 };
-
-use zc_infra_nodes::network;
 
 /// Builds a client for creating RPC requests to the indexer/light-node
 pub fn build_client(
