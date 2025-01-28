@@ -1,5 +1,8 @@
 [workspace]
-members = ["zc-infra-testutils", "zc-infra-nodes"]
+members = [
+  "infrastructure/services",
+  "infrastructure/testutils"
+]
 resolver = "2"
 
 [workspace.dependencies]
