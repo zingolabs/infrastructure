@@ -37,7 +37,6 @@
 pub mod client;
 pub mod test_fixtures;
 
-#[cfg(feature = "services")]
 /// Offer internal "service" logic via a pub interface
 pub mod services {
     pub use zingo_infra_services::error;
