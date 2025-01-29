@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::fs::{self, File};
