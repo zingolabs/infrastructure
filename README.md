@@ -2,7 +2,7 @@
 
 This repository is a cargo "workspace" that manages two sibling crates.
 
-# zc-infra-nodes
+# Crate: zingo-infra-services in ./services 
 
  Manages download and placement of static resources, these include:
 
@@ -14,6 +14,7 @@ This repository is a cargo "workspace" that manages two sibling crates.
    * zingo-cli
 
   Once these are fetched, in place, and executable, this crate exposes interfaces to consuming crates that allow them to be managed.
-# zc-infra-testutils
+  
+# Crate: zingo-infra-testutils in ./testutils
 
-This is a crate that depends on zc-infra-nodes, and leverages its public interfaces to provide test tooling, and a suite of integration tests built on those tools.
+This is a crate that depends on zingo-infra-services, and leverages its public interfaces to provide test tooling, and a suite of integration tests built on those tools.
