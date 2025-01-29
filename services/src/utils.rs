@@ -35,7 +35,7 @@ pub enum TestingBinary {
 pub fn get_testing_bin_path(binary: TestingBinary) -> PathBuf {
     let crate_dir: String =
         env::var("CARGO_MANIFEST_DIR").expect("cargo manifest path to be found");
-    let bins_dir = Path::new(&crate_dir).join("fetched_resources/test_binaries");
+    let bins_dir = Path::new(&crate_dir).join("../services/fetched_resources/test_binaries");
 
     let name = match binary {
         TestingBinary::Lightwalletd => "lightwalletd",
