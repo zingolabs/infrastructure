@@ -40,7 +40,7 @@ async fn validate_binary(n: &str) {
         .expect("cargo manifest path to be found")
         .into();
     let bin_dir = Path::new(&crate_dir)
-        .join("fetched_resources/test_binaries")
+        .join("../fetched_resources/test_binaries")
         .join(n);
     let bin_path = bin_dir.join(n);
     let shasum_path = bin_dir.join("shasum");

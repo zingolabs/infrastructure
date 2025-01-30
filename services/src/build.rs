@@ -2,5 +2,5 @@
 
 mod fetcher;
 fn main() {
-    //fetcher::main();
+    fetcher::main();
 }
