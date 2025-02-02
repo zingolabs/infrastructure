@@ -2,11 +2,10 @@
 name = "fetcher"
 version = "0.1.0"
 edition = "2021"
-build = "./build.rs"
+build = "src/build.rs"
 
 [lib]
 name = "fetcher"
 path = "src/lib.rs"
 
 [dependencies]
-
