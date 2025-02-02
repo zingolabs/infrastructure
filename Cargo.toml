@@ -1,7 +1,8 @@
 [workspace]
-members = [
+members = [ "fetcher",
   "services",
-  "testutils"
+  "testutils",
+  "fetcher"
 ]
 resolver = "2"
 
