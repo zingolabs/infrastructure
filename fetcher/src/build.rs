@@ -2,7 +2,7 @@ mod binaries;
 mod utils;
 fn main() {
     println!("FETCHER build.rs running");
-    binaries::create_test_file_with_parents();
+    binaries::main();
     set_out_dir_env_var();
 }
 

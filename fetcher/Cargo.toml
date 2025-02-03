@@ -9,3 +9,9 @@ build = "src/build.rs"
 # path = "src/lib.rs"
 
 [dependencies]
+
+[build-dependencies]
+hex = { workspace = true }
+reqwest = { workspace = true, features = ["zstd", "rustls-tls-manual-roots"] }
+sha2 = { workspace = true }
+tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }

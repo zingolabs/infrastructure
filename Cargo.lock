@@ -5611,6 +5611,12 @@ dependencies = [
 [[package]]
 name = "zingo-infra-fetcher"
 version = "0.1.0"
+dependencies = [
+ "hex",
+ "reqwest",
+ "sha2",
+ "tokio",
+]
 
 [[package]]
 name = "zingo-infra-services"
