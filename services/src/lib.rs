@@ -189,3 +189,12 @@ impl LocalNet<Empty, Zebrad> {
         LocalNet { indexer, validator }
     }
 }
+
+#[test]
+fn read_test_binary() {
+    let test_bin_path = zingo_infra_fetcher::binaries::get_test_file_path();
+
+    dbg!(test_bin_path);
+
+    assert!(false)
+}
