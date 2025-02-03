@@ -1,5 +1,5 @@
 [workspace]
-members = [ "fetcher",
+members = [
   "services",
   "testutils",
   "fetcher"

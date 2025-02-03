@@ -1,11 +1,11 @@
 [package]
-name = "fetcher"
+name = "zingo-infra-fetcher"
 version = "0.1.0"
 edition = "2021"
 build = "src/build.rs"
 
-[lib]
-name = "fetcher"
-path = "src/lib.rs"
+# [lib]
+# name = "fetcher"
+# path = "src/lib.rs"
 
 [dependencies]
