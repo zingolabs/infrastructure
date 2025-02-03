@@ -190,6 +190,10 @@ impl LocalNet<Empty, Zebrad> {
     }
 }
 
+/// This test quickly checks for a dummy file stored in fetcher's OUT_DIR
+///
+/// It ALWAYS panics (I did this, probably wrongly, to have it show the denug outputs when run with nextest)
+///
 #[test]
 fn read_test_binary() {
     let test_bin_path = zingo_infra_fetcher::binaries::get_test_file_path();
