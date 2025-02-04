@@ -196,7 +196,7 @@ impl LocalNet<Empty, Zebrad> {
 ///
 #[test]
 fn read_test_binary() {
-    let test_bin_path = zingo_infra_fetcher::binaries::get_test_file_path();
+    let test_bin_path = zingo_infra_fetcher::get_fetcher_out_dir();
 
     dbg!(test_bin_path);
 

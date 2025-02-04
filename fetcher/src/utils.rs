@@ -1,10 +1,7 @@
-use std::{env::var, path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
-pub(crate) fn get_out_dir() -> PathBuf {
-    let env_var = get_out_dir_env_var();
-    PathBuf::from_str(&env_var).expect("OUT_DIR to be parsed into PathBuf")
-}
+// include!(concat!(env!("OUT_DIR"), "/config.rs"));
 
-pub(crate) fn get_out_dir_env_var() -> String {
-    var("OUT_DIR").expect("OUT_DIR to be defined")
-}
+// pub(crate) fn get_fetcher_out_dir() -> PathBuf {
+//     PathBuf::from(FETCHER_OUT_DIR)
+// }
