@@ -1,11 +1,11 @@
 use std::{env, fs::File, io::Write, path::PathBuf};
 
-mod binaries;
+// mod binaries;
 mod utils;
 fn main() {
     println!("FETCHER build.rs running");
     generate_config_file();
-    binaries::create_test_file_with_parents();
+    // build::create_test_file_with_parents();
 }
 
 fn generate_config_file() {
