@@ -4,13 +4,10 @@ use std::fs;
 use std::io::{BufRead, BufReader, Read};
 use std::{env, fs::File, io::Write, path::PathBuf};
 
-// mod binaries;
-mod utils;
 fn main() {
     println!("FETCHER build.rs running");
     generate_config_file();
     binaries_main();
-    // build::create_test_file_with_parents();
 }
 
 fn get_out_dir() -> PathBuf {
