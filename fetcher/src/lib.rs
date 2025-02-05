@@ -7,5 +7,4 @@ pub mod binaries;
 
 pub fn get_fetcher_out_dir() -> PathBuf {
     PathBuf::from(FETCHER_OUT_DIR)
-    // PathBuf::new()
 }

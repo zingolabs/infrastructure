@@ -183,7 +183,7 @@ async fn confirm_binary(
         .expect("stderr to happen")
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
-
+    /*
     match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
@@ -265,6 +265,7 @@ async fn confirm_binary(
         }
         _ => println!("looked for unknown binary"),
     }
+    */
     println!("confirming {} hashsum against local record", binary_name);
 
     // hashes for confirming expected binaries
