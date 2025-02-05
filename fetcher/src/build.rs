@@ -22,7 +22,7 @@ fn get_manifest_dir() -> PathBuf {
 }
 
 fn get_cert_path() -> PathBuf {
-    get_checksums_dir().join("cert/cert.pem")
+    get_manifest_dir().join("cert/cert.pem")
 }
 
 fn get_checksums_dir() -> PathBuf {
