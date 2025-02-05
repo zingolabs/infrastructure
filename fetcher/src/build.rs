@@ -299,10 +299,10 @@ async fn confirm_binary(
     Ok(())
 }
 
-async fn fetch_binary(bin_path: &PathBuf, n: &str) {
+async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
     // find locally committed cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
-        &fs::read("cert/cert.pem").expect("cert file to be readable"),
+        &fs::read(get_cert_path()).expect("cert file to be readable"),
     )
     .expect("reqwest to ingest cert");
     println!("cert ingested : {:?}", cert);
@@ -322,7 +322,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .expect("client builder to read system configuration and initialize TLS backend");
 
     // reqwest some stuff
-    let asset_url = format!("https://zingolabs.nexus:9073/{}", n);
+    let asset_url = format!("https://zingolabs.nexus:9073/{}", binary_name);
     println!("fetching from {:?}", asset_url);
     let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
@@ -343,7 +343,10 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .mode(0o100775)
         .open(bin_path)
         .expect("new binary file to be created");
-    println!("new empty file for {} made. write about to start!", n);
+    println!(
+        "new empty file for {} made. write about to start!",
+        binary_name
+    );
 
     // simple progress bar
     let progress = ["/", "-", "\\", "-", "o"];
@@ -363,7 +366,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         );
         counter = (counter + 1) % 5;
     }
-    println!("\nfile {} write complete!\n", n);
+    println!("\nfile {} write complete!\n", binary_name);
 }
 
 fn sha512sum_file(file_path: &PathBuf) -> String {
