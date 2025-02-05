@@ -1,3 +1,4 @@
+use core::panic;
 use std::env::var;
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
@@ -337,6 +338,13 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
         .await
         .expect("Response to be ok");
     // TODO instead of panicking, try again
+
+    // Create the parent directory where the bin_path is to be stored if needed
+    if let Some(parent) = bin_path.parent() {
+        fs::create_dir_all(parent).expect("bin parent directory to be created");
+    } else {
+        panic!("bin_path had no parent");
+    }
 
     // with create_new, no file is allowed to exist at the target location
     // with .mode() we are able to set permissions as the file is created.
