@@ -15,13 +15,13 @@ use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
     proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
 };
+use zingo_infra_fetcher::binaries::{get_path_for_binary, SupportedBinaries};
 
 use crate::{
     config,
     error::LaunchError,
     launch, logs,
     network::{self, Network},
-    utils::{get_testing_bin_path, TestingBinary},
     Process,
 };
 
@@ -223,7 +223,7 @@ impl Zcashd {
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut command = match &self.zcash_cli_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_testing_bin_path(TestingBinary::ZcashCli)),
+            None => std::process::Command::new(get_path_for_binary(SupportedBinaries::ZcashCli)),
         };
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
@@ -256,7 +256,7 @@ impl Validator for Zcashd {
 
         let mut command = match config.zcashd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zcashd)),
+            None => std::process::Command::new(get_path_for_binary(SupportedBinaries::Zcashd)),
         };
         command
             .args([
@@ -462,7 +462,7 @@ impl Validator for Zebrad {
 
         let mut command = match config.zebrad_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_testing_bin_path(TestingBinary::Zebrad)),
+            None => std::process::Command::new(get_path_for_binary(SupportedBinaries::Zebrad)),
         };
         command
             .args([

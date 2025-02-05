@@ -50,6 +50,7 @@ use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
+use zingo_infra_fetcher::binaries::{get_path_for_binary, SupportedBinaries};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
@@ -188,17 +189,4 @@ impl LocalNet<Empty, Zebrad> {
 
         LocalNet { indexer, validator }
     }
-}
-
-/// This test quickly checks for a dummy file stored in fetcher's OUT_DIR
-///
-/// It ALWAYS panics (I did this, probably wrongly, to have it show the denug outputs when run with nextest)
-///
-#[test]
-fn read_test_binary() {
-    let test_bin_path = zingo_infra_fetcher::get_fetcher_out_dir();
-
-    dbg!(test_bin_path);
-
-    assert!(false)
 }
