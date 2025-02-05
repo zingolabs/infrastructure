@@ -183,7 +183,6 @@ async fn confirm_binary(
         .expect("stderr to happen")
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
-
     match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {

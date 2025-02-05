@@ -1,14 +1,14 @@
 # Fetcher
 
-This crate's purpouse is to manage fetching, veryfying, cacheing and serving of useful data from veryfied remote servers.
+This crate's purpose is to manage securely fetching, verifying, and caching resources from remote servers.
 
 ## What does this manage?
-- Testing Binaries
-- Test vectors (upcomming)
+- Pre-compiled Binaries
+- Test vectors (upcoming)
 
 ## How it works
 
-- It has a `build script` that runs automagically every time this crate gets compiled.
-- It fetches and stores stuff in its `OUT_DIR` 
+- This crate has a `build script` that runs automagically every time it is compiled.
+- It fetches and stores resources in its `OUT_DIR` which is located in the `target` directory.
 - It serves a public API to access that stuff
 
