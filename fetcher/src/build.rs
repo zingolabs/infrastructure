@@ -152,7 +152,7 @@ async fn confirm_binary(
     ];
 
     // const version strings for soft-confirming binaries when found
-    // lwd and zaino don't like --version, they return stderr
+    // TODO: LWD and ZAINO dont use ---version but 'version' as first argument/command. Adjust accordingly
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
     const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.1.0";
