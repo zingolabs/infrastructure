@@ -1,18 +1,63 @@
-#![allow(dead_code)]
+use core::panic;
+use std::env::var;
+use std::fs;
+use std::io::{BufRead, BufReader, Read};
+use std::{env, fs::File, io::Write, path::PathBuf};
+
+fn main() {
+    println!("FETCHER build.rs running");
+    generate_config_file();
+    binaries_main();
+}
+
+fn get_out_dir() -> PathBuf {
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR to be defined");
+    PathBuf::from(&out_dir)
+}
+
+fn get_manifest_dir() -> PathBuf {
+    PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
+}
+
+fn get_cert_path() -> PathBuf {
+    get_manifest_dir().join("cert/cert.pem")
+}
+
+fn get_checksums_dir() -> PathBuf {
+    let manifest_dir = get_manifest_dir();
+    manifest_dir.join("checksums")
+}
+
+fn get_checksum_path_for_binary(binary_name: &str) -> PathBuf {
+    get_checksums_dir().join(format!("{}_shasum", binary_name))
+}
+
+fn generate_config_file() {
+    let out_dir = get_out_dir();
+
+    // Create the generated config file
+    let config_file_path = out_dir.join("config.rs");
+    let mut file = File::create(&config_file_path).expect("config.rs to be created");
+    file.write_fmt(core::format_args!(
+        r#"
+        pub const FETCHER_OUT_DIR: &str = {:?};
+        "#,
+        out_dir.display()
+    ))
+    .expect("config file to be written")
+}
+
+// #![allow(dead_code)]
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::fs::OpenOptionsExt;
-// use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Duration;
-use std::{env, ffi::OsString};
 use tokio::task::JoinSet;
 
 #[tokio::main]
-pub async fn main() {
+pub async fn binaries_main() {
     // find or fetch zingo-blessed binaries.
     let mut seek_binaries: JoinSet<()> = JoinSet::new();
 
@@ -35,30 +80,29 @@ pub async fn main() {
     println!("program exiting, declare victory!");
 }
 
-async fn validate_binary(n: &str) {
-    let crate_dir: OsString = env::var("CARGO_MANIFEST_DIR")
-        .expect("cargo manifest path to be found")
-        .into();
-    let bin_dir = Path::new(&crate_dir)
-        .join("fetched_resources/test_binaries")
-        .join(n);
-    let bin_path = bin_dir.join(n);
-    let shasum_path = bin_dir.join("shasum");
+async fn validate_binary(binary_name: &str) {
+    let resources_dir: PathBuf = get_out_dir();
+    let bin_dir = Path::new(&resources_dir).join("test_binaries");
+    let bin_path = bin_dir.join(binary_name);
+    let shasum_path = get_checksum_path_for_binary(binary_name);
 
     loop {
         if !bin_path.is_file() {
             println!("{:?} = file not found!", &bin_path);
             // we have to go get it!
-            fetch_binary(&bin_path, n).await
+            fetch_binary(&bin_path, binary_name).await
         }
         if bin_path.is_file() {
             //file is found, perform checks
-            match confirm_binary(&bin_path, &shasum_path, n).await {
+            match confirm_binary(&bin_path, &shasum_path, binary_name).await {
                 Ok(()) => {
-                    println!("{} binary confirmed.", &n);
+                    println!("{} binary confirmed.", &binary_name);
                     break;
                 }
-                _ => println!("binary confirmation failure, deleted found binary. plz fetch again"),
+                _ => println!(
+                    "binary {} confirmation failure, deleted found binary. plz fetch again",
+                    &binary_name
+                ),
             }
         }
     }
@@ -108,7 +152,7 @@ async fn confirm_binary(
     ];
 
     // const version strings for soft-confirming binaries when found
-    // lwd and zaino don't like --version, they return stderr
+    // TODO: LWD and ZAINO dont use ---version but 'version' as first argument/command. Adjust accordingly
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
     const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.1.0";
@@ -257,10 +301,10 @@ async fn confirm_binary(
     Ok(())
 }
 
-async fn fetch_binary(bin_path: &PathBuf, n: &str) {
+async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
     // find locally committed cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
-        &fs::read("cert/cert.pem").expect("cert file to be readable"),
+        &fs::read(get_cert_path()).expect("cert file to be readable"),
     )
     .expect("reqwest to ingest cert");
     println!("cert ingested : {:?}", cert);
@@ -280,7 +324,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .expect("client builder to read system configuration and initialize TLS backend");
 
     // reqwest some stuff
-    let asset_url = format!("https://zingolabs.nexus:9073/{}", n);
+    let asset_url = format!("https://zingolabs.nexus:9073/{}", binary_name);
     println!("fetching from {:?}", asset_url);
     let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
@@ -292,6 +336,13 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .expect("Response to be ok");
     // TODO instead of panicking, try again
 
+    // Create the parent directory where the bin_path is to be stored if needed
+    if let Some(parent) = bin_path.parent() {
+        fs::create_dir_all(parent).expect("bin parent directory to be created");
+    } else {
+        panic!("bin_path had no parent");
+    }
+
     // with create_new, no file is allowed to exist at the target location
     // with .mode() we are able to set permissions as the file is created.
     let mut target_binary: File = File::options()
@@ -301,7 +352,10 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         .mode(0o100775)
         .open(bin_path)
         .expect("new binary file to be created");
-    println!("new empty file for {} made. write about to start!", n);
+    println!(
+        "new empty file for {} made. write about to start!",
+        binary_name
+    );
 
     // simple progress bar
     let progress = ["/", "-", "\\", "-", "o"];
@@ -321,7 +375,7 @@ async fn fetch_binary(bin_path: &PathBuf, n: &str) {
         );
         counter = (counter + 1) % 5;
     }
-    println!("\nfile {} write complete!\n", n);
+    println!("\nfile {} write complete!\n", binary_name);
 }
 
 fn sha512sum_file(file_path: &PathBuf) -> String {

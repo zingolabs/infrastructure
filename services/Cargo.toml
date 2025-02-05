@@ -3,12 +3,12 @@ name = "zingo-infra-services"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
-build="src/build.rs"
 
 [badges]
 github = { repository = "zingolabs/infrastructure/services" }
 
 [dependencies]
+zingo-infra-fetcher = { path = "../fetcher" }
 # Zcash
 zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
