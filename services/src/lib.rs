@@ -50,7 +50,6 @@ use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
 use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
-use zingo_infra_fetcher::binaries::{get_path_for_binary, SupportedBinaries};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]

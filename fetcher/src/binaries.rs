@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use crate::get_fetcher_out_dir;
 
 fn get_out_dir() -> PathBuf {
-    // PathBuf::from(var("OUT_DIR").unwrap())
     get_fetcher_out_dir()
 }
 
