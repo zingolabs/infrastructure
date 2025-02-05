@@ -21,12 +21,16 @@ fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
 
+fn get_cert_path() -> PathBuf {
+    get_checksums_dir().join("cert/cert.pem")
+}
+
 fn get_checksums_dir() -> PathBuf {
     let manifest_dir = get_manifest_dir();
     manifest_dir.join("checksums")
 }
 
-fn get_checksum_for_binary(binary_name: &str) -> PathBuf {
+fn get_checksum_path_for_binary(binary_name: &str) -> PathBuf {
     get_checksums_dir().join(format!("{}_shasum", binary_name))
 }
 
@@ -82,7 +86,7 @@ async fn validate_binary(binary_name: &str) {
     let resources_dir: PathBuf = get_out_dir();
     let bin_dir = Path::new(&resources_dir).join("test_binaries");
     let bin_path = bin_dir.join(binary_name);
-    let shasum_path = get_checksum_for_binary(binary_name);
+    let shasum_path = get_checksum_path_for_binary(binary_name);
 
     loop {
         if !bin_path.is_file() {
