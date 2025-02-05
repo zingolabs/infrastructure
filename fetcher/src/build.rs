@@ -1,4 +1,6 @@
 use std::env::var;
+use std::fs;
+use std::io::{BufRead, BufReader, Read};
 use std::{env, fs::File, io::Write, path::PathBuf};
 
 // mod binaries;
@@ -15,9 +17,12 @@ fn get_out_dir() -> PathBuf {
     PathBuf::from(&out_dir)
 }
 
+fn get_manifest_dir() -> PathBuf {
+    PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
+}
+
 fn get_checksums_dir() -> PathBuf {
-    let manifest_dir =
-        PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"));
+    let manifest_dir = get_manifest_dir();
     manifest_dir.join("checksums")
 }
 
