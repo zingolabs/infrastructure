@@ -1,3 +1,4 @@
+use std::env::var;
 use std::{env, fs::File, io::Write, path::PathBuf};
 
 // mod binaries;
@@ -12,6 +13,16 @@ fn main() {
 fn get_out_dir() -> PathBuf {
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR to be defined");
     PathBuf::from(&out_dir)
+}
+
+fn get_checksums_dir() -> PathBuf {
+    let manifest_dir =
+        PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"));
+    manifest_dir.join("checksums")
+}
+
+fn get_checksum_for_binary(binary_name: &str) -> PathBuf {
+    get_checksums_dir().join(format!("{}_shasum", binary_name))
 }
 
 fn generate_config_file() {
@@ -62,28 +73,29 @@ pub async fn binaries_main() {
     println!("program exiting, declare victory!");
 }
 
-async fn validate_binary(n: &str) {
+async fn validate_binary(binary_name: &str) {
     let resources_dir: PathBuf = get_out_dir();
-    let bin_dir = Path::new(&resources_dir)
-        .join("fetched_resources/test_binaries")
-        .join(n);
-    let bin_path = bin_dir.join(n);
-    let shasum_path = bin_dir.join("shasum");
+    let bin_dir = Path::new(&resources_dir).join("test_binaries");
+    let bin_path = bin_dir.join(binary_name);
+    let shasum_path = get_checksum_for_binary(binary_name);
 
     loop {
         if !bin_path.is_file() {
             println!("{:?} = file not found!", &bin_path);
             // we have to go get it!
-            fetch_binary(&bin_path, n).await
+            fetch_binary(&bin_path, binary_name).await
         }
         if bin_path.is_file() {
             //file is found, perform checks
-            match confirm_binary(&bin_path, &shasum_path, n).await {
+            match confirm_binary(&bin_path, &shasum_path, binary_name).await {
                 Ok(()) => {
-                    println!("{} binary confirmed.", &n);
+                    println!("{} binary confirmed.", &binary_name);
                     break;
                 }
-                _ => println!("binary confirmation failure, deleted found binary. plz fetch again"),
+                _ => println!(
+                    "binary {} confirmation failure, deleted found binary. plz fetch again",
+                    &binary_name
+                ),
             }
         }
     }
