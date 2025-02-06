@@ -71,7 +71,6 @@ pub async fn binaries_main() {
         seek_binaries.spawn(validate_binary(n));
     }
 
-    // TODO print helpful message if some threads return an error
     seek_binaries.join_all().await;
     println!("program exiting, declare victory!");
 }
@@ -148,7 +147,8 @@ async fn confirm_binary(
     ];
 
     // const version strings for soft-confirming binaries when found
-    // TODO: LWD and ZAINO dont use ---version but 'version' as first argument/command. Adjust accordingly
+    // lwd uses `version` instead of `--version`, therefore the call returns stderr
+    // zaino has updated to support `--version` but we are now serving an older commit
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
     const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.1.0";
@@ -329,7 +329,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
         .send()
         .await
         .expect("Response to be ok");
-    // TODO instead of panicking, try again
 
     // Create the parent directory where the bin_path is to be stored if needed
     if let Some(parent) = bin_path.parent() {
