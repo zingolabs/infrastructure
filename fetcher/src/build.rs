@@ -81,6 +81,8 @@ async fn validate_binary(binary_name: &str) {
     let bin_path = bin_dir.join(binary_name);
     let shasum_path = get_hashsum_path_for_binary(binary_name);
 
+    fs::create_dir_all(bin_dir).expect("bin directory to be created");
+
     loop {
         if !bin_path.is_file() {
             println!("{:?} = file not found!", &bin_path);
@@ -179,6 +181,7 @@ async fn confirm_binary(
         .expect("stderr to happen")
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
+
     match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
@@ -329,13 +332,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
         .send()
         .await
         .expect("Response to be ok");
-
-    // Create the parent directory where the bin_path is to be stored if needed
-    if let Some(parent) = bin_path.parent() {
-        fs::create_dir_all(parent).expect("bin parent directory to be created");
-    } else {
-        panic!("bin_path had no parent");
-    }
 
     // with create_new, no file is allowed to exist at the target location
     // with .mode() we are able to set permissions as the file is created.
