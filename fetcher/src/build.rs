@@ -34,7 +34,6 @@ fn generate_config_file() {
     .expect("config file to be written")
 }
 
-// #![allow(dead_code)]
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::os::unix::fs::OpenOptionsExt;
