@@ -11,8 +11,7 @@ fn main() {
 }
 
 fn get_out_dir() -> PathBuf {
-    let out_dir = env::var("OUT_DIR").expect("OUT_DIR to be defined");
-    PathBuf::from(&out_dir)
+    PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR to be defined"))
 }
 
 fn get_manifest_dir() -> PathBuf {
@@ -23,13 +22,12 @@ fn get_cert_path() -> PathBuf {
     get_manifest_dir().join("cert/cert.pem")
 }
 
-fn get_checksums_dir() -> PathBuf {
-    let manifest_dir = get_manifest_dir();
-    manifest_dir.join("checksums")
+fn get_hashsums_dir() -> PathBuf {
+    get_manifest_dir().join("hashsums")
 }
 
-fn get_checksum_path_for_binary(binary_name: &str) -> PathBuf {
-    get_checksums_dir().join(format!("{}_shasum", binary_name))
+fn get_hashsum_path_for_binary(binary_name: &str) -> PathBuf {
+    get_hashsums_dir().join(format!("{}_shasum", binary_name))
 }
 
 fn generate_config_file() {
@@ -39,9 +37,7 @@ fn generate_config_file() {
     let config_file_path = out_dir.join("config.rs");
     let mut file = File::create(&config_file_path).expect("config.rs to be created");
     file.write_fmt(core::format_args!(
-        r#"
-        pub const FETCHER_OUT_DIR: &str = {:?};
-        "#,
+        "pub const FETCHER_OUT_DIR: &str = {:?};",
         out_dir.display()
     ))
     .expect("config file to be written")
@@ -84,7 +80,7 @@ async fn validate_binary(binary_name: &str) {
     let resources_dir: PathBuf = get_out_dir();
     let bin_dir = Path::new(&resources_dir).join("test_binaries");
     let bin_path = bin_dir.join(binary_name);
-    let shasum_path = get_checksum_path_for_binary(binary_name);
+    let shasum_path = get_hashsum_path_for_binary(binary_name);
 
     loop {
         if !bin_path.is_file() {
