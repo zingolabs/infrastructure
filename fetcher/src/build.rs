@@ -1,13 +1,17 @@
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
-use std::env::var;
-use std::fs;
-use std::io::{BufRead, BufReader, Read};
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::Duration;
-use std::{env, fs::File, io::Write, path::PathBuf};
+use std::{
+    env,
+    env::var,
+    fs,
+    fs::File,
+    io::{BufRead, BufReader, Read, Write},
+    os::unix::fs::OpenOptionsExt,
+    path::Path,
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::Duration,
+};
 use tokio::task::JoinSet;
 
 fn main() {
