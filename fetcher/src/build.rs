@@ -1,7 +1,14 @@
+use reqwest::{Certificate, Url};
+use sha2::{Digest, Sha512};
 use std::env::var;
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
+use std::process::{Command, Stdio};
+use std::time::Duration;
 use std::{env, fs::File, io::Write, path::PathBuf};
+use tokio::task::JoinSet;
 
 fn main() {
     println!("FETCHER build.rs running");
@@ -33,14 +40,6 @@ fn generate_config_file() {
     ))
     .expect("config file to be written")
 }
-
-use reqwest::{Certificate, Url};
-use sha2::{Digest, Sha512};
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::Duration;
-use tokio::task::JoinSet;
 
 #[tokio::main]
 pub async fn binaries_main() {
@@ -272,9 +271,7 @@ async fn confirm_binary(
             "found sha512sum of binary. asserting hash equality of local record {}",
             shasum_record
         );
-        println!("{:?} :: {:?}", res, hash);
 
-        // assert_eq!(res, hash);
         if res != hash {
             fs::remove_file(bin_path).expect("bin to be deleted");
             return Err(());
@@ -296,7 +293,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
     .expect("reqwest to ingest cert");
     println!("cert ingested : {:?}", cert);
 
-    // let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)), 9073);
     // Client deafult is idle sockets being kept-alive 90 seconds
     let req_client = reqwest::ClientBuilder::new()
         .connection_verbose(true)
@@ -306,7 +302,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
         .connect_timeout(Duration::from_secs(10)) // to connect // defaults to None
         .read_timeout(Duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
         .add_root_certificate(cert)
-        //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
 
@@ -317,7 +312,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
 
     let mut res = req_client
         .get(fetch_url)
-        //.basic_auth(username, password);
         .send()
         .await
         .expect("Response to be ok");
