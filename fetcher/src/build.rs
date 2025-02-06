@@ -22,10 +22,6 @@ fn get_hashsums_dir() -> PathBuf {
     get_manifest_dir().join("hashsums")
 }
 
-fn get_hashsum_path_for_binary(binary_name: &str) -> PathBuf {
-    get_hashsums_dir().join(format!("{}_shasum", binary_name))
-}
-
 fn generate_config_file() {
     let out_dir = get_out_dir();
 
