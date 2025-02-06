@@ -1,4 +1,3 @@
-use core::panic;
 use std::env::var;
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
