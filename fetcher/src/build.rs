@@ -18,10 +18,6 @@ fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
 
-fn get_cert_path() -> PathBuf {
-    get_manifest_dir().join("cert/cert.pem")
-}
-
 fn get_hashsums_dir() -> PathBuf {
     get_manifest_dir().join("hashsums")
 }
@@ -166,7 +162,6 @@ async fn confirm_binary(
         .output()
         .expect("command with --version argument and stddout + stderr to be created");
 
-    // we have to collect both becayse LWD and Zaino don't print to stdout with --version
     let mut std_out = String::new();
     let mut std_err = String::new();
     vs.spawn()
@@ -302,7 +297,7 @@ async fn confirm_binary(
 async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
     // find locally committed cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
-        &fs::read(get_cert_path()).expect("cert file to be readable"),
+        &fs::read(get_manifest_dir().join("cert/cert.pem")).expect("cert file to be readable"),
     )
     .expect("reqwest to ingest cert");
     println!("cert ingested : {:?}", cert);
