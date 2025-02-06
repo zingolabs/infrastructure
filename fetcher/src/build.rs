@@ -75,7 +75,7 @@ async fn validate_binary(binary_name: &str) {
     let resources_dir: PathBuf = get_out_dir();
     let bin_dir = Path::new(&resources_dir).join("test_binaries");
     let bin_path = bin_dir.join(binary_name);
-    let shasum_path = get_hashsum_path_for_binary(binary_name);
+    let shasum_path = get_hashsums_dir().join(format!("{}_shasum", binary_name));
 
     fs::create_dir_all(bin_dir).expect("bin directory to be created");
 
