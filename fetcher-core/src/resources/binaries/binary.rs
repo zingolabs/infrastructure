@@ -30,7 +30,7 @@ impl Binaries {
         format!("some_base_url/{}", self.get_name())
     }
 
-    fn get_path(&self, cache: Cache) -> Result<std::path::PathBuf, crate::error::Error> {
+    fn get_path(&self, cache: &Cache) -> Result<std::path::PathBuf, crate::error::Error> {
         let key = self.get_key();
         if cache.exists(&key) {
             Ok(cache.get_path(&key))
