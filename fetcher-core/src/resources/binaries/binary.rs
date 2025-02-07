@@ -41,27 +41,32 @@ impl Binaries {
 }
 
 impl Resource for Binaries {
-    async fn get(&self, cache: &Cache) -> Result<(), crate::error::Error> {
-        todo!()
-    }
-
     fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
-        todo!()
+        println!("Im confirming... (not really)");
+        Ok(true)
     }
 
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
-        todo!()
+        println!("I'm veryfying... (not really)");
+        Ok(true)
     }
 
     async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
-        todo!()
+        println!("I'm fetching... (not really)");
+        Ok(())
     }
 
     fn get_name(&self) -> String {
-        todo!()
+        match self {
+            Binaries::Zainod => "zainod",
+            Binaries::Lightwalletd => "lightwalletd",
+            Binaries::Zcashd => "zcashd",
+        }
+        .to_string()
     }
 
-    fn get_result(&self) -> () {
-        todo!()
+    fn get_result(&self, cache: &Cache) -> Result<(), Error> {
+        // self.get_path(cache)
+        Ok(())
     }
 }
