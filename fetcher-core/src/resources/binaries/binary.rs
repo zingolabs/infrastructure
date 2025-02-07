@@ -1,71 +1,75 @@
-use crate::resources::resource::Resource;
+use crate::{cache::Cache, error::Error, resources::resource::Resource};
 
-use super::super::super::error::Error;
-use super::super::ResourceType;
+use super::Binaries;
 
-#[derive(Clone)]
-pub struct BinaryResource {
-    resource_id: String,
-    data: Vec<u8>, // The binary data to be stored
-    checksum: String,
-    version: String,
-}
-
-impl BinaryResource {
-    pub fn new(resource_id: &str, checksum: &str, version: &str) -> Self {
-        BinaryResource {
-            resource_id: resource_id.to_string(),
-            data: Vec::new(), // Initially empty, to be filled later
-            checksum: checksum.to_string(),
-            version: version.to_string(),
+impl Binaries {
+    fn get_name(&self) -> &str {
+        match self {
+            Binaries::Zainod => "zainod",
+            Binaries::Lightwalletd => "lightwalletd",
+            Binaries::Zcashd => "zcashd",
         }
     }
 
-    // Example fetch logic
-    fn fetch_from_source(resource_id: &str) -> Result<Vec<u8>, Error> {
-        // Simulated fetching logic (e.g., download or retrieve from a database)
-        println!("Fetching binary: {}", resource_id);
-        Ok(vec![0u8; 1024]) // Simulating 1 KB of binary data
+    // TODO: make this truly unique
+    fn get_key(&self) -> String {
+        format!("binaries_{}", self.get_name())
     }
 
-    fn verify_checksum(&self) -> bool {
-        // Placeholder logic for checksum verification
-        // Actual implementation could calculate a checksum of self.data
-        self.checksum == "expected_checksum" // Replace with real validation logic
+    fn get_version_string(&self) -> String {
+        match self {
+            Binaries::Zainod => "6.0.0",
+            Binaries::Lightwalletd => "6.0.0",
+            Binaries::Zcashd => "6.0.0",
+        }
+        .to_string()
+    }
+
+    fn get_checksum(&self) -> String {
+        match self {
+            Binaries::Zainod => "some_checkum_string",
+            Binaries::Lightwalletd => "some_checkum_string",
+            Binaries::Zcashd => "some_checkum_string",
+        }
+        .to_string()
+    }
+
+    fn get_fetch_url(&self) -> String {
+        format!("some_base_url/{}", self.get_name())
+    }
+
+    fn get_path(&self, cache: Cache) -> Result<std::path::PathBuf, crate::error::Error> {
+        let key = self.get_key();
+        if cache.exists(&key) {
+            Ok(cache.get_path(&key))
+        } else {
+            Err(Error::ResourceNotFound)
+        }
     }
 }
 
-impl Resource for BinaryResource {
-    fn fetch(resource_id: &str) -> Result<Self, Error> {
-        let checksum = "expected_checksum"; // Replace with actual retrieval logic
-        let version = "1.0.0"; // Replace with actual retrieval logic
-
-        let data = Self::fetch_from_source(resource_id)?;
-        let mut binary_resource = BinaryResource::new(resource_id, checksum, version);
-        binary_resource.data = data; // Set fetched data
-
-        Ok(binary_resource)
+impl Resource for Binaries {
+    async fn get(&self, cache: &Cache) -> Result<(), crate::error::Error> {
+        todo!()
     }
 
-    fn store(&self, store_path: &str) -> Result<(), Error> {
-        // Save binary data to disk
-        let key = format!("{}.bin", self.resource_id);
-        let cache = super::super::super::cache::Cache::new(store_path);
-        cache.store(&key, &self.data).map_err(Error::IoError)?;
-        Ok(())
+    fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
+        todo!()
     }
 
-    fn verify(&self) -> bool {
-        self.verify_checksum()
+    fn verify(&self, cache: &Cache) -> Result<bool, Error> {
+        todo!()
     }
 
-    fn load_from_data(data: Vec<u8>) -> Result<Self, Error> {
-        // Logic to load a BinaryResource from existing data
-        Ok(BinaryResource {
-            resource_id: String::from("loaded_resource_id"), // Set appropriately
-            data,
-            checksum: "expected_checksum".to_string(), // Set the expected checksum
-            version: "1.0.0".to_string(),              // Set the expected version
-        })
+    async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn get_name(&self) -> String {
+        todo!()
+    }
+
+    fn get_result(&self) -> () {
+        todo!()
     }
 }
