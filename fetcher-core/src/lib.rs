@@ -1,4 +1,5 @@
-use resources::{binaries::Binaries, ResourcesEnum};
+use crate::resources::binaries::Binaries;
+use resources::ResourcesEnum;
 
 pub mod cache;
 pub mod error;
@@ -29,7 +30,7 @@ async fn hello_world() {
         .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
         .await;
 
-    dbg!(zainod);
+    let _unused_result = dbg!(zainod);
 
     assert!(false)
 }

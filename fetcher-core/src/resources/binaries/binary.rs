@@ -7,11 +7,11 @@ use super::Binaries;
 
 impl Binaries {
     // TODO: make this truly unique
-    fn get_key(&self) -> String {
+    fn _get_key(&self) -> String {
         format!("binaries_{}", self.get_name())
     }
 
-    fn get_version_string(&self) -> String {
+    fn _get_version_string(&self) -> String {
         match self {
             Binaries::Zainod => "6.0.0",
             Binaries::Lightwalletd => "6.0.0",
@@ -20,7 +20,7 @@ impl Binaries {
         .to_string()
     }
 
-    fn get_checksum(&self) -> String {
+    fn _get_checksum(&self) -> String {
         match self {
             Binaries::Zainod => "some_checkum_string",
             Binaries::Lightwalletd => "some_checkum_string",
@@ -29,29 +29,29 @@ impl Binaries {
         .to_string()
     }
 
-    fn get_fetch_url(&self) -> String {
+    fn _get_fetch_url(&self) -> String {
         format!("some_base_url/{}", self.get_name())
     }
 
-    fn get_path(&self, cache: &Cache) -> Result<std::path::PathBuf, crate::error::Error> {
-        let key = self.get_key();
+    fn _get_path(&self, cache: &Cache) -> Result<std::path::PathBuf, crate::error::Error> {
+        let key = self._get_key();
         if cache.exists(&key) {
             Ok(cache.get_path(&key))
         } else {
             Err(Error::ResourceNotFound)
         }
     }
-    fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
+    fn confirm(&self, _cache: &Cache) -> Result<bool, Error> {
         println!("Im confirming... (not really)");
         Ok(true)
     }
 
-    fn verify(&self, cache: &Cache) -> Result<bool, Error> {
+    fn verify(&self, _cache: &Cache) -> Result<bool, Error> {
         println!("I'm veryfying... (not really)");
         Ok(true)
     }
 
-    pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
+    pub async fn fetch(&self, _cache: &Cache) -> Result<(), Error> {
         println!("I'm fetching... (not really)");
         Ok(())
     }
@@ -65,7 +65,7 @@ impl Binaries {
         .to_string()
     }
 
-    fn get_result(&self, cache: &Cache) -> Result<(), Error> {
+    fn get_result(&self, _cache: &Cache) -> Result<(), Error> {
         // self.get_path(cache)
         Ok(())
     }
@@ -77,7 +77,7 @@ impl Binaries {
                 if !res {
                     println!("fetching resource [{}]", self.get_name());
                     // if it's not, fetch it
-                    self.fetch(&cache).await;
+                    let _unused_result = self.fetch(&cache).await;
                 } else {
                     // not much to do here... maybe print some logs
                 }
@@ -96,7 +96,7 @@ impl Binaries {
                             Err(Error::InvalidResource)
                         }
                     }
-                    Err(e) => todo!(),
+                    Err(_e) => todo!(),
                 }
             }
             Err(_e) => todo!(),
