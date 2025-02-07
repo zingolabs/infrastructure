@@ -1,9 +1,20 @@
-use crate::resources::binaries::Binaries;
-use resources::ResourcesEnum;
-
 pub mod cache;
 pub mod error;
-pub mod resources; // This will import all resource types
+
+#[derive(Debug, Clone)]
+/// All supported binaries
+pub enum Binaries {
+    Zainod,
+    Lightwalletd,
+    Zcashd,
+}
+
+pub enum ResourceType {
+    Binaries, // General binary category
+}
+pub enum ResourcesEnum {
+    Binaries(Binaries),
+}
 
 pub struct ResourcesManager {
     cache: cache::Cache, // Disk-based cache
