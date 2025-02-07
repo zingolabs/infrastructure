@@ -11,10 +11,12 @@ pub trait Resource {
     fn get_result(&self) -> ();
 
     async fn get(&self, cache: &Cache) -> Result<(), error::Error> {
+        println!("confirming resource [{}]", self.get_name());
         // check if the resource is in cache
         match self.confirm(&cache) {
             Ok(res) => {
                 if !res {
+                    println!("fetching resource [{}]", self.get_name());
                     // if it's not, fetch it
                     self.fetch(&cache).await;
                 } else {
