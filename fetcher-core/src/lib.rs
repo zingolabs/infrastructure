@@ -30,4 +30,6 @@ async fn hello_world() {
         .await;
 
     dbg!(zainod);
+
+    assert!(false)
 }
