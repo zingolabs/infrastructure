@@ -3,12 +3,12 @@ use crate::{
     error::{self, Error},
 };
 
-pub trait Resource {
+pub(crate) trait Resource {
     fn confirm(&self, cache: &Cache) -> Result<bool, Error>;
     fn verify(&self, cache: &Cache) -> Result<bool, Error>;
     async fn fetch(&self, cache: &Cache) -> Result<(), Error>;
     fn get_name(&self) -> String;
-    fn get_result(&self) -> ();
+    fn get_result(&self, cache: &Cache) -> Result<(), Error>;
 
     async fn get(&self, cache: &Cache) -> Result<(), error::Error> {
         println!("confirming resource [{}]", self.get_name());
@@ -29,7 +29,7 @@ pub trait Resource {
                             // the resource is valid
                             println!("resource [{}] verified correctly!", self.get_name());
                             // return the result
-                            Ok(self.get_result())
+                            self.get_result(cache)
                         } else {
                             // the resource is invalid
                             println!("resource [{}] invalid!", self.get_name());
