@@ -1,2 +1,10 @@
 pub mod binary;
-pub mod binary_configs;
+
+#[derive(Debug, Clone)]
+/// All supported binaries
+pub enum Binaries {
+    Zainod,
+    Lightwalletd,
+    Zcashd,
+    // ...
+}
