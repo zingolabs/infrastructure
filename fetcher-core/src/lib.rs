@@ -1,4 +1,5 @@
-use resources::{binaries::Binaries, resource::Resource, ResourcesEnum};
+use resources::{binaries::Binaries, ResourcesEnum};
+//    resource::Resource,
 
 pub mod cache;
 pub mod error;

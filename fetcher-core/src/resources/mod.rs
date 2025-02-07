@@ -1,5 +1,5 @@
 pub mod binaries;
-pub mod resource; // The base Resource trait // For general Binary resource types
+//pub mod resource; // The base Resource trait // For general Binary resource types
 
 use binaries::Binaries;
 

@@ -1,3 +1,4 @@
+/*
 use crate::{
     cache::Cache,
     error::{self, Error},
@@ -44,3 +45,4 @@ pub(crate) trait Resource {
         }
     }
 }
+*/
