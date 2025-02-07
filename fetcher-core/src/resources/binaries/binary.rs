@@ -3,14 +3,6 @@ use crate::{cache::Cache, error::Error, resources::resource::Resource};
 use super::Binaries;
 
 impl Binaries {
-    fn get_name(&self) -> &str {
-        match self {
-            Binaries::Zainod => "zainod",
-            Binaries::Lightwalletd => "lightwalletd",
-            Binaries::Zcashd => "zcashd",
-        }
-    }
-
     // TODO: make this truly unique
     fn get_key(&self) -> String {
         format!("binaries_{}", self.get_name())
