@@ -2,6 +2,7 @@
 pub enum Error {
     IoError(std::io::Error),
     ResourceNotFound,
+    InvalidResource,
     // Add other relevant error types as needed
 }
 
