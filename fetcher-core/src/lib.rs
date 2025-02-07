@@ -1,3 +1,5 @@
+use resources::{binaries::Binaries, resource::Resource, ResourcesEnum};
+
 pub mod cache;
 pub mod error;
 pub mod resources; // This will import all resource types
@@ -12,30 +14,20 @@ impl ResourcesManager {
         ResourcesManager { cache }
     }
 
-    pub fn get_resource(
-        &mut self,
-        resource_type: resources::ResourceType,
-        resource_id: &str,
-    ) -> Result<Box<dyn resources::resource::Resource>, error::Error> {
-        // Check if the resource is already cached
-        if self.cache.exists(resource_id) {
-            let data = self.cache.load(resource_id)?;
-            let resource = resource_type.load_from_data(data)?;
-            return Ok(resource);
+    pub async fn get_resource(&mut self, res: ResourcesEnum) -> Result<(), error::Error> {
+        match res {
+            ResourcesEnum::Binaries(bin) => bin.get(&self.cache).await,
         }
-
-        // Fetch resource and cache it if not available
-        let resource = self.fetch_and_cache_resource(resource_type, resource_id)?;
-        Ok(resource)
     }
+}
 
-    fn fetch_and_cache_resource(
-        &mut self,
-        resource_type: resources::ResourceType,
-        resource_id: &str,
-    ) -> Result<Box<dyn resources::Resource>, error::Error> {
-        let resource = resource_type.fetch(resource_id)?;
-        resource.store(&self.cache.store_path.to_string())?; // Store fetched resource in cache
-        Ok(resource)
-    }
+#[tokio::test]
+async fn hello_world() {
+    let mut manager = ResourcesManager::new("./fetched_resources");
+
+    let zainod = manager
+        .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
+        .await;
+
+    dbg!(zainod);
 }
