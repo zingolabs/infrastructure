@@ -1,8 +1,20 @@
-use resources::{binaries::Binaries, resource::Resource, ResourcesEnum};
-
 pub mod cache;
 pub mod error;
-pub mod resources; // This will import all resource types
+
+#[derive(Debug, Clone)]
+/// All supported binaries
+pub enum Binaries {
+    Zainod,
+    Lightwalletd,
+    Zcashd,
+}
+
+pub enum ResourceType {
+    Binaries, // General binary category
+}
+pub enum ResourcesEnum {
+    Binaries(Binaries),
+}
 
 pub struct ResourcesManager {
     cache: cache::Cache, // Disk-based cache
@@ -29,7 +41,7 @@ async fn hello_world() {
         .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
         .await;
 
-    dbg!(zainod);
+    let _unused_result = dbg!(zainod);
 
     assert!(false)
 }
