@@ -6,9 +6,13 @@ use crate::{
 use super::Binaries;
 
 impl Binaries {
+    fn get_type_name(&self) -> String {
+        "binaries".to_string()
+    }
+
     // TODO: make this truly unique
     fn _get_key(&self) -> String {
-        format!("binaries_{}", self.get_name())
+        format!("{}_{}", self.get_type_name(), self.get_name())
     }
 
     fn _get_version_string(&self) -> String {
