@@ -70,36 +70,43 @@ impl Binaries {
         Ok(())
     }
     pub async fn get(&self, cache: &Cache) -> Result<(), error::Error> {
-        println!("confirming resource [{}]", self.get_name());
-        // check if the resource is in cache
-        match self.confirm(&cache) {
-            Ok(res) => {
-                if !res {
-                    println!("fetching resource [{}]", self.get_name());
-                    // if it's not, fetch it
-                    let _unused_result = self.fetch(&cache).await;
-                } else {
-                    // not much to do here... maybe print some logs
-                }
-                // now verify that the fetched stuff is valid
-                match self.verify(cache) {
-                    Ok(is_valid) => {
-                        if is_valid {
-                            // the resource is valid
-                            println!("resource [{}] verified correctly!", self.get_name());
-                            // return the result
-                            self.get_result(cache)
-                        } else {
-                            // the resource is invalid
-                            println!("resource [{}] invalid!", self.get_name());
-                            // throw error
-                            Err(Error::InvalidResource)
-                        }
-                    }
-                    Err(_e) => todo!(),
-                }
+        println!("Confirming resource [{}]", self.get_name());
+        // Confirm the resource in cache
+        match self.confirm(cache) {
+            Ok(false) => {
+                println!("Fetching resource [{}]", self.get_name());
+                self.fetch(cache).await?;
             }
-            Err(_e) => todo!(),
+            Ok(true) => {
+                println!("Resource [{}] is already confirmed.", self.get_name());
+            }
+            Err(e) => {
+                println!(
+                    "Confirmation failed for resource [{}]: {:?}",
+                    self.get_name(),
+                    e
+                );
+                return Err(e);
+            }
+        }
+        // Verify the resource after fetching if needed
+        match self.verify(cache) {
+            Ok(true) => {
+                println!("Resource [{}] verified correctly!", self.get_name());
+                return self.get_result(cache);
+            }
+            Ok(false) => {
+                println!("Resource [{}] invalid!", self.get_name());
+                return Err(Error::InvalidResource);
+            }
+            Err(e) => {
+                println!(
+                    "Verification failed for resource [{}]: {:?}",
+                    self.get_name(),
+                    e
+                );
+                return Err(e);
+            }
         }
     }
 }
