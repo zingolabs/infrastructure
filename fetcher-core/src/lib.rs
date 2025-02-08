@@ -1,5 +1,6 @@
-pub mod cache;
-pub mod error;
+mod binary;
+mod cache;
+mod error;
 
 #[derive(Debug, Clone)]
 /// All supported binaries
