@@ -2,8 +2,9 @@
 members = [
   "services",
   "testutils",
-  "fetcher"
-]
+  "fetcher",
+  "fetcher-core"
+  ]
 resolver = "2"
 
 [workspace.dependencies]
