@@ -1,8 +1,18 @@
-use core::panic;
-use std::env::var;
-use std::fs;
-use std::io::{BufRead, BufReader, Read};
-use std::{env, fs::File, io::Write, path::PathBuf};
+use reqwest::{Certificate, Url};
+use sha2::{Digest, Sha512};
+use std::{
+    env,
+    env::var,
+    fs,
+    fs::File,
+    io::{BufRead, BufReader, Read, Write},
+    os::unix::fs::OpenOptionsExt,
+    path::Path,
+    path::PathBuf,
+    process::{Command, Stdio},
+    time::Duration,
+};
+use tokio::task::JoinSet;
 
 fn main() {
     println!("FETCHER build.rs running");
@@ -11,25 +21,15 @@ fn main() {
 }
 
 fn get_out_dir() -> PathBuf {
-    let out_dir = env::var("OUT_DIR").expect("OUT_DIR to be defined");
-    PathBuf::from(&out_dir)
+    PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR to be defined"))
 }
 
 fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
 
-fn get_cert_path() -> PathBuf {
-    get_manifest_dir().join("cert/cert.pem")
-}
-
-fn get_checksums_dir() -> PathBuf {
-    let manifest_dir = get_manifest_dir();
-    manifest_dir.join("checksums")
-}
-
-fn get_checksum_path_for_binary(binary_name: &str) -> PathBuf {
-    get_checksums_dir().join(format!("{}_shasum", binary_name))
+fn get_hashsums_dir() -> PathBuf {
+    get_manifest_dir().join("hashsums")
 }
 
 fn generate_config_file() {
@@ -39,22 +39,11 @@ fn generate_config_file() {
     let config_file_path = out_dir.join("config.rs");
     let mut file = File::create(&config_file_path).expect("config.rs to be created");
     file.write_fmt(core::format_args!(
-        r#"
-        pub const FETCHER_OUT_DIR: &str = {:?};
-        "#,
+        "pub const FETCHER_OUT_DIR: &str = {:?};",
         out_dir.display()
     ))
     .expect("config file to be written")
 }
-
-// #![allow(dead_code)]
-use reqwest::{Certificate, Url};
-use sha2::{Digest, Sha512};
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::Path;
-use std::process::{Command, Stdio};
-use std::time::Duration;
-use tokio::task::JoinSet;
 
 #[tokio::main]
 pub async fn binaries_main() {
@@ -75,7 +64,6 @@ pub async fn binaries_main() {
         seek_binaries.spawn(validate_binary(n));
     }
 
-    // TODO print helpful message if some threads return an error
     seek_binaries.join_all().await;
     println!("program exiting, declare victory!");
 }
@@ -84,7 +72,9 @@ async fn validate_binary(binary_name: &str) {
     let resources_dir: PathBuf = get_out_dir();
     let bin_dir = Path::new(&resources_dir).join("test_binaries");
     let bin_path = bin_dir.join(binary_name);
-    let shasum_path = get_checksum_path_for_binary(binary_name);
+    let shasum_path = get_hashsums_dir().join(format!("{}_shasum", binary_name));
+
+    fs::create_dir_all(bin_dir).expect("bin directory to be created");
 
     loop {
         if !bin_path.is_file() {
@@ -152,7 +142,8 @@ async fn confirm_binary(
     ];
 
     // const version strings for soft-confirming binaries when found
-    // TODO: LWD and ZAINO dont use ---version but 'version' as first argument/command. Adjust accordingly
+    // lwd uses `version` instead of `--version`, therefore the call returns stderr
+    // zaino has updated to support `--version` but we are now serving an older commit
     const VS_ZEBRAD: &str = "zebrad 2.1.0";
     const VS_ZCASHD: &str = "Zcash Daemon version v6.1.0";
     const VS_ZCASHCLI: &str = "Zcash RPC client version v6.1.0";
@@ -168,7 +159,6 @@ async fn confirm_binary(
         .output()
         .expect("command with --version argument and stddout + stderr to be created");
 
-    // we have to collect both becayse LWD and Zaino don't print to stdout with --version
     let mut std_out = String::new();
     let mut std_err = String::new();
     vs.spawn()
@@ -183,6 +173,7 @@ async fn confirm_binary(
         .expect("stderr to happen")
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
+
     match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
@@ -284,9 +275,7 @@ async fn confirm_binary(
             "found sha512sum of binary. asserting hash equality of local record {}",
             shasum_record
         );
-        println!("{:?} :: {:?}", res, hash);
 
-        // assert_eq!(res, hash);
         if res != hash {
             fs::remove_file(bin_path).expect("bin to be deleted");
             return Err(());
@@ -303,12 +292,11 @@ async fn confirm_binary(
 async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
     // find locally committed cert for binary-dealer remote
     let cert: Certificate = reqwest::Certificate::from_pem(
-        &fs::read(get_cert_path()).expect("cert file to be readable"),
+        &fs::read(get_manifest_dir().join("cert/cert.pem")).expect("cert file to be readable"),
     )
     .expect("reqwest to ingest cert");
     println!("cert ingested : {:?}", cert);
 
-    // let s_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(9, 9, 9, 9)), 9073);
     // Client deafult is idle sockets being kept-alive 90 seconds
     let req_client = reqwest::ClientBuilder::new()
         .connection_verbose(true)
@@ -318,7 +306,6 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
         .connect_timeout(Duration::from_secs(10)) // to connect // defaults to None
         .read_timeout(Duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
         .add_root_certificate(cert)
-        //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // Override DNS resolution for specific domains to a particular IP address.
         .build()
         .expect("client builder to read system configuration and initialize TLS backend");
 
@@ -329,18 +316,9 @@ async fn fetch_binary(bin_path: &PathBuf, binary_name: &str) {
 
     let mut res = req_client
         .get(fetch_url)
-        //.basic_auth(username, password);
         .send()
         .await
         .expect("Response to be ok");
-    // TODO instead of panicking, try again
-
-    // Create the parent directory where the bin_path is to be stored if needed
-    if let Some(parent) = bin_path.parent() {
-        fs::create_dir_all(parent).expect("bin parent directory to be created");
-    } else {
-        panic!("bin_path had no parent");
-    }
 
     // with create_new, no file is allowed to exist at the target location
     // with .mode() we are able to set permissions as the file is created.
