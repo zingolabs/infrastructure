@@ -1,14 +1,21 @@
+use std::path::PathBuf;
+
 use crate::{
     cache::Cache,
     error::{self, Error},
+    utils::get_manifest_dir,
 };
 
 use super::Binaries;
 
 impl Binaries {
+    pub fn get_resource_type_id(&self) -> String {
+        "binaries".to_string()
+    }
+
     // TODO: make this truly unique
     fn _get_key(&self) -> String {
-        format!("binaries_{}", self.get_name())
+        format!("{}_{}", self.get_resource_type_id(), self.get_name())
     }
 
     fn _get_version_string(&self) -> String {
@@ -41,6 +48,14 @@ impl Binaries {
             Err(Error::ResourceNotFound)
         }
     }
+
+    fn _get_shasum(&self) -> PathBuf {
+        let checksum_dir = get_manifest_dir().join("shasums");
+        checksum_dir
+            .join(self.get_resource_type_id())
+            .join(self.get_name())
+    }
+
     fn confirm(&self, _cache: &Cache) -> Result<bool, Error> {
         println!("Im confirming... (not really)");
         Ok(true)
