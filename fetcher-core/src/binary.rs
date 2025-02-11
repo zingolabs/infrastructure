@@ -96,7 +96,7 @@ impl Binaries {
         Ok(())
     }
 
-    pub fn get_name(&self) -> &str {
+    fn get_name(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod",
             Binaries::Lightwalletd => "lightwalletd",
