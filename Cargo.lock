@@ -1086,6 +1086,7 @@ name = "fetcher-core"
 version = "0.1.0"
 dependencies = [
  "hex",
+ "reqwest",
  "sha2",
  "tokio",
 ]
