@@ -34,13 +34,12 @@ impl Binaries {
         }
     }
 
-    fn _get_version_string(&self) -> String {
+    fn _get_version_string(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod [OPTIONS]",
             Binaries::Lightwalletd => "v0.4.17-18-g1e63bee",
             Binaries::Zcashd => "Zcash Daemon version v6.1.0",
         }
-        .to_string()
     }
 
     fn get_bytes(&self) -> [u8; 64] {
