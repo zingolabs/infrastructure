@@ -3,6 +3,7 @@ pub enum Error {
     IoError(std::io::Error),
     ResourceNotFound,
     InvalidResource,
+    InvalidShasumFile,
     // Add other relevant error types as needed
 }
 

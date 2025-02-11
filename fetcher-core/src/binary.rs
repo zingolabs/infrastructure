@@ -1,5 +1,11 @@
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
+use hex::encode;
+use sha2::{Digest, Sha224, Sha512};
+
+use crate::error::Error;
 use crate::{
     cache::Cache,
     error::{self, Error},
@@ -49,11 +55,30 @@ impl Binaries {
         }
     }
 
-    fn _get_shasum(&self) -> PathBuf {
-        let checksum_dir = get_manifest_dir().join("shasums");
-        checksum_dir
+    fn _get_shasum(&self) -> Result<String, Error> {
+        // get path to the shasum file
+        let shasum_path = get_manifest_dir()
+            .join("shasums")
             .join(self.get_resource_type_id())
-            .join(self.get_name())
+            .join(self.get_name());
+
+        // hashes for confirming expected binaries
+        let mut buf: BufReader<File> =
+            BufReader::new(File::open(shasum_path).expect("shasum to open"));
+        let mut shasum_record = String::new();
+        buf.read_to_string(&mut shasum_record)
+            .expect("buffer to write into String");
+
+        if !shasum_record.contains(self.get_name()) {
+            return Err(Error::InvalidShasumFile);
+        }
+
+        let record = shasum_record.split_whitespace().next();
+
+        match record {
+            Some(s) => return Ok(s.to_string()),
+            None => return Err(Error::InvalidShasumFile),
+        }
     }
 
     fn confirm(&self, _cache: &Cache) -> Result<bool, Error> {
@@ -71,13 +96,13 @@ impl Binaries {
         Ok(())
     }
 
-    fn get_name(&self) -> String {
+    pub fn get_name(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod",
             Binaries::Lightwalletd => "lightwalletd",
             Binaries::Zcashd => "zcashd",
         }
-        .to_string()
+        // .to_string()
     }
 
     fn get_result(&self, _cache: &Cache) -> Result<(), Error> {
@@ -130,3 +155,10 @@ impl Binaries {
 impl Resource for Binaries {
 }
 */
+
+fn sha512sum_file(file_path: &PathBuf) -> String {
+    let file_bytes = std::fs::read(file_path).expect("to be able to read binary");
+    let mut hasher = Sha512::new();
+    hasher.update(&file_bytes);
+    encode(hasher.finalize())
+}
