@@ -8,7 +8,7 @@ use sha2::{Digest, Sha224, Sha512};
 use crate::error::Error;
 use crate::{
     cache::Cache,
-    error::{self, Error},
+    error::{self},
     utils::get_manifest_dir,
 };
 
@@ -46,7 +46,7 @@ impl Binaries {
         format!("some_base_url/{}", self.get_name())
     }
 
-    fn _get_path(&self, cache: &Cache) -> Result<std::path::PathBuf, crate::error::Error> {
+    fn _get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
         let key = self._get_key();
         if cache.exists(&key) {
             Ok(cache.get_path(&key))
