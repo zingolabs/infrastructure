@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
+sha2 = { workspace = true }
+hex = { workspace = true }
+reqwest = { workspace = true, features = ["zstd", "rustls-tls-manual-roots"] }
