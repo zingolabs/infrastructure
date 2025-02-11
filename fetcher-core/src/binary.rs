@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
@@ -77,9 +77,30 @@ impl Binaries {
         Ok(cache.exists(&self.get_key()))
     }
 
-    fn verify(&self, _cache: &Cache) -> Result<bool, Error> {
-        println!("I'm veryfying... (not really)");
-        Ok(true)
+    fn verify(&self, cache: &Cache) -> Result<bool, Error> {
+        println!("I'm veryfying...");
+        let hash = self._get_shasum()?;
+        let bin_path = self._get_path(cache)?;
+
+        let bin = sha512sum_file(&bin_path);
+
+        println!(
+            "found sha512sum of binary. asserting hash equality of local record {}",
+            hash
+        );
+
+        println!("{:?} :: {:?}", bin, hash);
+
+        if hash != bin {
+            fs::remove_file(bin_path).expect("bin to be deleted");
+            Ok(false)
+        } else {
+            println!(
+                "binary hash matches local record! Completing validation process for {}",
+                self.get_name()
+            );
+            Ok(true)
+        }
     }
 
     pub async fn fetch(&self, _cache: &Cache) -> Result<(), Error> {
