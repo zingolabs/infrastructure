@@ -37,7 +37,7 @@ impl Binaries {
         }
     }
 
-    fn _get_version_string(&self) -> &str {
+    fn get_version_string(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod [OPTIONS]",
             Binaries::Lightwalletd => "v0.4.17-18-g1e63bee",
@@ -65,11 +65,11 @@ impl Binaries {
         }
     }
 
-    fn _get_fetch_url(&self) -> String {
+    fn get_fetch_url(&self) -> String {
         format!("https://zingolabs.nexus:9073/{}", self.get_name())
     }
 
-    fn _get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
+    fn get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
         let key = self.get_key();
         if cache.exists(&key) {
             Ok(cache.get_path(&key))
@@ -78,7 +78,7 @@ impl Binaries {
         }
     }
 
-    fn _get_shasum(&self) -> Result<String, Error> {
+    fn get_shasum(&self) -> Result<String, Error> {
         // get path to the shasum file
         let shasum_path = get_manifest_dir()
             .join("shasums")
@@ -111,8 +111,8 @@ impl Binaries {
 
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
         println!("I'm verifying...");
-        let hash = self._get_shasum()?;
-        let bin_path = self._get_path(cache)?;
+        let hash = self.get_shasum()?;
+        let bin_path = self.get_path(cache)?;
 
         // quick bytes check
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
@@ -154,7 +154,7 @@ impl Binaries {
         //     .read_to_string(&mut std_err)
         //     .expect("writing to buffer to complete");
 
-        if !std_out.contains(self._get_version_string()) {
+        if !std_out.contains(self.get_version_string()) {
             panic!("{} version string incorrect!", self.get_name())
         }
 
@@ -205,7 +205,7 @@ impl Binaries {
             .expect("client builder to read system configuration and initialize tls backend");
 
         // reqwest some stuff
-        let asset_url = self._get_fetch_url();
+        let asset_url = self.get_fetch_url();
         println!("fetching from {:?}", asset_url);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
@@ -224,7 +224,7 @@ impl Binaries {
             .write(true)
             .create_new(true)
             .mode(0o100775)
-            .open(self._get_path(cache).expect("path to be loaded"))
+            .open(self.get_path(cache).expect("path to be loaded"))
             .expect("new binary file to be created");
         println!(
             "new empty file for {} made. write about to start!",
