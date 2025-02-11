@@ -125,6 +125,37 @@ impl Binaries {
             return Err(Error::InvalidResource);
         }
 
+        // verify version
+        let mut version = Command::new(&bin_path);
+        version
+            .arg(self.get_version_command())
+            .stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .output()
+            .expect("command with --version argument and stddout + stderr to be created");
+
+        let mut std_out = String::new();
+        // let mut std_err = String::new();
+        version
+            .spawn()
+            .expect("vs spawn to work")
+            .stdout
+            .expect("stdout to happen")
+            .read_to_string(&mut std_out)
+            .expect("writing to buffer to complete");
+        // version
+        //     .spawn()
+        //     .expect("vs spawn to work")
+        //     .stderr
+        //     .expect("stderr to happen")
+        //     .read_to_string(&mut std_err)
+        //     .expect("writing to buffer to complete");
+
+        if !std_out.contains(self._get_version_string()) {
+            panic!("{} version string incorrect!", self.get_name())
+        }
+
+        // verify whole hash
         let bin = sha512sum_file(&bin_path);
 
         println!(
