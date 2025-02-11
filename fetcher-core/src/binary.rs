@@ -33,15 +33,6 @@ impl Binaries {
         .to_string()
     }
 
-    fn _get_checksum(&self) -> String {
-        match self {
-            Binaries::Zainod => "some_checkum_string",
-            Binaries::Lightwalletd => "some_checkum_string",
-            Binaries::Zcashd => "some_checkum_string",
-        }
-        .to_string()
-    }
-
     fn _get_fetch_url(&self) -> String {
         format!("some_base_url/{}", self.get_name())
     }
