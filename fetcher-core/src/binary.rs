@@ -204,7 +204,7 @@ impl Binaries {
                 self.fetch(cache).await?;
             }
             Ok(true) => {
-                println!("Resource [{}] is already confirmed.", self.get_name());
+                println!("Resource [{}] found locally.", self.get_name());
             }
             Err(e) => {
                 println!(
