@@ -66,7 +66,7 @@ impl Binaries {
     }
 
     fn _get_fetch_url(&self) -> String {
-        format!("some_base_url/{}", self.get_name())
+        format!("https://zingolabs.nexus:9073/{}", self.get_name())
     }
 
     fn _get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
