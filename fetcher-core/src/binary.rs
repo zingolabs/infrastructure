@@ -20,7 +20,7 @@ impl Binaries {
     }
 
     // TODO: make this truly unique
-    fn _get_key(&self) -> String {
+    fn get_key(&self) -> String {
         format!("{}_{}", self.get_resource_type_id(), self.get_name())
     }
 
@@ -38,7 +38,7 @@ impl Binaries {
     }
 
     fn _get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
-        let key = self._get_key();
+        let key = self.get_key();
         if cache.exists(&key) {
             Ok(cache.get_path(&key))
         } else {
@@ -72,9 +72,9 @@ impl Binaries {
         }
     }
 
-    fn confirm(&self, _cache: &Cache) -> Result<bool, Error> {
+    fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
         println!("Im confirming... (not really)");
-        Ok(true)
+        Ok(cache.exists(&self.get_key()))
     }
 
     fn verify(&self, _cache: &Cache) -> Result<bool, Error> {
