@@ -263,11 +263,11 @@ impl Binaries {
         // .to_string()
     }
 
-    fn get_result(&self, _cache: &Cache) -> Result<(), Error> {
-        // self.get_path(cache)
-        Ok(())
+    fn get_result(&self, cache: &Cache) -> Result<PathBuf, Error> {
+        Ok(self.get_path(cache)?)
+        // Ok(())
     }
-    pub async fn get(&self, cache: &Cache) -> Result<(), error::Error> {
+    pub async fn get(&self, cache: &Cache) -> Result<PathBuf, error::Error> {
         println!("Confirming resource [{}]", self.get_name());
         // Confirm the resource in cache
         match self.confirm(cache) {

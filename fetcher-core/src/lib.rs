@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 mod binary;
 mod cache;
 mod error;
@@ -28,7 +30,7 @@ impl ResourcesManager {
         ResourcesManager { cache }
     }
 
-    pub async fn get_resource(&mut self, res: ResourcesEnum) -> Result<(), error::Error> {
+    pub async fn get_resource(&mut self, res: ResourcesEnum) -> Result<PathBuf, error::Error> {
         match res {
             ResourcesEnum::Binaries(bin) => bin.get(&self.cache).await,
         }
