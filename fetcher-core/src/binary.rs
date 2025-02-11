@@ -1,9 +1,11 @@
+use core::panic;
 use std::fs::{self, File};
-use std::io::{BufReader, Read};
+use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
 use hex::encode;
-use sha2::{Digest, Sha224, Sha512};
+use sha2::{Digest, Sha512};
 
 use crate::error::Error;
 use crate::{
