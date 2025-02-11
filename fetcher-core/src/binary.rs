@@ -1,10 +1,11 @@
 use core::panic;
-use std::fs::{self, File};
+use std::fs::{self, read, File};
 use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use hex::encode;
+use reqwest::Certificate;
 use sha2::{Digest, Sha512};
 
 use crate::error::Error;
@@ -177,82 +178,85 @@ impl Binaries {
         }
     }
 
-    pub async fn fetch(&self, _cache: &Cache) -> Result<(), Error> {
+    pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
         println!("I'm fetching...");
         // find locally committed cert for binary-dealer remote
-        let cert: certificate = reqwest::certificate::from_pem(
-            &fs::read(get_cert_path()).expect("cert file to be readable"),
+        let cert: Certificate = reqwest::Certificate::from_pem(
+            &read(get_manifest_dir().join("cert/cert.pem")).expect("cert path to be readable"),
         )
         .expect("reqwest to ingest cert");
+
         println!("cert ingested : {:?}", cert);
 
         // let s_addr = socketaddr::new(ipaddr::v4(ipv4addr::new(9, 9, 9, 9)), 9073);
         // client deafult is idle sockets being kept-alive 90 seconds
-        let req_client = reqwest::clientbuilder::new()
-            .connection_verbose(true)
-            .zstd(true)
-            .use_rustls_tls()
-            .tls_info(true)
-            .connect_timeout(duration::from_secs(10)) // to connect // defaults to none
-            .read_timeout(duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
-            .add_root_certificate(cert)
-            //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // override dns resolution for specific domains to a particular ip address.
-            .build()
-            .expect("client builder to read system configuration and initialize tls backend");
+        // let req_client = reqwest::clientbuilder::new()
+        //     .connection_verbose(true)
+        //     .zstd(true)
+        //     .use_rustls_tls()
+        //     .tls_info(true)
+        //     .connect_timeout(duration::from_secs(10)) // to connect // defaults to none
+        //     .read_timeout(duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
+        //     .add_root_certificate(cert)
+        //     //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // override dns resolution for specific domains to a particular ip address.
+        //     .build()
+        //     .expect("client builder to read system configuration and initialize tls backend");
 
-        // reqwest some stuff
-        let asset_url = format!("https://zingolabs.nexus:9073/{}", binary_name);
-        println!("fetching from {:?}", asset_url);
-        let fetch_url = url::parse(&asset_url).expect("fetch_url to parse");
+        // // reqwest some stuff
+        // let asset_url = format!("https://zingolabs.nexus:9073/{}", binary_name);
+        // println!("fetching from {:?}", asset_url);
+        // let fetch_url = url::parse(&asset_url).expect("fetch_url to parse");
 
-        let mut res = req_client
-            .get(fetch_url)
-            //.basic_auth(username, password);
-            .send()
-            .await
-            .expect("response to be ok");
-        // todo instead of panicking, try again
+        // let mut res = req_client
+        //     .get(fetch_url)
+        //     //.basic_auth(username, password);
+        //     .send()
+        //     .await
+        //     .expect("response to be ok");
+        // // todo instead of panicking, try again
 
-        // create the parent directory where the bin_path is to be stored if needed
-        if let some(parent) = bin_path.parent() {
-            fs::create_dir_all(parent).expect("bin parent directory to be created");
-        } else {
-            panic!("bin_path had no parent");
-        }
+        // // create the parent directory where the bin_path is to be stored if needed
+        // if let some(parent) = bin_path.parent() {
+        //     fs::create_dir_all(parent).expect("bin parent directory to be created");
+        // } else {
+        //     panic!("bin_path had no parent");
+        // }
 
-        // with create_new, no file is allowed to exist at the target location
-        // with .mode() we are able to set permissions as the file is created.
-        let mut target_binary: file = file::options()
-            .read(true)
-            .write(true)
-            .create_new(true)
-            .mode(0o100775)
-            .open(bin_path)
-            .expect("new binary file to be created");
-        println!(
-            "new empty file for {} made. write about to start!",
-            binary_name
-        );
+        // // with create_new, no file is allowed to exist at the target location
+        // // with .mode() we are able to set permissions as the file is created.
+        // let mut target_binary: file = file::options()
+        //     .read(true)
+        //     .write(true)
+        //     .create_new(true)
+        //     .mode(0o100775)
+        //     .open(bin_path)
+        //     .expect("new binary file to be created");
+        // println!(
+        //     "new empty file for {} made. write about to start!",
+        //     binary_name
+        // );
 
-        // simple progress bar
-        let progress = ["/", "-", "\\", "-", "o"];
-        let mut counter: usize = 0;
+        // // simple progress bar
+        // let progress = ["/", "-", "\\", "-", "o"];
+        // let mut counter: usize = 0;
 
-        while let some(chunk) = res
-            .chunk()
-            .await
-            .expect("result to chunk ok.. *not a failed transfer!")
-        {
-            target_binary
-                .write_all(&chunk)
-                .expect("chunk writes to binary");
-            print!(
-                "\rplease wait, fetching data chunks : {}",
-                progress[counter]
-            );
-            counter = (counter + 1) % 5;
-        }
-        println!("\nfile {} write complete!\n", binary_name);
+        // while let some(chunk) = res
+        //     .chunk()
+        //     .await
+        //     .expect("result to chunk ok.. *not a failed transfer!")
+        // {
+        //     target_binary
+        //         .write_all(&chunk)
+        //         .expect("chunk writes to binary");
+        //     print!(
+        //         "\rplease wait, fetching data chunks : {}",
+        //         progress[counter]
+        //     );
+        //     counter = (counter + 1) % 5;
+        // }
+        // println!("\nfile {} write complete!\n", binary_name);
+
+        return Ok(());
     }
 
     fn get_name(&self) -> &str {
