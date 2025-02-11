@@ -24,11 +24,19 @@ impl Binaries {
         format!("{}_{}", self.get_resource_type_id(), self.get_name())
     }
 
+    fn get_version_command(&self) -> &str {
+        match self {
+            Binaries::Zainod => "--help",
+            Binaries::Lightwalletd => "version",
+            Binaries::Zcashd => "--version",
+        }
+    }
+
     fn _get_version_string(&self) -> String {
         match self {
-            Binaries::Zainod => "6.0.0",
-            Binaries::Lightwalletd => "6.0.0",
-            Binaries::Zcashd => "6.0.0",
+            Binaries::Zainod => "zainod [OPTIONS]",
+            Binaries::Lightwalletd => "v0.4.17-18-g1e63bee",
+            Binaries::Zcashd => "Zcash Daemon version v6.1.0",
         }
         .to_string()
     }
