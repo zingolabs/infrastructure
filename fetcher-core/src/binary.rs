@@ -84,7 +84,6 @@ impl Binaries {
             .join("shasums")
             .join(self.get_resource_type_id())
             .join(format!("{}_shasum", self.get_name()));
-        dbg!(&shasum_path);
         // hashes for confirming expected binaries
         let mut buf: BufReader<File> =
             BufReader::new(File::open(shasum_path).expect("shasum to open"));
