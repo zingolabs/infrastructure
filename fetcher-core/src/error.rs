@@ -4,6 +4,7 @@ pub enum Error {
     ResourceNotFound,
     InvalidResource,
     InvalidShasumFile,
+    MissingShasumFile,
     // Add other relevant error types as needed
 }
 
