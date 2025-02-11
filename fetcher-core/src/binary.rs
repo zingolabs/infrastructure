@@ -80,8 +80,8 @@ impl Binaries {
         let shasum_path = get_manifest_dir()
             .join("shasums")
             .join(self.get_resource_type_id())
-            .join(self.get_name());
-
+            .join(format!("{}_shasum", self.get_name()));
+        dbg!(&shasum_path);
         // hashes for confirming expected binaries
         let mut buf: BufReader<File> =
             BufReader::new(File::open(shasum_path).expect("shasum to open"));
@@ -102,14 +102,28 @@ impl Binaries {
     }
 
     fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("Im confirming... (not really)");
+        println!("Im confirming...");
         Ok(cache.exists(&self.get_key()))
     }
 
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("I'm veryfying...");
+        println!("I'm verifying...");
         let hash = self._get_shasum()?;
         let bin_path = self._get_path(cache)?;
+
+        // quick bytes check
+        let file_read_sample = File::open(&bin_path).expect("file to be readable");
+        let mut reader = BufReader::with_capacity(64, file_read_sample);
+        let bytes_read = reader.fill_buf().expect("reader to fill_buf");
+        println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+
+        if bytes_read == self.get_bytes() {
+            println!("{} bytes okay!", self.get_name());
+        } else {
+            println!("binary {} removed!", self.get_name());
+            fs::remove_file(bin_path).expect("bin to be deleted");
+            return Err(Error::InvalidResource);
+        }
 
         let bin = sha512sum_file(&bin_path);
 
