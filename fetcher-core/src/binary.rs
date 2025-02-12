@@ -158,12 +158,9 @@ impl Binaries {
         // verify whole hash
         let bin = sha512sum_file(&bin_path);
 
-        println!(
-            "found sha512sum of binary. asserting hash equality of local record {}",
-            hash
-        );
-
-        println!("{:?} :: {:?}", bin, hash);
+        println!("Found sha512sum of binary. Asserting hash equality of local record");
+        println!("current : {:?}", bin);
+        println!("expected: {:?}", hash);
 
         if hash != bin {
             fs::remove_file(bin_path).expect("bin to be deleted");
