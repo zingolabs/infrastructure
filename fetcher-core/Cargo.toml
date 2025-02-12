@@ -1,5 +1,5 @@
 [package]
-name = "fetcher-core"
+name = "zingo-infra-fetcher-core"
 version = "0.1.0"
 edition = "2021"
 

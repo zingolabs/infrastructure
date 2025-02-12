@@ -1082,16 +1082,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
-name = "fetcher-core"
-version = "0.1.0"
-dependencies = [
- "hex",
- "reqwest",
- "sha2",
- "tokio",
-]
-
-[[package]]
 name = "ff"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5676,7 +5666,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo-infra-fetcher"
+name = "zingo-infra-fetcher-core"
 version = "0.1.0"
 dependencies = [
  "hex",
@@ -5706,7 +5696,7 @@ dependencies = [
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
- "zingo-infra-fetcher",
+ "zingo-infra-fetcher-core",
 ]
 
 [[package]]
