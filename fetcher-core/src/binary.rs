@@ -104,12 +104,10 @@ impl Binaries {
     }
 
     fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("Im confirming...");
         Ok(cache.exists(&self.get_key()))
     }
 
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("I'm verifying...");
         let hash = self.get_shasum()?;
         let bin_path = self.get_path(cache)?;
 
@@ -180,7 +178,6 @@ impl Binaries {
     }
 
     pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
-        println!("I'm fetching...");
         // find locally committed cert for binary-dealer remote
         let cert: Certificate = reqwest::Certificate::from_pem(
             &read(get_manifest_dir().join("cert/cert.pem")).expect("cert path to be readable"),
