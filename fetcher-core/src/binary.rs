@@ -108,6 +108,8 @@ impl Binaries {
     }
 
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
+        println!("-- Fast checking inital bytes");
+
         let hash = self.get_shasum()?;
         let bin_path = self.get_path(cache)?;
 
@@ -115,17 +117,26 @@ impl Binaries {
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
         let mut reader = BufReader::with_capacity(64, file_read_sample);
         let bytes_read = reader.fill_buf().expect("reader to fill_buf");
-        println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+
+        // println!("-- Found local copy of binary [{}]", self.get_name());
+        println!("---- location: {:?}", &bin_path);
+        println!("---- bytes   : {:?}", bytes_read);
 
         if bytes_read == self.get_bytes() {
-            println!("{} bytes okay!", self.get_name());
+            println!("---- initial bytes okay!");
         } else {
-            println!("binary {} removed!", self.get_name());
+            println!(
+                "---- Local copy of binary [{}] found to be IVALID (didn't match expected bytes)",
+                self.get_name()
+            );
+            println!("---- Removing binary");
             fs::remove_file(bin_path).expect("bin to be deleted");
+            println!("---- Binary [{}] removed!", self.get_name());
             return Err(Error::InvalidResource);
         }
 
         // verify version
+        println!("-- Checking version");
         let mut version = Command::new(&bin_path);
         version
             .arg(self.get_version_command())
@@ -151,23 +162,34 @@ impl Binaries {
         //     .read_to_string(&mut std_err)
         //     .expect("writing to buffer to complete");
 
+        println!(
+            "---- version string to match: {:?}",
+            self.get_version_string()
+        );
+        println!("---- version command output:");
+        println!("{}", std_out);
+
         if !std_out.contains(self.get_version_string()) {
-            panic!("{} version string incorrect!", self.get_name())
+            println!("---- version string incorrect!");
+            panic!("[{}] version string incorrect!", self.get_name())
+        } else {
+            println!("---- version string correct!");
         }
 
         // verify whole hash
+        println!("-- Checking whole shasum");
         let bin = sha512sum_file(&bin_path);
 
-        println!("Found sha512sum of binary. Asserting hash equality of local record");
-        println!("current : {:?}", bin);
-        println!("expected: {:?}", hash);
+        println!("---- Found sha512sum of binary. Asserting hash equality of local record");
+        println!("---- current : {:?}", bin);
+        println!("---- expected: {:?}", hash);
 
         if hash != bin {
             fs::remove_file(bin_path).expect("bin to be deleted");
             Ok(false)
         } else {
             println!(
-                "binary hash matches local record! Completing validation process for {}",
+                "---- binary hash matches local record! Completing validation process for [{}]",
                 self.get_name()
             );
             Ok(true)
