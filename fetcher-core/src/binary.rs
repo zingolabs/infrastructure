@@ -291,7 +291,7 @@ impl Binaries {
                 self.fetch(cache).await?;
             }
             Ok(true) => {
-                println!("Resource [{}] found locally.", self.get_name());
+                println!("-- Resource found locally.");
             }
             Err(e) => {
                 println!(
@@ -302,6 +302,7 @@ impl Binaries {
                 return Err(e);
             }
         }
+        println!("Verifying resource [{}]", self.get_name());
         // Verify the resource after fetching if needed
         match self.verify(cache) {
             Ok(true) => {
