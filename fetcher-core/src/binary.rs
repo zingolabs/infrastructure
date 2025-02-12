@@ -306,16 +306,16 @@ impl Binaries {
         // Verify the resource after fetching if needed
         match self.verify(cache) {
             Ok(true) => {
-                println!("Resource [{}] verified correctly!", self.get_name());
+                println!("-- Resource [{}] verified correctly!", self.get_name());
                 return self.get_result(cache);
             }
             Ok(false) => {
-                println!("Resource [{}] invalid!", self.get_name());
+                println!("-- Resource [{}] invalid!", self.get_name());
                 return Err(Error::InvalidResource);
             }
             Err(e) => {
                 println!(
-                    "Verification failed for resource [{}]: {:?}",
+                    "-- Verification failed for resource [{}]: {:?}",
                     self.get_name(),
                     e
                 );
