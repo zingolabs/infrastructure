@@ -41,14 +41,21 @@ impl ResourcesManager {
 }
 
 #[tokio::test]
-async fn hello_world() {
-    let mut manager = ResourcesManager::new("./fetched_resources");
+async fn zainod_exists() {
+    let location = "./fetched_resources";
+    let mut manager = ResourcesManager::new(&location);
 
-    let zainod = manager
+    match manager
         .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
-        .await;
-
-    let _unused_result = dbg!(zainod);
-
-    assert!(false)
+        .await
+    {
+        Err(e) => {
+            println!("{:}", e);
+            assert!(false)
+        }
+        Ok(res) => {
+            assert!(res.exists());
+            assert!(res.starts_with(location));
+        }
+    };
 }
