@@ -39,26 +39,17 @@ impl ResourcesManager {
 
 #[tokio::test]
 async fn zainod_exists() {
-    let location = "./fetched_resources";
-    let mut manager = ResourcesManager::new(&location);
-
-    match manager
-        .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
-        .await
-    {
-        Err(e) => {
-            println!("{:}", e);
-            assert!(false)
-        }
-        Ok(res) => {
-            assert!(res.exists());
-            assert!(res.starts_with(location));
-        }
-    };
+    test_utils::binary_exists(Binaries::Zainod).await
 }
+
 #[tokio::test]
 async fn lightwalletd_exists() {
     test_utils::binary_exists(Binaries::Lightwalletd).await
+}
+
+#[tokio::test]
+async fn zcashd_exists() {
+    test_utils::binary_exists(Binaries::Zcashd).await
 }
 
 mod test_utils {
