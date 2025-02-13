@@ -34,6 +34,9 @@ impl Binaries {
             Binaries::Zainod => "--help",
             Binaries::Lightwalletd => "version",
             Binaries::Zcashd => "--version",
+            Binaries::ZcashCli => "--version",
+            Binaries::ZingoCli => "--version",
+            Binaries::Zebrad => "--version",
         }
     }
 
@@ -42,6 +45,9 @@ impl Binaries {
             Binaries::Zainod => "zainod [OPTIONS]",
             Binaries::Lightwalletd => "v0.4.17-18-g1e63bee",
             Binaries::Zcashd => "Zcash Daemon version v6.1.0",
+            Binaries::ZcashCli => "v6.1.0-a3435336b",
+            Binaries::ZingoCli => "Zingo CLI 0.1.1",
+            Binaries::Zebrad => "zebrad 2.1.0",
         }
     }
 
@@ -61,6 +67,21 @@ impl Binaries {
                 127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 62, 0, 1, 0, 0, 0, 0,
                 58, 121, 3, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 8, 39, 154, 10, 0, 0, 0, 0, 0, 0,
                 0, 0, 64, 0, 56, 0, 12, 0, 64, 0, 47, 0, 45, 0,
+            ],
+            Binaries::ZcashCli => [
+                127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 62, 0, 1, 0, 0, 0, 208,
+                254, 85, 3, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 216, 43, 87, 4, 0, 0, 0, 0, 0, 0,
+                0, 0, 64, 0, 56, 0, 12, 0, 64, 0, 47, 0, 45, 0,
+            ],
+            Binaries::ZingoCli => [
+                127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 62, 0, 1, 0, 0, 0, 48,
+                151, 16, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 56, 16, 122, 4, 0, 0, 0, 0, 0, 0,
+                0, 0, 64, 0, 56, 0, 14, 0, 64, 0, 34, 0, 33, 0,
+            ],
+            Binaries::Zebrad => [
+                127, 69, 76, 70, 2, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 62, 0, 1, 0, 0, 0, 208,
+                141, 33, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 152, 215, 66, 5, 0, 0, 0, 0, 0, 0,
+                0, 0, 64, 0, 56, 0, 14, 0, 64, 0, 34, 0, 33, 0,
             ],
         }
     }
@@ -258,6 +279,9 @@ impl Binaries {
             Binaries::Zainod => "zainod",
             Binaries::Lightwalletd => "lightwalletd",
             Binaries::Zcashd => "zcashd",
+            Binaries::ZcashCli => "zcash-cli",
+            Binaries::ZingoCli => "zingo-cli",
+            Binaries::Zebrad => "zebrad",
         }
         // .to_string()
     }
