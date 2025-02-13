@@ -158,7 +158,6 @@ impl Binaries {
             .expect("command with --version argument and stddout + stderr to be created");
 
         let mut std_out = String::new();
-        // let mut std_err = String::new();
         version
             .spawn()
             .expect("vs spawn to work")
@@ -166,13 +165,6 @@ impl Binaries {
             .expect("stdout to happen")
             .read_to_string(&mut std_out)
             .expect("writing to buffer to complete");
-        // version
-        //     .spawn()
-        //     .expect("vs spawn to work")
-        //     .stderr
-        //     .expect("stderr to happen")
-        //     .read_to_string(&mut std_err)
-        //     .expect("writing to buffer to complete");
 
         if !std_out.contains(self.get_version_string()) {
             panic!("{} version string incorrect!", self.get_name())
@@ -210,7 +202,6 @@ impl Binaries {
 
         println!("cert ingested : {:?}", cert);
 
-        // let s_addr = socketaddr::new(ipaddr::v4(ipv4addr::new(9, 9, 9, 9)), 9073);
         // client deafult is idle sockets being kept-alive 90 seconds
         let req_client = reqwest::ClientBuilder::new()
             .connection_verbose(true)
@@ -220,7 +211,6 @@ impl Binaries {
             .connect_timeout(Duration::from_secs(10)) // to connect // defaults to none
             .read_timeout(Duration::from_secs(15)) // how long to we wait for a read operation // defaults to no timeout
             .add_root_certificate(cert)
-            //.resolve_to_addrs("zingolabs.nexus", &[s_addr]) // override dns resolution for specific domains to a particular ip address.
             .build()
             .expect("client builder to read system configuration and initialize tls backend");
 
@@ -283,12 +273,10 @@ impl Binaries {
             Binaries::ZingoCli => "zingo-cli",
             Binaries::Zebrad => "zebrad",
         }
-        // .to_string()
     }
 
     fn get_result(&self, cache: &Cache) -> Result<PathBuf, Error> {
         Ok(self.get_path(cache)?)
-        // Ok(())
     }
     pub async fn get(&self, cache: &Cache) -> Result<PathBuf, error::Error> {
         println!("Confirming resource [{}]", self.get_name());
