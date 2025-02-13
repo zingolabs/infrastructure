@@ -15,3 +15,19 @@ pub(crate) async fn lightwalletd_exists() {
 pub(crate) async fn zcashd_exists() {
     test_utils::binary_exists(Binaries::Zcashd).await
 }
+
+#[tokio::test]
+pub(crate) async fn zcash_cli_exists() {
+    test_utils::binary_exists(Binaries::ZcashCli).await
+}
+
+#[tokio::test]
+pub(crate) async fn zingo_cli_exists() {
+    test_utils::binary_exists(Binaries::ZingoCli).await
+}
+
+#[tokio::test]
+pub(crate) async fn zebrad_exists() {
+    test_utils::binary_exists(Binaries::Zebrad).await
+}
+
