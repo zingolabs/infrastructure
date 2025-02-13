@@ -203,7 +203,7 @@ impl Binaries {
         )
         .expect("reqwest to ingest cert");
 
-        println!("cert ingested : {:?}", cert);
+        println!("-- Cert ingested : {:?}", cert);
 
         // let s_addr = socketaddr::new(ipaddr::v4(ipv4addr::new(9, 9, 9, 9)), 9073);
         // client deafult is idle sockets being kept-alive 90 seconds
@@ -221,7 +221,7 @@ impl Binaries {
 
         // reqwest some stuff
         let asset_url = self.get_fetch_url();
-        println!("fetching from {:?}", asset_url);
+        println!("-- Fetching from {:?}", asset_url);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
         let mut res = req_client
@@ -242,7 +242,7 @@ impl Binaries {
             .open(self.get_path(cache).expect("path to be loaded"))
             .expect("new binary file to be created");
         println!(
-            "new empty file for {} made. write about to start!",
+            "-- New empty file for [{}] made. write about to start!",
             self.get_name()
         );
 
