@@ -11,6 +11,9 @@ pub enum Binaries {
     Zainod,
     Lightwalletd,
     Zcashd,
+    ZcashCli,
+    ZingoCli,
+    Zebrad,
 }
 
 pub enum ResourceType {
