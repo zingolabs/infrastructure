@@ -14,7 +14,6 @@ use crate::error::Error;
 use crate::{
     cache::Cache,
     error::{self},
-    utils::get_manifest_dir,
 };
 
 use super::Binaries;
