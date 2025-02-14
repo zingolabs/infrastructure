@@ -3,7 +3,6 @@ use std::path::PathBuf;
 mod binary;
 mod cache;
 mod error;
-mod utils;
 
 #[derive(Debug, Clone)]
 /// All supported binaries
