@@ -126,7 +126,7 @@ impl Binaries {
             println!("---- initial bytes okay!");
         } else {
             println!(
-                "---- Local copy of binary [{}] found to be IVALID (didn't match expected bytes)",
+                "---- Local copy of binary [{}] found to be INVALID (didn't match expected bytes)",
                 self.get_name()
             );
             println!("---- Removing binary");
