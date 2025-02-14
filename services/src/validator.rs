@@ -256,7 +256,15 @@ impl Validator for Zcashd {
 
         let mut command = match config.zcashd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcashd"),
+            None => {
+                let mut manager = ResourcesManager::new("./fetched_resources");
+                let bin_path = manager
+                    .get_resource(ResourcesEnum::Binaries(Binaries::Zcashd))
+                    .await
+                    .expect("bin to load correctly");
+                dbg!(&bin_path);
+                std::process::Command::new(bin_path)
+            }
         };
         command
             .args([
