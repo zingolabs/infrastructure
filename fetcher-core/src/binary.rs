@@ -92,11 +92,7 @@ impl Binaries {
 
     fn get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
         let key = self.get_key();
-        if cache.exists(&key) {
-            Ok(cache.get_path(&key))
-        } else {
-            Err(Error::ResourceNotFound)
-        }
+        Ok(cache.get_path(&key))
     }
 
     fn get_shasum(&self) -> Result<String, Error> {
