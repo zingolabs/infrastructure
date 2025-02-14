@@ -36,8 +36,4 @@ impl Cache {
     pub fn get_path(&self, key: &str) -> PathBuf {
         self.store_path.join(key)
     }
-
-    pub fn get_store_path(&self) -> &PathBuf {
-        &self.store_path
-    }
 }
