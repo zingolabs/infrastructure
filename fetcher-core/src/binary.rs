@@ -97,22 +97,25 @@ impl Binaries {
 
     fn get_shasum(&self) -> Result<String, Error> {
         // get path to the shasum file
-        let shasum_path = get_manifest_dir()
-            .join("shasums")
-            .join(self.get_resource_type_id())
-            .join(format!("{}_shasum", self.get_name()));
-        // hashes for confirming expected binaries
-        let mut buf: BufReader<File> =
-            BufReader::new(File::open(shasum_path).expect("shasum to open"));
-        let mut shasum_record = String::new();
-        buf.read_to_string(&mut shasum_record)
-            .expect("buffer to write into String");
 
-        if !shasum_record.contains(self.get_name()) {
-            return Err(Error::InvalidShasumFile);
+        let shasum_record: &'static [u8] = match self {
+            Binaries::Zainod => include_bytes!("../shasums/binaries/zainod_shasum"),
+            Binaries::Lightwalletd => include_bytes!("../shasums/binaries/lightwalletd_shasum"),
+            Binaries::Zcashd => include_bytes!("../shasums/binaries/zcashd_shasum"),
+            Binaries::ZcashCli => include_bytes!("../shasums/binaries/zcash-cli_shasum"),
+            Binaries::ZingoCli => include_bytes!("../shasums/binaries/zingo-cli_shasum"),
+            Binaries::Zebrad => include_bytes!("../shasums/binaries/zebrad_shasum"),
+        };
+
+        let shasum_record_string =
+            String::from_utf8(shasum_record.to_vec()).expect("shasum to be utf8 compatible");
+
+        match !shasum_record_string.contains(self.get_name()) {
+            true => return Err(Error::InvalidShasumFile),
+            false => (),
         }
 
-        let record = shasum_record.split_whitespace().next();
+        let record = shasum_record_string.split_whitespace().next();
 
         match record {
             Some(s) => return Ok(s.to_string()),
