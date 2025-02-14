@@ -95,8 +95,6 @@ impl Binaries {
     }
 
     fn get_shasum(&self) -> Result<String, Error> {
-        // get path to the shasum file
-
         let shasum_record: &'static [u8] = match self {
             Binaries::Zainod => include_bytes!("../shasums/binaries/zainod_shasum"),
             Binaries::Lightwalletd => include_bytes!("../shasums/binaries/lightwalletd_shasum"),
