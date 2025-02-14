@@ -52,16 +52,3 @@ impl ResourcesManager {
         }
     }
 }
-
-#[tokio::test]
-async fn hello_world() {
-    let mut manager = ResourcesManager::new("./fetched_resources");
-
-    let zainod = manager
-        .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
-        .await;
-
-    let _unused_result = dbg!(zainod);
-
-    assert!(false)
-}
