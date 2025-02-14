@@ -22,14 +22,14 @@ impl Cache {
     }
 
     pub fn store(&self, key: &str, resource_data: &[u8]) -> io::Result<()> {
-        let path = self.store_path.join(key);
+        let path = self.get_path(key);
         let mut file = File::create(&path)?;
         file.write_all(resource_data)?;
         Ok(())
     }
 
     pub fn exists(&self, key: &str) -> bool {
-        let path = self.store_path.join(key);
+        let path = self.get_path(key);
         path.exists()
     }
 
