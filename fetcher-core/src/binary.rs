@@ -140,7 +140,6 @@ impl Binaries {
 
     /// It checks wether the resource is in cache or not
     fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("Im confirming...");
         Ok(cache.exists(&self.get_key()))
     }
 
@@ -151,7 +150,8 @@ impl Binaries {
     ///
     /// If either of the 3 steps fails, verify returns [`false`]
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
-        println!("I'm verifying...");
+        println!("-- Fast checking inital bytes");
+
         let hash = self.get_shasum()?;
         let bin_path = self.get_path(cache)?;
 
@@ -159,17 +159,26 @@ impl Binaries {
         let file_read_sample = File::open(&bin_path).expect("file to be readable");
         let mut reader = BufReader::with_capacity(64, file_read_sample);
         let bytes_read = reader.fill_buf().expect("reader to fill_buf");
-        println!("{:?} bytes : {:?}", &bin_path, bytes_read);
+
+        // println!("-- Found local copy of binary [{}]", self.get_name());
+        println!("---- location: {:?}", &bin_path);
+        println!("---- bytes   : {:?}", bytes_read);
 
         if bytes_read == self.get_bytes() {
-            println!("{} bytes okay!", self.get_name());
+            println!("---- initial bytes okay!");
         } else {
-            println!("binary {} removed!", self.get_name());
+            println!(
+                "---- Local copy of binary [{}] found to be INVALID (didn't match expected bytes)",
+                self.get_name()
+            );
+            println!("---- Removing binary");
             fs::remove_file(bin_path).expect("bin to be deleted");
+            println!("---- Binary [{}] removed!", self.get_name());
             return Err(Error::InvalidResource);
         }
 
         // verify version
+        println!("-- Checking version");
         let mut version = Command::new(&bin_path);
         version
             .arg(self.get_version_command())
@@ -187,26 +196,34 @@ impl Binaries {
             .read_to_string(&mut std_out)
             .expect("writing to buffer to complete");
 
+        println!(
+            "---- version string to match: {:?}",
+            self.get_version_string()
+        );
+        println!("---- version command output:");
+        println!("{}", std_out);
+
         if !std_out.contains(self.get_version_string()) {
-            panic!("{} version string incorrect!", self.get_name())
+            println!("---- version string incorrect!");
+            panic!("[{}] version string incorrect!", self.get_name())
+        } else {
+            println!("---- version string correct!");
         }
 
         // verify whole hash
+        println!("-- Checking whole shasum");
         let bin = sha512sum_file(&bin_path);
 
-        println!(
-            "found sha512sum of binary. asserting hash equality of local record {}",
-            hash
-        );
-
-        println!("{:?} :: {:?}", bin, hash);
+        println!("---- Found sha512sum of binary. Asserting hash equality of local record");
+        println!("---- current : {:?}", bin);
+        println!("---- expected: {:?}", hash);
 
         if hash != bin {
             fs::remove_file(bin_path).expect("bin to be deleted");
             Ok(false)
         } else {
             println!(
-                "binary hash matches local record! Completing validation process for {}",
+                "---- binary hash matches local record! Completing validation process for [{}]",
                 self.get_name()
             );
             Ok(true)
@@ -215,13 +232,12 @@ impl Binaries {
 
     /// It fetches the binary and stores it in cache
     pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
-        println!("I'm fetching...");
         // find locally committed cert for binary-dealer remote
         let pem = include_bytes!("../cert/cert.pem");
         let cert: Certificate =
             reqwest::Certificate::from_pem(pem).expect("reqwest to ingest cert");
 
-        println!("cert ingested : {:?}", cert);
+        println!("-- Cert ingested : {:?}", cert);
 
         // client deafult is idle sockets being kept-alive 90 seconds
         let req_client = reqwest::ClientBuilder::new()
@@ -237,7 +253,7 @@ impl Binaries {
 
         // reqwest some stuff
         let asset_url = self.get_fetch_url();
-        println!("fetching from {:?}", asset_url);
+        println!("-- Fetching from {:?}", asset_url);
         let fetch_url = Url::parse(&asset_url).expect("fetch_url to parse");
 
         let mut res = req_client
@@ -258,7 +274,7 @@ impl Binaries {
             .open(self.get_path(cache).expect("path to be loaded"))
             .expect("new binary file to be created");
         println!(
-            "new empty file for {} made. write about to start!",
+            "-- New empty file for [{}] made. write about to start!",
             self.get_name()
         );
 
@@ -316,7 +332,7 @@ impl Binaries {
                 self.fetch(cache).await?;
             }
             Ok(true) => {
-                println!("Resource [{}] found locally.", self.get_name());
+                println!("-- Resource found locally.");
             }
             Err(e) => {
                 println!(
@@ -327,19 +343,20 @@ impl Binaries {
                 return Err(e);
             }
         }
+        println!("Verifying resource [{}]", self.get_name());
         // Verify the resource after fetching if needed
         match self.verify(cache) {
             Ok(true) => {
-                println!("Resource [{}] verified correctly!", self.get_name());
+                println!("-- Resource [{}] verified correctly!", self.get_name());
                 return self.get_result(cache);
             }
             Ok(false) => {
-                println!("Resource [{}] invalid!", self.get_name());
+                println!("-- Resource [{}] invalid!", self.get_name());
                 return Err(Error::InvalidResource);
             }
             Err(e) => {
                 println!(
-                    "Verification failed for resource [{}]: {:?}",
+                    "-- Verification failed for resource [{}]: {:?}",
                     self.get_name(),
                     e
                 );
