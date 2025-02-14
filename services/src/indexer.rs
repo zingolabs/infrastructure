@@ -65,7 +65,9 @@ pub trait Indexer: Sized {
     type Config;
 
     /// Launch the process.
-    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
+    fn launch(
+        config: Self::Config,
+    ) -> impl std::future::Future<Output = Result<Self, LaunchError>> + Send;
 
     /// Stop the process.
     fn stop(&mut self);
