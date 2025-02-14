@@ -20,15 +20,23 @@ use crate::{
 use super::Binaries;
 
 impl Binaries {
+    /// Returns the get resource type id of this [`Binaries`].
+    /// This is to be a unique identifier of this resource type, as it's going to prepend the binary file name.
+    /// It's also crucial to find the right shasum path
     pub fn get_resource_type_id(&self) -> String {
         "binaries".to_string()
     }
 
     // TODO: make this truly unique
+    /// Returns the get key of this [`Binaries`].
+    /// It is a unique identifies for each binary variant.
+    /// [`Cache`] expects such an identifier.
     fn get_key(&self) -> String {
         format!("{}_{}", self.get_resource_type_id(), self.get_name())
     }
 
+    /// Returns a reference to the get version command of this [`Binaries`].
+    /// This is the command used to verify that the stored binary matches the expected version. See [`get_version_string']
     fn get_version_command(&self) -> &str {
         match self {
             Binaries::Zainod => "--help",
@@ -40,6 +48,8 @@ impl Binaries {
         }
     }
 
+    /// Returns a reference to the get version string of this [`Binaries`].
+    /// This is the expected output of the version command.
     fn get_version_string(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod [OPTIONS]",
@@ -51,6 +61,9 @@ impl Binaries {
         }
     }
 
+    /// Returns the get bytes of this [`Binaries`].
+    /// These are the expected first 64 bytes of the binary.
+    /// The stored files will be checked against it.
     fn get_bytes(&self) -> [u8; 64] {
         match self {
             Binaries::Zainod => [
@@ -86,10 +99,13 @@ impl Binaries {
         }
     }
 
+    /// Returns the get fetch url of this [`Binaries`].
+    /// The remote server where the resources are stored at can be reached trough this url.
     fn get_fetch_url(&self) -> String {
         format!("https://zingolabs.nexus:9073/{}", self.get_name())
     }
 
+    /// Returns the path for the actual file in cache of this [`Binaries`]
     fn get_path(&self, cache: &Cache) -> Result<PathBuf, Error> {
         let key = self.get_key();
         if cache.exists(&key) {
@@ -99,6 +115,8 @@ impl Binaries {
         }
     }
 
+    /// Returns the get shasum of this [`Binaries`].
+    /// It gets the expected shasum of the binary.
     fn get_shasum(&self) -> Result<String, Error> {
         // get path to the shasum file
         let shasum_path = get_manifest_dir()
@@ -124,11 +142,18 @@ impl Binaries {
         }
     }
 
+    /// It checks wether the resource is in cache or not
     fn confirm(&self, cache: &Cache) -> Result<bool, Error> {
         println!("Im confirming...");
         Ok(cache.exists(&self.get_key()))
     }
 
+    /// It verifies the binary through 3 steps:
+    /// - Quick check of first 64 bytes
+    /// - Version check
+    /// - Whole shasum check
+    ///
+    /// If either of the 3 steps fails, verify returns [`false`]
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
         println!("I'm verifying...");
         let hash = self.get_shasum()?;
@@ -192,6 +217,7 @@ impl Binaries {
         }
     }
 
+    /// It fetches the binary and stores it in cache
     pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
         println!("I'm fetching...");
         // find locally committed cert for binary-dealer remote
@@ -264,6 +290,7 @@ impl Binaries {
         return Ok(());
     }
 
+    /// Returns a reference to the get name of this [`Binaries`].
     fn get_name(&self) -> &str {
         match self {
             Binaries::Zainod => "zainod",
@@ -275,9 +302,16 @@ impl Binaries {
         }
     }
 
+    /// This returns a value that is to be exposed by [`ResourcesManager::get_resource`]
     fn get_result(&self, cache: &Cache) -> Result<PathBuf, Error> {
         Ok(self.get_path(cache)?)
     }
+
+    /// This returns a value that is to be exposed by [`ResourcesManager::get_resource`]
+    /// Before calling [`get_result`], it:
+    /// - confirms
+    /// - fetches (if needed)
+    /// - verifies
     pub async fn get(&self, cache: &Cache) -> Result<PathBuf, error::Error> {
         println!("Confirming resource [{}]", self.get_name());
         // Confirm the resource in cache
@@ -320,11 +354,7 @@ impl Binaries {
     }
 }
 
-/*
-impl Resource for Binaries {
-}
-*/
-
+/// Get's the sha512sum of a file
 fn sha512sum_file(file_path: &PathBuf) -> String {
     let file_bytes = std::fs::read(file_path).expect("to be able to read binary");
     let mut hasher = Sha512::new();
