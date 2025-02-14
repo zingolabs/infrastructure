@@ -194,10 +194,9 @@ impl Binaries {
     pub async fn fetch(&self, cache: &Cache) -> Result<(), Error> {
         println!("I'm fetching...");
         // find locally committed cert for binary-dealer remote
-        let cert: Certificate = reqwest::Certificate::from_pem(
-            &read(get_manifest_dir().join("cert/cert.pem")).expect("cert path to be readable"),
-        )
-        .expect("reqwest to ingest cert");
+        let pem = include_bytes!("../cert/cert.pem");
+        let cert: Certificate =
+            reqwest::Certificate::from_pem(pem).expect("reqwest to ingest cert");
 
         println!("cert ingested : {:?}", cert);
 
