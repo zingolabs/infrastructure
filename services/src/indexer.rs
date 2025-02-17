@@ -8,7 +8,6 @@ use std::{fs::File, path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zingo_infra_fetcher::binaries::{get_path_for_binary, SupportedBinaries};
 
 use crate::{
     config,
@@ -131,7 +130,7 @@ impl Indexer for Zainod {
 
         let mut command = match config.zainod_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new(get_path_for_binary(SupportedBinaries::Zainod)),
+            None => std::process::Command::new("zainod"),
         };
         command
             .args([
@@ -231,9 +230,7 @@ impl Indexer for Lightwalletd {
 
         let mut command = match config.lightwalletd_bin {
             Some(path) => std::process::Command::new(path),
-            None => {
-                std::process::Command::new(get_path_for_binary(SupportedBinaries::Lightwalletd))
-            }
+            None => std::process::Command::new("lightwalletd"),
         };
         command
             .args([
