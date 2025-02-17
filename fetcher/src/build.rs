@@ -15,9 +15,9 @@ use std::{
 use tokio::task::JoinSet;
 
 fn main() {
-    println!("FETCHER build.rs running");
-    generate_config_file();
-    binaries_main();
+    // println!("FETCHER build.rs running");
+    // generate_config_file();
+    // binaries_main();
 }
 
 fn get_out_dir() -> PathBuf {
