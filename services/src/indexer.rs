@@ -8,6 +8,7 @@ use std::{fs::File, path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
+use zingo_infra_fetcher_core::{Binaries, ResourcesEnum, ResourcesManager};
 
 use crate::{
     config,
@@ -65,7 +66,9 @@ pub trait Indexer: Sized {
     type Config;
 
     /// Launch the process.
-    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
+    fn launch(
+        config: Self::Config,
+    ) -> impl std::future::Future<Output = Result<Self, LaunchError>> + Send;
 
     /// Stop the process.
     fn stop(&mut self);
@@ -115,7 +118,7 @@ impl Indexer for Zainod {
 
     type Config = ZainodConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
 
         let port = network::pick_unused_port(config.listen_port);
@@ -130,7 +133,15 @@ impl Indexer for Zainod {
 
         let mut command = match config.zainod_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zainod"),
+            None => {
+                let mut manager = ResourcesManager::new("./fetched_resources");
+                let bin_path = manager
+                    .get_resource(ResourcesEnum::Binaries(Binaries::Zainod))
+                    .await
+                    .expect("bin to load correctly");
+                dbg!(&bin_path);
+                std::process::Command::new(bin_path)
+            }
         };
         command
             .args([
@@ -211,7 +222,7 @@ impl Indexer for Lightwalletd {
 
     type Config = LightwalletdConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
         let _lwd_log_file = File::create(&lwd_log_file_path).unwrap();
@@ -230,7 +241,15 @@ impl Indexer for Lightwalletd {
 
         let mut command = match config.lightwalletd_bin {
             Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("lightwalletd"),
+            None => {
+                let mut manager = ResourcesManager::new("./fetched_resources");
+                let bin_path = manager
+                    .get_resource(ResourcesEnum::Binaries(Binaries::Lightwalletd))
+                    .await
+                    .expect("bin to load correctly");
+                dbg!(&bin_path);
+                std::process::Command::new(bin_path)
+            }
         };
         command
             .args([
@@ -305,10 +324,9 @@ impl Indexer for Empty {
 
     type Config = EmptyConfig;
 
-    fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let config_dir = tempfile::tempdir().unwrap();
-
         Ok(Empty {
             logs_dir,
             config_dir,

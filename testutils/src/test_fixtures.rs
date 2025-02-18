@@ -245,12 +245,14 @@ pub async fn get_lightd_info(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
@@ -352,12 +354,14 @@ pub async fn get_latest_block(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
@@ -416,12 +420,14 @@ pub async fn get_block(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -477,12 +483,14 @@ pub async fn get_block_out_of_bounds(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -539,12 +547,14 @@ pub async fn get_block_nullifiers(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -608,12 +618,14 @@ pub async fn get_block_range_nullifiers(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -691,12 +703,14 @@ pub async fn get_block_range_nullifiers_reverse(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -774,12 +788,14 @@ pub async fn get_block_range_lower(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -857,12 +873,14 @@ pub async fn get_block_range_upper(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -940,12 +958,14 @@ pub async fn get_block_range_reverse(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -1023,12 +1043,14 @@ pub async fn get_block_range_out_of_bounds(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_range = proto::service::BlockRange {
@@ -1131,12 +1153,14 @@ pub async fn get_transaction(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     // TODO: get txid from chain cache
@@ -1368,12 +1392,14 @@ pub async fn get_taddress_txids_all(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
@@ -1481,12 +1507,14 @@ pub async fn get_taddress_txids_lower(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
@@ -1594,12 +1622,14 @@ pub async fn get_taddress_txids_upper(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
@@ -1707,12 +1737,14 @@ pub async fn get_taddress_balance(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_list = proto::service::AddressList {
@@ -1779,12 +1811,14 @@ pub async fn get_taddress_balance_stream(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_list = vec![
@@ -1853,12 +1887,14 @@ pub async fn get_mempool_tx(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
@@ -1996,12 +2032,14 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let lightclient_dir = tempfile::tempdir().unwrap();
@@ -2169,12 +2207,14 @@ pub async fn get_mempool_stream(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     // start mempool tasks
@@ -2501,12 +2541,14 @@ pub async fn get_tree_state_by_height(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -2570,12 +2612,14 @@ pub async fn get_tree_state_by_hash(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -2649,12 +2693,14 @@ pub async fn get_tree_state_out_of_bounds(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let block_id = proto::service::BlockId {
@@ -2715,12 +2761,14 @@ pub async fn get_latest_tree_state(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
@@ -2799,12 +2847,14 @@ pub async fn get_subtree_roots_sapling(
         validator_port: zebrad.rpc_listen_port(),
         network,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
     })
+    .await
     .unwrap();
 
     let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
@@ -2901,12 +2951,14 @@ pub async fn get_subtree_roots_orchard(
         validator_port: zebrad.rpc_listen_port(),
         network,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
     })
+    .await
     .unwrap();
 
     let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
@@ -2982,12 +3034,14 @@ pub async fn get_address_utxos_all(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3056,12 +3110,14 @@ pub async fn get_address_utxos_lower(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3131,12 +3187,14 @@ pub async fn get_address_utxos_upper(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3206,12 +3264,14 @@ pub async fn get_address_utxos_out_of_bounds(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3280,12 +3340,14 @@ pub async fn get_address_utxos_stream_all(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3362,12 +3424,14 @@ pub async fn get_address_utxos_stream_lower(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3445,12 +3509,14 @@ pub async fn get_address_utxos_stream_upper(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
@@ -3528,12 +3594,14 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         validator_port: zcashd.port(),
         network: network::Network::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
     })
+    .await
     .unwrap();
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
