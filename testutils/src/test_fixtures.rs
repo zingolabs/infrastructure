@@ -243,6 +243,7 @@ pub async fn get_lightd_info(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -350,6 +351,7 @@ pub async fn get_latest_block(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -414,6 +416,7 @@ pub async fn get_block(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -475,6 +478,7 @@ pub async fn get_block_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -537,6 +541,7 @@ pub async fn get_block_nullifiers(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -606,6 +611,7 @@ pub async fn get_block_range_nullifiers(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -689,6 +695,7 @@ pub async fn get_block_range_nullifiers_reverse(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -772,6 +779,7 @@ pub async fn get_block_range_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -855,6 +863,7 @@ pub async fn get_block_range_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -938,6 +947,7 @@ pub async fn get_block_range_reverse(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1021,6 +1031,7 @@ pub async fn get_block_range_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1129,6 +1140,7 @@ pub async fn get_transaction(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1209,6 +1221,7 @@ pub async fn send_transaction(
             zainod_bin: zainod_bin.clone(),
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -1265,6 +1278,7 @@ pub async fn send_transaction(
             zainod_bin,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -1366,6 +1380,7 @@ pub async fn get_taddress_txids_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1479,6 +1494,7 @@ pub async fn get_taddress_txids_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1592,6 +1608,7 @@ pub async fn get_taddress_txids_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1705,6 +1722,7 @@ pub async fn get_taddress_balance(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1777,6 +1795,7 @@ pub async fn get_taddress_balance_stream(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1851,6 +1870,7 @@ pub async fn get_mempool_tx(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1994,6 +2014,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2167,6 +2188,7 @@ pub async fn get_mempool_stream(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2499,6 +2521,7 @@ pub async fn get_tree_state_by_height(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2568,6 +2591,7 @@ pub async fn get_tree_state_by_hash(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2647,6 +2671,7 @@ pub async fn get_tree_state_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2713,6 +2738,7 @@ pub async fn get_latest_tree_state(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2797,6 +2823,7 @@ pub async fn get_subtree_roots_sapling(
         zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
     })
     .unwrap();
@@ -2899,6 +2926,7 @@ pub async fn get_subtree_roots_orchard(
         zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
         network,
     })
     .unwrap();
@@ -2980,6 +3008,7 @@ pub async fn get_address_utxos_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3054,6 +3083,7 @@ pub async fn get_address_utxos_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3129,6 +3159,7 @@ pub async fn get_address_utxos_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3204,6 +3235,7 @@ pub async fn get_address_utxos_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3278,6 +3310,7 @@ pub async fn get_address_utxos_stream_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3360,6 +3393,7 @@ pub async fn get_address_utxos_stream_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3443,6 +3477,7 @@ pub async fn get_address_utxos_stream_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3526,6 +3561,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
