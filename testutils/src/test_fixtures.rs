@@ -23,7 +23,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use testvectors::REG_O_ADDR_FROM_ABANDONART;
 use tokio::sync::mpsc::unbounded_channel;
-use zcash_client_backend::proto;
+use zcash_client_backend::proto::{self, compact_formats::CompactBlock};
 use zcash_primitives::transaction::Transaction;
 use zcash_protocol::{
     consensus::{BlockHeight, BranchId},
@@ -243,6 +243,7 @@ pub async fn get_lightd_info(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -350,6 +351,7 @@ pub async fn get_latest_block(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -359,6 +361,8 @@ pub async fn get_latest_block(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
@@ -414,6 +418,7 @@ pub async fn get_block(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -423,6 +428,8 @@ pub async fn get_block(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 5,
@@ -440,6 +447,11 @@ pub async fn get_block(
         .unwrap();
     let request = tonic::Request::new(block_id.clone());
     let lwd_response = lwd_client.get_block(request).await.unwrap().into_inner();
+
+    let lwd_response = CompactBlock {
+        proto_version: 4,
+        ..lwd_response.clone()
+    };
 
     println!("Asserting GetBlock responses...");
 
@@ -475,6 +487,7 @@ pub async fn get_block_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -484,6 +497,8 @@ pub async fn get_block_out_of_bounds(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 20,
@@ -537,6 +552,7 @@ pub async fn get_block_nullifiers(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -546,6 +562,8 @@ pub async fn get_block_nullifiers(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 5,
@@ -571,6 +589,11 @@ pub async fn get_block_nullifiers(
         .await
         .unwrap()
         .into_inner();
+
+    let lwd_response = CompactBlock {
+        proto_version: 4,
+        ..lwd_response.clone()
+    };
 
     println!("Asserting GetBlockNullifiers responses...");
 
@@ -606,6 +629,7 @@ pub async fn get_block_range_nullifiers(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -615,6 +639,8 @@ pub async fn get_block_range_nullifiers(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -652,7 +678,12 @@ pub async fn get_block_range_nullifiers(
         .into_inner();
     let mut lwd_blocks = Vec::new();
     while let Some(compact_block) = lwd_response.message().await.unwrap() {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+
+        lwd_blocks.push(cleaned_block);
     }
 
     println!("Asserting GetBlockRangeNullifiers responses...");
@@ -689,6 +720,7 @@ pub async fn get_block_range_nullifiers_reverse(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -698,6 +730,8 @@ pub async fn get_block_range_nullifiers_reverse(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -735,7 +769,12 @@ pub async fn get_block_range_nullifiers_reverse(
         .into_inner();
     let mut lwd_blocks = Vec::new();
     while let Some(compact_block) = lwd_response.message().await.unwrap() {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+
+        lwd_blocks.push(cleaned_block);
     }
 
     println!("Asserting GetBlockRangeNullifiers responses...");
@@ -772,6 +811,7 @@ pub async fn get_block_range_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -781,6 +821,8 @@ pub async fn get_block_range_lower(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -818,7 +860,12 @@ pub async fn get_block_range_lower(
         .into_inner();
     let mut lwd_blocks = Vec::new();
     while let Some(compact_block) = lwd_response.message().await.unwrap() {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+
+        lwd_blocks.push(cleaned_block);
     }
 
     println!("Asserting GetBlockRange responses...");
@@ -855,6 +902,7 @@ pub async fn get_block_range_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -864,6 +912,8 @@ pub async fn get_block_range_upper(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -901,7 +951,11 @@ pub async fn get_block_range_upper(
         .into_inner();
     let mut lwd_blocks = Vec::new();
     while let Some(compact_block) = lwd_response.message().await.unwrap() {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+        lwd_blocks.push(cleaned_block);
     }
 
     println!("Asserting GetBlockRange responses...");
@@ -938,6 +992,7 @@ pub async fn get_block_range_reverse(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -947,6 +1002,8 @@ pub async fn get_block_range_reverse(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -984,7 +1041,12 @@ pub async fn get_block_range_reverse(
         .into_inner();
     let mut lwd_blocks = Vec::new();
     while let Some(compact_block) = lwd_response.message().await.unwrap() {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+
+        lwd_blocks.push(cleaned_block);
     }
 
     println!("Asserting GetBlockRange responses...");
@@ -1021,6 +1083,7 @@ pub async fn get_block_range_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1030,6 +1093,8 @@ pub async fn get_block_range_out_of_bounds(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_range = proto::service::BlockRange {
         start: Some(proto::service::BlockId {
@@ -1081,7 +1146,12 @@ pub async fn get_block_range_out_of_bounds(
             None
         }
     } {
-        lwd_blocks.push(compact_block);
+        let cleaned_block = CompactBlock {
+            proto_version: 4,
+            ..compact_block.clone()
+        };
+
+        lwd_blocks.push(cleaned_block);
     }
 
     let lwd_err_status = lwd_err_status.unwrap();
@@ -1129,6 +1199,7 @@ pub async fn get_transaction(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1138,6 +1209,8 @@ pub async fn get_transaction(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // TODO: get txid from chain cache
     let lightclient_dir = tempfile::tempdir().unwrap();
@@ -1155,6 +1228,8 @@ pub async fn get_transaction(
     .await
     .unwrap();
     zcashd.generate_blocks(1).await.unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1209,6 +1284,7 @@ pub async fn send_transaction(
             zainod_bin: zainod_bin.clone(),
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -1221,6 +1297,8 @@ pub async fn send_transaction(
         },
     )
     .await;
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1240,6 +1318,8 @@ pub async fn send_transaction(
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1260,11 +1340,14 @@ pub async fn send_transaction(
 
     drop(local_net);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
         ZainodConfig {
             zainod_bin,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -1277,6 +1360,8 @@ pub async fn send_transaction(
         },
     )
     .await;
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) = client::build_lightclients(
@@ -1296,6 +1381,8 @@ pub async fn send_transaction(
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let tx_filter = proto::service::TxFilter {
         block: None,
@@ -1366,6 +1453,7 @@ pub async fn get_taddress_txids_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1375,6 +1463,8 @@ pub async fn get_taddress_txids_all(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
@@ -1479,6 +1569,7 @@ pub async fn get_taddress_txids_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1488,6 +1579,8 @@ pub async fn get_taddress_txids_lower(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
@@ -1592,6 +1685,7 @@ pub async fn get_taddress_txids_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1601,6 +1695,8 @@ pub async fn get_taddress_txids_upper(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
@@ -1705,6 +1801,7 @@ pub async fn get_taddress_balance(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1714,6 +1811,8 @@ pub async fn get_taddress_balance(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_list = proto::service::AddressList {
         addresses: vec![
@@ -1777,6 +1876,7 @@ pub async fn get_taddress_balance_stream(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1786,6 +1886,8 @@ pub async fn get_taddress_balance_stream(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_list = vec![
         proto::service::Address {
@@ -1851,6 +1953,7 @@ pub async fn get_mempool_tx(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -1860,6 +1963,8 @@ pub async fn get_mempool_tx(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =
@@ -1886,6 +1991,8 @@ pub async fn get_mempool_tx(
     )
     .await
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     recipient.do_sync(false).await.unwrap();
     let txids_3 = from_inputs::quick_send(
@@ -1994,6 +2101,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2003,6 +2111,8 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =
@@ -2030,6 +2140,8 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     .await
     .unwrap();
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     let _txids_3 = from_inputs::quick_send(
         &recipient,
@@ -2056,13 +2168,21 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     drop(recipient);
     drop(faucet);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (_faucet, recipient) =
         client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port()).await;
 
     let recipient = Arc::new(recipient);
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     LightClient::start_mempool_monitor(recipient.clone()).unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2072,13 +2192,21 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
     drop(recipient);
     drop(_faucet);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (_faucet, recipient) =
         client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
 
     let recipient = Arc::new(recipient);
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     LightClient::start_mempool_monitor(recipient.clone()).unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2167,6 +2295,7 @@ pub async fn get_mempool_stream(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2176,6 +2305,8 @@ pub async fn get_mempool_stream(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // start mempool tasks
     let (zainod_sender, mut zainod_receiver) =
@@ -2219,6 +2350,8 @@ pub async fn get_mempool_stream(
         }
     });
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     // send txs to mempool
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (faucet, recipient) =
@@ -2245,6 +2378,8 @@ pub async fn get_mempool_stream(
     )
     .await
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // receive txs from mempool
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
@@ -2305,6 +2440,8 @@ pub async fn get_mempool_stream(
     assert_eq!(&lwd_txs[1].txid(), txids[1]);
     assert_eq!(zainod_txs, lwd_txs);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     // send more txs to mempool
     recipient.do_sync(false).await.unwrap();
     let txids_3 = from_inputs::quick_send(
@@ -2328,6 +2465,8 @@ pub async fn get_mempool_stream(
     )
     .await
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // receive txs from mempool
     while let Some(raw_tx) = zainod_receiver.recv().await {
@@ -2390,12 +2529,17 @@ pub async fn get_mempool_stream(
     drop(recipient);
     drop(faucet);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (_faucet, recipient) =
         client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port()).await;
 
     let recipient = Arc::new(recipient);
     LightClient::start_mempool_monitor(recipient.clone()).unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let zainod_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2405,12 +2549,17 @@ pub async fn get_mempool_stream(
     drop(recipient);
     drop(_faucet);
 
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (_faucet, recipient) =
         client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port()).await;
 
     let recipient = Arc::new(recipient);
     LightClient::start_mempool_monitor(recipient.clone()).unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
     recipient.do_sync(false).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let lwd_tx_summaries = recipient.detailed_transaction_summaries().await;
@@ -2499,6 +2648,7 @@ pub async fn get_tree_state_by_height(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2508,6 +2658,8 @@ pub async fn get_tree_state_by_height(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 5,
@@ -2568,6 +2720,7 @@ pub async fn get_tree_state_by_hash(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2577,6 +2730,8 @@ pub async fn get_tree_state_by_hash(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 5,
@@ -2647,6 +2802,7 @@ pub async fn get_tree_state_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2656,6 +2812,8 @@ pub async fn get_tree_state_out_of_bounds(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let block_id = proto::service::BlockId {
         height: 20,
@@ -2713,6 +2871,7 @@ pub async fn get_latest_tree_state(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2722,6 +2881,8 @@ pub async fn get_latest_tree_state(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
@@ -2797,6 +2958,7 @@ pub async fn get_subtree_roots_sapling(
         zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
     })
     .unwrap();
@@ -2899,6 +3061,7 @@ pub async fn get_subtree_roots_orchard(
         zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
+        chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
         network,
     })
     .unwrap();
@@ -2980,6 +3143,7 @@ pub async fn get_address_utxos_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -2989,6 +3153,8 @@ pub async fn get_address_utxos_all(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3054,6 +3220,7 @@ pub async fn get_address_utxos_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3063,6 +3230,8 @@ pub async fn get_address_utxos_lower(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3129,6 +3298,7 @@ pub async fn get_address_utxos_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3138,6 +3308,8 @@ pub async fn get_address_utxos_upper(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3204,6 +3376,7 @@ pub async fn get_address_utxos_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3213,6 +3386,8 @@ pub async fn get_address_utxos_out_of_bounds(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3278,6 +3453,7 @@ pub async fn get_address_utxos_stream_all(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3287,6 +3463,8 @@ pub async fn get_address_utxos_stream_all(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3360,6 +3538,7 @@ pub async fn get_address_utxos_stream_lower(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3369,6 +3548,8 @@ pub async fn get_address_utxos_stream_lower(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3443,6 +3624,7 @@ pub async fn get_address_utxos_stream_upper(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3452,6 +3634,8 @@ pub async fn get_address_utxos_stream_upper(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![
@@ -3526,6 +3710,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
+        chain_cache: None,
         network: network::Network::Regtest,
     })
     .unwrap();
@@ -3535,6 +3720,8 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         zcashd_conf: zcashd.config_path(),
     })
     .unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_utxos_arg = proto::service::GetAddressUtxosArg {
         addresses: vec![

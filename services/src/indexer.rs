@@ -32,6 +32,8 @@ pub struct ZainodConfig {
     pub listen_port: Option<Port>,
     /// Validator RPC port
     pub validator_port: Port,
+    /// Chain cache path
+    pub chain_cache: Option<PathBuf>,
     /// Network type.
     pub network: Network,
 }
@@ -118,11 +120,20 @@ impl Indexer for Zainod {
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
+        let data_dir = tempfile::tempdir().unwrap();
 
         let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
+
+        let cache_dir = if let Some(cache) = config.chain_cache.clone() {
+            cache
+        } else {
+            data_dir.path().to_path_buf()
+        };
+
         let config_file_path = config::zainod(
             config_dir.path(),
+            cache_dir,
             port,
             config.validator_port,
             config.network,
@@ -150,7 +161,7 @@ impl Indexer for Zainod {
             &mut handle,
             &logs_dir,
             None,
-            &["Server Ready."],
+            &["Zaino Indexer started successfully."],
             &["Error:"],
             &[],
         )?;
