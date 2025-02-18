@@ -2,10 +2,9 @@ use std::path::PathBuf;
 
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
-use zingolib::{
-    testutils::lightclient::{from_inputs, get_base_address},
-    testvectors::REG_O_ADDR_FROM_ABANDONART,
-};
+use testvectors::REG_O_ADDR_FROM_ABANDONART;
+
+use zingolib::testutils::lightclient::{from_inputs, get_base_address};
 
 use zingo_infra_testutils::client;
 
