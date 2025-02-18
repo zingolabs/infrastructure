@@ -15,7 +15,6 @@ use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
     proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
 };
-use zingo_infra_fetcher_core::{Binaries, ResourcesEnum, ResourcesManager};
 
 use crate::{
     config,
@@ -256,15 +255,7 @@ impl Validator for Zcashd {
 
         let mut command = match config.zcashd_bin {
             Some(path) => std::process::Command::new(path),
-            None => {
-                let mut manager = ResourcesManager::new("./fetched_resources");
-                let bin_path = manager
-                    .get_resource(ResourcesEnum::Binaries(Binaries::Zcashd))
-                    .await
-                    .expect("bin to load correctly");
-                dbg!(&bin_path);
-                std::process::Command::new(bin_path)
-            }
+            None => std::process::Command::new("zcashd"),
         };
         command
             .args([
@@ -470,15 +461,7 @@ impl Validator for Zebrad {
 
         let mut command = match config.zebrad_bin {
             Some(path) => std::process::Command::new(path),
-            None => {
-                let mut manager = ResourcesManager::new("./fetched_resources");
-                let bin_path = manager
-                    .get_resource(ResourcesEnum::Binaries(Binaries::Zebrad))
-                    .await
-                    .expect("bin to load correctly");
-                dbg!(&bin_path);
-                std::process::Command::new(bin_path)
-            }
+            None => std::process::Command::new("zebrad"),
         };
         command
             .args([

@@ -119,7 +119,7 @@ impl LocalNet<Zainod, Zcashd> {
     pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZcashdConfig) -> Self {
         let validator = Zcashd::launch(validator_config).await.unwrap();
         indexer_config.validator_port = validator.port();
-        let indexer = Zainod::launch(indexer_config).await.unwrap();
+        let indexer = Zainod::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
@@ -132,7 +132,7 @@ impl LocalNet<Zainod, Zebrad> {
     pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZebradConfig) -> Self {
         let validator = Zebrad::launch(validator_config).await.unwrap();
         indexer_config.validator_port = validator.rpc_listen_port();
-        let indexer = Zainod::launch(indexer_config).await.unwrap();
+        let indexer = Zainod::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
@@ -148,7 +148,7 @@ impl LocalNet<Lightwalletd, Zcashd> {
     ) -> Self {
         let validator = Zcashd::launch(validator_config).await.unwrap();
         indexer_config.zcashd_conf = validator.config_path();
-        let indexer = Lightwalletd::launch(indexer_config).await.unwrap();
+        let indexer = Lightwalletd::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
@@ -164,7 +164,7 @@ impl LocalNet<Lightwalletd, Zebrad> {
     ) -> Self {
         let validator = Zebrad::launch(validator_config).await.unwrap();
         indexer_config.zcashd_conf = validator.config_dir().path().join(config::ZCASHD_FILENAME);
-        let indexer = Lightwalletd::launch(indexer_config).await.unwrap();
+        let indexer = Lightwalletd::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
@@ -174,7 +174,7 @@ impl LocalNet<Empty, Zcashd> {
     /// Launch LocalNet.
     pub async fn launch(indexer_config: EmptyConfig, validator_config: ZcashdConfig) -> Self {
         let validator = Zcashd::launch(validator_config).await.unwrap();
-        let indexer = Empty::launch(indexer_config).await.unwrap();
+        let indexer = Empty::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
@@ -184,7 +184,7 @@ impl LocalNet<Empty, Zebrad> {
     /// Launch LocalNet.
     pub async fn launch(indexer_config: EmptyConfig, validator_config: ZebradConfig) -> Self {
         let validator = Zebrad::launch(validator_config).await.unwrap();
-        let indexer = Empty::launch(indexer_config).await.unwrap();
+        let indexer = Empty::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
     }
