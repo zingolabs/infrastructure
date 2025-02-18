@@ -21,6 +21,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 
+use testvectors::REG_O_ADDR_FROM_ABANDONART;
 use tokio::sync::mpsc::unbounded_channel;
 use zcash_client_backend::proto;
 use zcash_primitives::transaction::Transaction;
@@ -32,7 +33,6 @@ use zingolib::{
     config::{ChainType, RegtestNetwork},
     lightclient::LightClient,
     testutils::lightclient::{from_inputs, get_base_address},
-    testvectors::REG_O_ADDR_FROM_ABANDONART,
     wallet::data::summaries::TransactionSummaryInterface,
 };
 
