@@ -2,10 +2,8 @@ use std::path::PathBuf;
 
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
-use zingolib::{
-    testutils::lightclient::{from_inputs, get_base_address},
-    testvectors::REG_O_ADDR_FROM_ABANDONART,
-};
+use testvectors::REG_O_ADDR_FROM_ABANDONART;
+use zingolib::testutils::lightclient::{from_inputs, get_base_address};
 
 use zingo_infra_testutils::client;
 
@@ -90,6 +88,7 @@ async fn launch_localnet_zainod_zcashd() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -118,6 +117,7 @@ async fn launch_localnet_zainod_zebrad() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZebradConfig {
@@ -195,7 +195,6 @@ async fn launch_localnet_lightwalletd_zebrad() {
     local_net.indexer().print_stderr();
 }
 
-#[ignore = "slow"]
 #[tokio::test]
 async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -205,6 +204,7 @@ async fn zainod_zcashd_basic_send() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZcashdConfig {
@@ -224,6 +224,7 @@ async fn zainod_zcashd_basic_send() {
         local_net.indexer().port(),
     )
     .await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
     faucet.do_sync(false).await.unwrap();
     from_inputs::quick_send(
@@ -237,6 +238,8 @@ async fn zainod_zcashd_basic_send() {
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
     faucet.do_sync(false).await.unwrap();
     recipient.do_sync(false).await.unwrap();
 
@@ -252,7 +255,7 @@ async fn zainod_zcashd_basic_send() {
     println!("recipient balance:");
     println!("{:?}\n", recipient_balance);
 }
-#[ignore = "flake"]
+
 #[tokio::test]
 async fn zainod_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -262,6 +265,7 @@ async fn zainod_zebrad_basic_send() {
             zainod_bin: ZAINOD_BIN,
             listen_port: None,
             validator_port: 0,
+            chain_cache: None,
             network: network::Network::Regtest,
         },
         ZebradConfig {
@@ -284,9 +288,13 @@ async fn zainod_zebrad_basic_send() {
     .await;
 
     local_net.validator().generate_blocks(100).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
     faucet.do_sync(false).await.unwrap();
     faucet.quick_shield().await.unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
     faucet.do_sync(false).await.unwrap();
 
     from_inputs::quick_send(
@@ -300,6 +308,8 @@ async fn zainod_zebrad_basic_send() {
     .await
     .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
     faucet.do_sync(false).await.unwrap();
     recipient.do_sync(false).await.unwrap();
 
@@ -316,7 +326,6 @@ async fn zainod_zebrad_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
-#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -374,7 +383,6 @@ async fn lightwalletd_zcashd_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
-#[ignore = "slow"]
 #[tokio::test]
 async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
