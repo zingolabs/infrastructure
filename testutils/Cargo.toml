@@ -13,6 +13,7 @@ zingo-infra-services = { path = "../services" }
 # Zingo
 zingo-netutils = { workspace = true }
 zingolib = { workspace = true, features = ["test-elevation"] }
+testvectors = { workspace = true }
 #Zcash
 zcash_client_backend = { workspace = true }
 zcash_protocol = { workspace = true }

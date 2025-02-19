@@ -201,12 +201,16 @@ debug_like_zcashd = true"
 /// Returns the path to the config file.
 pub(crate) fn zainod(
     config_dir: &Path,
+    validator_cache_dir: PathBuf,
     listen_port: Port,
     validator_port: Port,
     network: Network,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
+
+    let zaino_cache_dir = validator_cache_dir.join("zaino");
+    let chain_cache = zaino_cache_dir.to_str().unwrap();
 
     let network_string = network.to_string();
 
@@ -215,41 +219,106 @@ pub(crate) fn zainod(
             "\
 # Configuration for Zaino
 
-# Sets the TcpIngestor's status (true or false)
-tcp_active = true
+# gRPC server config:
 
-# Optional TcpIngestors listen port (use None or specify a port number)
-listen_port = {listen_port}
+# Zainod's gRPC server listen address.
+#
+# Must use TLS when connecting to non localhost addresses.
+grpc_listen_address = \"localhost:{listen_port}\"
 
-# Sets the NymIngestor's and NymDispatchers status (true or false)
-nym_active = false
+# Enables TLS for the gRPC server.
+grpc_tls = false
 
-# Optional Nym conf path used for micnet client conf
-nym_conf_path = \"/tmp/indexer/nym\"
+# Path to the TLS certificate file in PEM format.
+# Required if `tls` is true.
+tls_cert_path = \"None\"
 
-# LightWalletD listen port [DEPRECATED]
-lightwalletd_port = 9067
+# Path to the TLS private key file in PEM format.
+# Required if `tls` is true.
+tls_key_path = \"None\"
 
-# Full node / validator listen port
-zebrad_port = {validator_port}
 
-# Optional full node Username
-node_user = \"xxxxxx\"
 
-# Optional full node Password
-node_password = \"xxxxxx\"
+# JsonRPC client config:
 
-# Maximum requests allowed in the request queue
-max_queue_size = 1024
+# Full node / validator listen address.
+#
+# Must be a \"pravate\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
+#
+# Must use validator rpc cookie authentication when connecting to non localhost addresses.
+validator_listen_address = \"localhost:{validator_port}\"
 
-# Maximum workers allowed in the worker pool
-max_worker_pool_size = 64
+# Enable validator rpc cookie authentication.
+validator_cookie_auth = false
 
-# Minimum number of workers held in the worker pool when idle
-idle_worker_pool_size = 4
+# Path to the validator cookie file.
+validator_cookie_path = \"None\"
 
-# Network chain type (Mainnet, Testnet, Regtest)
-network = \"{network_string}\""
+# Optional full node / validator Username.
+validator_user = \"xxxxxx\"
+
+# Optional full node / validator Password.
+validator_password = \"xxxxxx\"
+
+
+
+# Mempool, Non-Finalised State and Finalised State config:
+
+# Capacity of the Dashmaps used for the Mempool.
+# Also use by the BlockCache::NonFinalisedState when using the FetchService.
+#
+# None by default.
+map_capacity = \"None\"
+
+# Number of shard used in the DashMap used for the Mempool.
+# Also use by the BlockCache::NonFinalisedState when using the FetchService.
+#
+# shard_amount should greater than 0 and be a power of two.
+# If a shard_amount which is not a power of two is provided, the function will panic.
+#
+# None by default.
+map_shard_amount = \"None\"
+
+# Block Cache database file path.
+#
+# This is Zaino's Compact Block Cache db if using the FetchService or Zebra's RocksDB if using the StateService.
+#
+# None by default, this defaults to `$HOME/.cache/zaino/`
+db_path = \"{chain_cache}\"
+
+# Block Cache database maximum size in gb.
+#
+# Only used by the FetchService.
+#
+# None by default
+db_size = \"None\"
+
+
+
+# Network:
+
+# Network chain type (Mainnet, Testnet, Regtest).
+network = \"{network_string}\"
+
+
+
+# Options:
+
+# Disables internal sync and stops zaino waiting on server to sync with p2p network.
+# Useful for testing.
+no_sync = true
+
+# Disables the FinalisedState in the BlockCache
+#
+# Only used by the FetchServic.
+# Used for testing.
+no_db = true
+
+# Disables internal mempool and blockcache.
+#
+# For use by lightweight wallets that do not want to run any extra processes.
+#
+ no_state = false"
         )
         .as_bytes(),
     )?;
@@ -381,8 +450,19 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     #[test]
     fn zainod() {
         let config_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let zaino_cache_dir = cache_dir.into_path();
+        let zaino_test_dir = zaino_cache_dir.join("zaino");
+        let zaino_test_path = zaino_test_dir.to_str().unwrap();
 
-        super::zainod(config_dir.path(), 1234, 18232, network::Network::Regtest).unwrap();
+        super::zainod(
+            config_dir.path(),
+            zaino_cache_dir,
+            1234,
+            18232,
+            network::Network::Regtest,
+        )
+        .unwrap();
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZAINOD_FILENAME)).unwrap(),
@@ -390,41 +470,106 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
                 "\
 # Configuration for Zaino
 
-# Sets the TcpIngestor's status (true or false)
-tcp_active = true
+# gRPC server config:
 
-# Optional TcpIngestors listen port (use None or specify a port number)
-listen_port = 1234
+# Zainod's gRPC server listen address.
+#
+# Must use TLS when connecting to non localhost addresses.
+grpc_listen_address = \"localhost:1234\"
 
-# Sets the NymIngestor's and NymDispatchers status (true or false)
-nym_active = false
+# Enables TLS for the gRPC server.
+grpc_tls = false
 
-# Optional Nym conf path used for micnet client conf
-nym_conf_path = \"/tmp/indexer/nym\"
+# Path to the TLS certificate file in PEM format.
+# Required if `tls` is true.
+tls_cert_path = \"None\"
 
-# LightWalletD listen port [DEPRECATED]
-lightwalletd_port = 9067
+# Path to the TLS private key file in PEM format.
+# Required if `tls` is true.
+tls_key_path = \"None\"
 
-# Full node / validator listen port
-zebrad_port = 18232
 
-# Optional full node Username
-node_user = \"xxxxxx\"
 
-# Optional full node Password
-node_password = \"xxxxxx\"
+# JsonRPC client config:
 
-# Maximum requests allowed in the request queue
-max_queue_size = 1024
+# Full node / validator listen address.
+#
+# Must be a \"pravate\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
+#
+# Must use validator rpc cookie authentication when connecting to non localhost addresses.
+validator_listen_address = \"localhost:18232\"
 
-# Maximum workers allowed in the worker pool
-max_worker_pool_size = 64
+# Enable validator rpc cookie authentication.
+validator_cookie_auth = false
 
-# Minimum number of workers held in the worker pool when idle
-idle_worker_pool_size = 4
+# Path to the validator cookie file.
+validator_cookie_path = \"None\"
 
-# Network chain type (Mainnet, Testnet, Regtest)
-network = \"Regtest\""
+# Optional full node / validator Username.
+validator_user = \"xxxxxx\"
+
+# Optional full node / validator Password.
+validator_password = \"xxxxxx\"
+
+
+
+# Mempool, Non-Finalised State and Finalised State config:
+
+# Capacity of the Dashmaps used for the Mempool.
+# Also use by the BlockCache::NonFinalisedState when using the FetchService.
+#
+# None by default.
+map_capacity = \"None\"
+
+# Number of shard used in the DashMap used for the Mempool.
+# Also use by the BlockCache::NonFinalisedState when using the FetchService.
+#
+# shard_amount should greater than 0 and be a power of two.
+# If a shard_amount which is not a power of two is provided, the function will panic.
+#
+# None by default.
+map_shard_amount = \"None\"
+
+# Block Cache database file path.
+#
+# This is Zaino's Compact Block Cache db if using the FetchService or Zebra's RocksDB if using the StateService.
+#
+# None by default, this defaults to `$HOME/.cache/zaino/`
+db_path = \"{zaino_test_path}\"
+
+# Block Cache database maximum size in gb.
+#
+# Only used by the FetchService.
+#
+# None by default
+db_size = \"None\"
+
+
+
+# Network:
+
+# Network chain type (Mainnet, Testnet, Regtest).
+network = \"Regtest\"
+
+
+
+# Options:
+
+# Disables internal sync and stops zaino waiting on server to sync with p2p network.
+# Useful for testing.
+no_sync = true
+
+# Disables the FinalisedState in the BlockCache
+#
+# Only used by the FetchServic.
+# Used for testing.
+no_db = true
+
+# Disables internal mempool and blockcache.
+#
+# For use by lightweight wallets that do not want to run any extra processes.
+#
+ no_state = false"
             )
         )
     }
