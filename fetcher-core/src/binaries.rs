@@ -12,7 +12,7 @@ pub fn get_binaries_dir() -> PathBuf {
 }
 
 /// Testing binaries: these are managed and fetched automagically by fetcher.rs
-pub enum SupportedBinaries {
+pub enum Binaries {
     /// [Lightwalletd](https://github.com/zcash/lightwalletd) is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain.
     Lightwalletd,
     /// [Zaino](https://github.com/zingolabs/zaino) is an indexer for the Zcash blockchain implemented in Rust.
@@ -27,14 +27,14 @@ pub enum SupportedBinaries {
     Zebrad,
 }
 
-pub fn get_path_for_binary(binary_name: SupportedBinaries) -> PathBuf {
+pub fn get_path_for_binary(binary_name: Binaries) -> PathBuf {
     let bin_name = match binary_name {
-        SupportedBinaries::Lightwalletd => "lightwalletd",
-        SupportedBinaries::Zainod => "zainod",
-        SupportedBinaries::Zcashd => "zcashd",
-        SupportedBinaries::ZcashCli => "zcash-cli",
-        SupportedBinaries::ZingoCli => "zingo-cli",
-        SupportedBinaries::Zebrad => "zebrad",
+        Binaries::Lightwalletd => "lightwalletd",
+        Binaries::Zainod => "zainod",
+        Binaries::Zcashd => "zcashd",
+        Binaries::ZcashCli => "zcash-cli",
+        Binaries::ZingoCli => "zingo-cli",
+        Binaries::Zebrad => "zebrad",
     };
     get_binaries_dir().join(bin_name)
 }
