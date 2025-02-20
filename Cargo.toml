@@ -2,7 +2,7 @@
 members = [
   "services",
   "testutils",
-  "fetcher"
+  "fetcher-core"
 ]
 resolver = "2"
 
