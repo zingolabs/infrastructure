@@ -14,49 +14,21 @@ use std::{
 };
 use tokio::task::JoinSet;
 
-fn get_out_dir() -> PathBuf {
-    PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR to be defined"))
-}
-
-fn get_manifest_dir() -> PathBuf {
+// TODO: switch to TOML setup
+pub fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
 
-fn get_hashsums_dir() -> PathBuf {
-    get_manifest_dir().join("hashsums")
-}
-
-pub fn get_path_for_binary(binary_name: Binaries) -> PathBuf {
-    let bin_name = match binary_name {
-        Binaries::Lightwalletd => "lightwalletd",
-        Binaries::Zainod => "zainod",
-        Binaries::Zcashd => "zcashd",
-        Binaries::ZcashCli => "zcash-cli",
-        Binaries::ZingoCli => "zingo-cli",
-        Binaries::Zebrad => "zebrad",
-    };
-    get_binaries_dir().join(bin_name)
+fn get_out_dir() -> PathBuf {
+    get_manifest_dir().join("fetched_resourcezzz")
 }
 
 pub fn get_binaries_dir() -> PathBuf {
-    let out_dir = get_out_dir();
-    out_dir.join("test_binaries")
+    get_out_dir().join("testing_binaries")
 }
 
-/// Testing binaries: these are managed and fetched automagically by fetcher.rs
-pub enum Binaries {
-    /// [Lightwalletd](https://github.com/zcash/lightwalletd) is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain.
-    Lightwalletd,
-    /// [Zaino](https://github.com/zingolabs/zaino) is an indexer for the Zcash blockchain implemented in Rust.
-    Zainod,
-    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface. The zcashd full node downloads a copy of the Zcash blockchain, enforces rules of the Zcash network, and can execute all functionalities.
-    Zcashd,
-    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface.The zcash-cli allows interactions with the node (e.g. to tell it to send a transaction).
-    ZcashCli,
-    /// [Zingo CLI](https://github.com/zingolabs/zingolib?tab=readme-ov-file#zingo-cli) is a command line lightwalletd-proxy client.
-    ZingoCli,
-    /// [Zebra](https://github.com/ZcashFoundation/zebra) is a Zcash full-node written in Rust.
-    Zebrad,
+pub fn get_hashsums_dir() -> PathBuf {
+    get_manifest_dir().join("hashsums")
 }
 
 #[tokio::main]
@@ -374,4 +346,46 @@ fn sha512sum_file(file_path: &PathBuf) -> String {
     let mut hasher = Sha512::new();
     hasher.update(&file_bytes);
     hex::encode(hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_lib_main() {
+        binaries_main();
+        assert_eq!(true, true);
+    }
+}
+
+// TODO currently unused?
+/// Testing binaries: these are managed and fetched automagically by fetcher.rs
+pub enum Binary {
+    /// [Lightwalletd](https://github.com/zcash/lightwalletd) is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain.
+    Lightwalletd,
+    /// [Zaino](https://github.com/zingolabs/zaino) is an indexer for the Zcash blockchain implemented in Rust.
+    Zainod,
+    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface. The zcashd full node downloads a copy of the Zcash blockchain, enforces rules of the Zcash network, and can execute all functionalities.
+    Zcashd,
+    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface.The zcash-cli allows interactions with the node (e.g. to tell it to send a transaction).
+    ZcashCli,
+    /// [Zingo CLI](https://github.com/zingolabs/zingolib?tab=readme-ov-file#zingo-cli) is a command line lightwalletd-proxy client.
+    ZingoCli,
+    /// [Zebra](https://github.com/ZcashFoundation/zebra) is a Zcash full-node written in Rust.
+    Zebrad,
+}
+
+impl Binary {
+    fn get_path(&self) -> PathBuf {
+        let bin_name = match *self {
+            Binary::Lightwalletd => "lightwalletd",
+            Binary::Zainod => "zainod",
+            Binary::Zcashd => "zcashd",
+            Binary::ZcashCli => "zcash-cli",
+            Binary::Zebrad => "zebrad",
+            Binary::ZingoCli => "zingo-cli",
+        };
+        get_binaries_dir().join(bin_name)
+    }
 }
