@@ -1,6 +1,5 @@
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
-use std::path::PathBuf;
 use std::{
     env,
     env::var,
@@ -15,10 +14,28 @@ use std::{
 };
 use tokio::task::JoinSet;
 
-use crate::get_fetcher_out_dir;
-
 fn get_out_dir() -> PathBuf {
-    get_fetcher_out_dir()
+    PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR to be defined"))
+}
+
+fn get_manifest_dir() -> PathBuf {
+    PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
+}
+
+fn get_hashsums_dir() -> PathBuf {
+    get_manifest_dir().join("hashsums")
+}
+
+pub fn get_path_for_binary(binary_name: Binaries) -> PathBuf {
+    let bin_name = match binary_name {
+        Binaries::Lightwalletd => "lightwalletd",
+        Binaries::Zainod => "zainod",
+        Binaries::Zcashd => "zcashd",
+        Binaries::ZcashCli => "zcash-cli",
+        Binaries::ZingoCli => "zingo-cli",
+        Binaries::Zebrad => "zebrad",
+    };
+    get_binaries_dir().join(bin_name)
 }
 
 pub fn get_binaries_dir() -> PathBuf {
@@ -40,45 +57,6 @@ pub enum Binaries {
     ZingoCli,
     /// [Zebra](https://github.com/ZcashFoundation/zebra) is a Zcash full-node written in Rust.
     Zebrad,
-}
-
-pub fn get_path_for_binary(binary_name: Binaries) -> PathBuf {
-    let bin_name = match binary_name {
-        Binaries::Lightwalletd => "lightwalletd",
-        Binaries::Zainod => "zainod",
-        Binaries::Zcashd => "zcashd",
-        Binaries::ZcashCli => "zcash-cli",
-        Binaries::ZingoCli => "zingo-cli",
-        Binaries::Zebrad => "zebrad",
-    };
-    get_binaries_dir().join(bin_name)
-}
-
-// --- add build.rs --- //
-
-fn get_out_dir() -> PathBuf {
-    PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR to be defined"))
-}
-
-fn get_manifest_dir() -> PathBuf {
-    PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
-}
-
-fn get_hashsums_dir() -> PathBuf {
-    get_manifest_dir().join("hashsums")
-}
-
-fn generate_config_file() {
-    let out_dir = get_out_dir();
-
-    // Create the generated config file
-    let config_file_path = out_dir.join("config.rs");
-    let mut file = File::create(&config_file_path).expect("config.rs to be created");
-    file.write_fmt(core::format_args!(
-        "pub const FETCHER_OUT_DIR: &str = {:?};",
-        out_dir.display()
-    ))
-    .expect("config file to be written")
 }
 
 #[tokio::main]
