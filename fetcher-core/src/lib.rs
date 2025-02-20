@@ -1,10 +1,12 @@
 pub mod binaries;
 
 #[cfg(test)]
-mod tests {
+mod lib_tests {
+    use crate::binaries;
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn run_fetcher() {
+        binaries::binaries_main();
+        assert_eq!(true, true);
     }
 }

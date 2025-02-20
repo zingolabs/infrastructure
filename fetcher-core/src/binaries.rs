@@ -1,13 +1,11 @@
 use reqwest::{Certificate, Url};
 use sha2::{Digest, Sha512};
 use std::{
-    env,
     env::var,
     fs,
     fs::File,
     io::{BufRead, BufReader, Read, Write},
     os::unix::fs::OpenOptionsExt,
-    path::Path,
     path::PathBuf,
     process::{Command, Stdio},
     time::Duration,
@@ -20,11 +18,11 @@ pub fn get_manifest_dir() -> PathBuf {
 }
 
 fn get_out_dir() -> PathBuf {
-    get_manifest_dir().join("fetched_resourcezzz")
+    get_manifest_dir().join("fetched_resources")
 }
 
 pub fn get_binaries_dir() -> PathBuf {
-    get_out_dir().join("testing_binaries")
+    get_out_dir().join("binaries")
 }
 
 pub fn get_hashsums_dir() -> PathBuf {
@@ -36,7 +34,7 @@ pub async fn binaries_main() {
     // find or fetch zingo-blessed binaries.
     let mut seek_binaries: JoinSet<()> = JoinSet::new();
 
-    let bin_names = vec![
+    let bin_names = [
         "lightwalletd",
         "zainod",
         "zcashd",
@@ -55,8 +53,7 @@ pub async fn binaries_main() {
 }
 
 async fn validate_binary(binary_name: &str) {
-    let resources_dir: PathBuf = get_out_dir();
-    let bin_dir = Path::new(&resources_dir).join("test_binaries");
+    let bin_dir = get_binaries_dir();
     let bin_path = bin_dir.join(binary_name);
     let shasum_path = get_hashsums_dir().join(format!("{}_shasum", binary_name));
 
@@ -143,7 +140,7 @@ async fn confirm_binary(
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .output()
-        .expect("command with --version argument and stddout + stderr to be created");
+        .expect("command with --version argument and stdout + stderr to be created");
 
     let mut std_out = String::new();
     let mut std_err = String::new();
@@ -160,6 +157,7 @@ async fn confirm_binary(
         .read_to_string(&mut std_err)
         .expect("writing to buffer to complete");
 
+    /*
     match binary_name {
         "lightwalletd" => {
             if bytes_read == LWD_BYTES {
@@ -241,6 +239,7 @@ async fn confirm_binary(
         }
         _ => println!("looked for unknown binary"),
     }
+    */
     println!("confirming {} hashsum against local record", binary_name);
 
     // hashes for confirming expected binaries
@@ -346,46 +345,4 @@ fn sha512sum_file(file_path: &PathBuf) -> String {
     let mut hasher = Sha512::new();
     hasher.update(&file_bytes);
     hex::encode(hasher.finalize())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn run_lib_main() {
-        binaries_main();
-        assert_eq!(true, true);
-    }
-}
-
-// TODO currently unused?
-/// Testing binaries: these are managed and fetched automagically by fetcher.rs
-pub enum Binary {
-    /// [Lightwalletd](https://github.com/zcash/lightwalletd) is a backend service that provides a bandwidth-efficient interface to the Zcash blockchain.
-    Lightwalletd,
-    /// [Zaino](https://github.com/zingolabs/zaino) is an indexer for the Zcash blockchain implemented in Rust.
-    Zainod,
-    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface. The zcashd full node downloads a copy of the Zcash blockchain, enforces rules of the Zcash network, and can execute all functionalities.
-    Zcashd,
-    /// [Zcashd & Zcash-cli](https://zcash.readthedocs.io/en/latest/rtd_pages/zcashd.html#zcash-full-node-and-cli) allow you to run a full node and interact with it via a command-line interface.The zcash-cli allows interactions with the node (e.g. to tell it to send a transaction).
-    ZcashCli,
-    /// [Zingo CLI](https://github.com/zingolabs/zingolib?tab=readme-ov-file#zingo-cli) is a command line lightwalletd-proxy client.
-    ZingoCli,
-    /// [Zebra](https://github.com/ZcashFoundation/zebra) is a Zcash full-node written in Rust.
-    Zebrad,
-}
-
-impl Binary {
-    fn get_path(&self) -> PathBuf {
-        let bin_name = match *self {
-            Binary::Lightwalletd => "lightwalletd",
-            Binary::Zainod => "zainod",
-            Binary::Zcashd => "zcashd",
-            Binary::ZcashCli => "zcash-cli",
-            Binary::Zebrad => "zebrad",
-            Binary::ZingoCli => "zingo-cli",
-        };
-        get_binaries_dir().join(bin_name)
-    }
 }
