@@ -12,7 +12,6 @@ use std::{
 };
 use tokio::task::JoinSet;
 
-// TODO: switch to TOML setup
 pub fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
