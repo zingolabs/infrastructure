@@ -135,7 +135,6 @@ impl Binaries {
     ///
     /// If either of the 3 steps fails, verify returns [`false`]
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
-        /*
         println!("-- Fast checking inital bytes");
 
         let hash = self.get_shasum()?;
@@ -191,9 +190,6 @@ impl Binaries {
 
         if !std_out.contains(self.get_version_string()) {
             println!("---- version string incorrect!");
-            //TODO retry? or error
-            // return Err(Error::InvalidResource);
-            // or similar?
             panic!("[{}] version string incorrect!", self.get_name())
         } else {
             println!("---- version string correct!");
@@ -201,7 +197,6 @@ impl Binaries {
 
         // verify whole hash
         println!("-- Checking whole shasum");
-        //TODO names
         let bin = sha512sum_file(&bin_path);
 
         println!("---- Found sha512sum of binary. Asserting hash equality of local record");
@@ -218,9 +213,6 @@ impl Binaries {
             );
             Ok(true)
         }
-        */
-        // TODO remove hackey patch:
-        Ok(true)
     }
 
     /// It fetches the binary and stores it in cache
