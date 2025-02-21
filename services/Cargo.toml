@@ -8,7 +8,8 @@ license = "MIT License"
 github = { repository = "zingolabs/infrastructure/services" }
 
 [dependencies]
-zingo-infra-fetcher = { path = "../fetcher" }
+# Local
+zingo-infra-fetcher-core = { path = "../fetcher-core" }
 # Zcash
 zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
