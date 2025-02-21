@@ -12,6 +12,15 @@ use std::{
 };
 use tokio::task::JoinSet;
 
+#[derive(Debug, PartialEq)]
+// mute improper warning of unread field.
+#[allow(dead_code)]
+enum Validation {
+    VersionString(String),
+    Bytes(String),
+    Shasum(String),
+}
+
 pub fn get_manifest_dir() -> PathBuf {
     PathBuf::from(var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR to be set"))
 }
@@ -58,7 +67,7 @@ async fn validate_binary(binary_name: &str) {
 
     fs::create_dir_all(bin_dir).expect("bin directory to be created");
 
-    loop {
+    for i in 1..=3 {
         if !bin_path.is_file() {
             println!("{:?} = file not found!", &bin_path);
             // we have to go get it!
@@ -69,22 +78,27 @@ async fn validate_binary(binary_name: &str) {
             match confirm_binary(&bin_path, &shasum_path, binary_name).await {
                 Ok(()) => {
                     println!("{} binary confirmed.", &binary_name);
-                    break;
+                    return;
                 }
-                _ => println!(
-                    "binary {} confirmation failure, deleted found binary. plz fetch again",
-                    &binary_name
-                ),
+                Err(e) => {
+                    eprintln!("Error: {:?} removing file.", e);
+                    println!(
+                        "binary {} confirmation failure on attempt #{}. removing file.",
+                        &binary_name, i
+                    );
+                    fs::remove_file(&bin_path).expect("bin to be deleted");
+                }
             }
         }
     }
+    panic!("tried to fecth too! many! times!");
 }
 
 async fn confirm_binary(
     bin_path: &PathBuf,
     shasum_path: &PathBuf,
     binary_name: &str,
-) -> Result<(), ()> {
+) -> Result<(), Validation> {
     // see if file is readable and print out the first 64 bytes, which should be unique among them.
     let file_read_sample = File::open(bin_path).expect("file to be readable");
     let mut reader = BufReader::with_capacity(64, file_read_sample);
@@ -161,12 +175,10 @@ async fn confirm_binary(
             if bytes_read == LWD_BYTES {
                 println!("lightwalletd bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_err.contains(VS_LWD) {
-                panic!("expected LWD version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("lightwalletd version string okay!");
         }
@@ -174,12 +186,10 @@ async fn confirm_binary(
             if bytes_read == ZAI_BYTES {
                 println!("zainod bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_err.contains(VS_ZAINOD) {
-                panic!("expected Zainod version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("zainod version string okay!");
         }
@@ -187,12 +197,10 @@ async fn confirm_binary(
             if bytes_read == ZCD_BYTES {
                 println!("zcashd bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_out.contains(VS_ZCASHD) {
-                panic!("ZCD version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("zcashd version string okay!");
         }
@@ -200,12 +208,10 @@ async fn confirm_binary(
             if bytes_read == ZCC_BYTES {
                 println!("Zcash-cli bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_out.contains(VS_ZCASHCLI) {
-                panic!("ZCC version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("Zcash-cli version string okay!");
         }
@@ -213,12 +219,10 @@ async fn confirm_binary(
             if bytes_read == ZEBRA_BYTES {
                 println!("zebrad bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_out.contains(VS_ZEBRAD) {
-                panic!("Zebrad version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("zebrad version string okay!");
         }
@@ -226,12 +230,10 @@ async fn confirm_binary(
             if bytes_read == ZINGO_BYTES {
                 println!("Zingo-cli bytes okay!");
             } else {
-                fs::remove_file(bin_path).expect("bin to be deleted");
-                println!("binary {} removed!", binary_name);
-                return Err(());
+                return Err(Validation::Bytes(binary_name.to_string()));
             }
             if !std_out.contains(VS_ZINGOCLI) {
-                panic!("Zingo-cli version string incorrect")
+                return Err(Validation::VersionString(binary_name.to_string()));
             }
             println!("Zingo-cli version string okay!");
         }
@@ -259,8 +261,7 @@ async fn confirm_binary(
         );
 
         if res != hash {
-            fs::remove_file(bin_path).expect("bin to be deleted");
-            return Err(());
+            return Err(Validation::Shasum(binary_name.to_string()));
         }
         println!(
             "binary hash matches local record! Completing validation process for {}",
