@@ -125,9 +125,8 @@ impl Binaries {
         let shasum_record_string =
             String::from_utf8(shasum_record.to_vec()).expect("shasum to be utf8 compatible");
 
-        match !shasum_record_string.contains(self.get_name()) {
-            true => return Err(Error::InvalidShasumFile),
-            false => (),
+        if !shasum_record_string.contains(self.get_name()) {
+            return Err(Error::InvalidShasumFile);
         }
 
         let record = shasum_record_string.split_whitespace().next();
