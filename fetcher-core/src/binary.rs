@@ -26,7 +26,6 @@ impl Binaries {
         "binaries".to_string()
     }
 
-    // TODO: make this truly unique
     /// Returns the get key of this [`Binaries`].
     /// It is a unique identifies for each binary variant.
     /// [`Cache`] expects such an identifier.
@@ -159,7 +158,6 @@ impl Binaries {
         let mut reader = BufReader::with_capacity(64, file_read_sample);
         let bytes_read = reader.fill_buf().expect("reader to fill_buf");
 
-        // println!("-- Found local copy of binary [{}]", self.get_name());
         println!("---- location: {:?}", &bin_path);
         println!("---- bytes   : {:?}", bytes_read);
 
@@ -176,7 +174,6 @@ impl Binaries {
             return Err(Error::InvalidResource);
         }
 
-        // verify version
         println!("-- Checking version");
         let mut version = Command::new(&bin_path);
         version
@@ -208,7 +205,6 @@ impl Binaries {
             println!("---- version string correct!");
         }
 
-        // verify whole hash
         println!("-- Checking whole shasum");
         let bin = sha512sum_file(&bin_path);
 
@@ -256,11 +252,9 @@ impl Binaries {
 
         let mut res = req_client
             .get(fetch_url)
-            //.basic_auth(username, password);
             .send()
             .await
             .expect("response to be ok");
-        // todo instead of panicking, try again
 
         // with create_new, no file is allowed to exist at the target location
         // with .mode() we are able to set permissions as the file is created.
@@ -364,7 +358,7 @@ impl Binaries {
     }
 }
 
-/// Get's the sha512sum of a file
+/// Gets the sha512sum of a file
 fn sha512sum_file(file_path: &PathBuf) -> String {
     let file_bytes = std::fs::read(file_path).expect("to be able to read binary");
     let mut hasher = Sha512::new();
