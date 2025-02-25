@@ -150,7 +150,6 @@ impl Binaries {
     fn verify(&self, cache: &Cache) -> Result<bool, Error> {
         println!("-- Fast checking inital bytes");
 
-        let hash = self.get_shasum()?;
         let bin_path = self.get_path(cache)?;
 
         // quick bytes check
@@ -206,16 +205,17 @@ impl Binaries {
         }
 
         println!("-- Checking whole shasum");
+        let recorded_hash = self.get_shasum()?;
         let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
         let mut hasher = Sha512::new();
         hasher.update(&file_bytes);
-        let bin = encode(hasher.finalize());
+        let bin_hash = encode(hasher.finalize());
 
         println!("---- Found sha512sum of binary. Asserting hash equality of local record");
-        println!("---- current : {:?}", bin);
-        println!("---- expected: {:?}", hash);
+        println!("---- current : {:?}", bin_hash);
+        println!("---- expected: {:?}", recorded_hash);
 
-        if hash != bin {
+        if recorded_hash != bin_hash {
             fs::remove_file(bin_path).expect("bin to be deleted");
             Ok(false)
         } else {
