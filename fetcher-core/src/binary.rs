@@ -206,7 +206,10 @@ impl Binaries {
         }
 
         println!("-- Checking whole shasum");
-        let bin = sha512sum_file(&bin_path);
+        let file_bytes = std::fs::read(&bin_path).expect("to be able to read binary");
+        let mut hasher = Sha512::new();
+        hasher.update(&file_bytes);
+        let bin = encode(hasher.finalize());
 
         println!("---- Found sha512sum of binary. Asserting hash equality of local record");
         println!("---- current : {:?}", bin);
@@ -356,12 +359,4 @@ impl Binaries {
             }
         }
     }
-}
-
-/// Gets the sha512sum of a file
-fn sha512sum_file(file_path: &PathBuf) -> String {
-    let file_bytes = std::fs::read(file_path).expect("to be able to read binary");
-    let mut hasher = Sha512::new();
-    hasher.update(&file_bytes);
-    encode(hasher.finalize())
 }
