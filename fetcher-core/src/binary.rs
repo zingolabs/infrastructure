@@ -31,7 +31,7 @@ impl Binaries {
     /// It is a unique identifies for each binary variant.
     /// [`Cache`] expects such an identifier.
     fn get_key(&self) -> String {
-        format!("{}_{}", self.get_resource_type_id(), self.get_name())
+        format!("{}", self.get_name())
     }
 
     /// Returns a reference to the get version command of this [`Binaries`].
@@ -195,7 +195,6 @@ impl Binaries {
             .expect("stdout to happen")
             .read_to_string(&mut std_out)
             .expect("writing to buffer to complete");
-
         println!(
             "---- version string to match: {:?}",
             self.get_version_string()
