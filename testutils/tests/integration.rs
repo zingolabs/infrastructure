@@ -57,6 +57,7 @@ async fn launch_zebrad() {
     zebrad.print_stderr();
 }
 
+/*
 #[ignore = "temporary during refactor into workspace"]
 #[tokio::test]
 async fn launch_zebrad_with_cache() {
@@ -77,6 +78,71 @@ async fn launch_zebrad_with_cache() {
     zebrad.print_stderr();
 
     assert_eq!(zebrad.get_chain_height().await, 52.into());
+}
+*/
+/*
+#[ignore = "temporary during refactor into workspace"]
+#[tokio::test]
+async fn launch_zebrad_with_cache_again() {
+    tracing_subscriber::fmt().init();
+
+    let zebrad = Zebrad::launch(ZebradConfig {
+        zebrad_bin: ZEBRAD_BIN,
+        network_listen_port: None,
+        rpc_listen_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        network: network::Network::Regtest,
+    })
+    .await
+    .unwrap();
+    zebrad.print_stdout();
+    zebrad.print_stderr();
+
+    assert_eq!(zebrad.get_chain_height().await, 52.into());
+}
+*/
+
+#[ignore = "temporary during refactor into workspace"]
+#[tokio::test]
+async fn launch_zebradeez_with_cache() {
+    tracing_subscriber::fmt().init();
+
+    let mut zebradeez1 = Zebrad::launch(ZebradConfig {
+        zebrad_bin: ZEBRAD_BIN,
+        network_listen_port: None,
+        rpc_listen_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        network: network::Network::Regtest,
+    })
+    .await
+    .unwrap();
+    zebradeez1.print_stdout();
+    zebradeez1.print_stderr();
+
+    zebradeez1.stop();
+
+    let mut zebradeez2 = Zebrad::launch(ZebradConfig {
+        zebrad_bin: ZEBRAD_BIN,
+        network_listen_port: None,
+        rpc_listen_port: None,
+        activation_heights: network::ActivationHeights::default(),
+        miner_address: ZEBRAD_DEFAULT_MINER,
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        network: network::Network::Regtest,
+    })
+    .await
+    .unwrap();
+    zebradeez2.print_stdout();
+    zebradeez2.print_stderr();
+
+    zebradeez2.stop();
+
+    assert_eq!(zebradeez1.get_chain_height().await, 52.into());
+    assert_eq!(zebradeez2.get_chain_height().await, 52.into());
 }
 
 #[tokio::test]
