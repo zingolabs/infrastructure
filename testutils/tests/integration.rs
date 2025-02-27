@@ -79,7 +79,7 @@ async fn launch_zebrad_with_cache() {
     assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
 
-#[ignore = "added to test multiple zcashd instances"]
+#[ignore = "added to test multiple zebrad instances"]
 #[tokio::test]
 async fn launch_zebrad_with_cache_again() {
     tracing_subscriber::fmt().init();
@@ -101,7 +101,7 @@ async fn launch_zebrad_with_cache_again() {
     assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
 
-#[ignore = "added to test multiple zcashd instances"]
+#[ignore = "added to test multiple zebrad instances"]
 #[tokio::test]
 async fn launch_zebrad_multiple_times_with_cache() {
     tracing_subscriber::fmt().init();
