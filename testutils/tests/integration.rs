@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
 use testvectors::REG_O_ADDR_FROM_ABANDONART;
+use tokio::task::{AbortHandle, JoinSet};
 use zingolib::testutils::lightclient::{from_inputs, get_base_address};
 
 use zingo_infra_testutils::client;
@@ -137,6 +138,39 @@ async fn launch_zebrad_multiple_times_with_cache() {
     // Don't stop either zebrad
     assert_eq!(zebrad1.get_chain_height().await, 52.into());
     assert_eq!(zebrad2.get_chain_height().await, 52.into());
+}
+
+#[ignore = "added to test multiple zebrad instances"]
+#[tokio::test]
+async fn launch_zebrad_multiple_times_in_tokio_tasks_with_cache() {
+    tracing_subscriber::fmt().init();
+
+    let mut tests_set: JoinSet<()> = JoinSet::new();
+    // spawn 3 tests as tasks
+    for _ in 0..=2 {
+        tests_set.spawn(async {
+            let zebrad = Zebrad::launch(ZebradConfig {
+                zebrad_bin: ZEBRAD_BIN,
+                network_listen_port: None,
+                rpc_listen_port: None,
+                activation_heights: network::ActivationHeights::default(),
+                miner_address: ZEBRAD_DEFAULT_MINER,
+                chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+                network: network::Network::Regtest,
+            })
+            .await
+            .expect("future inside task to unwrap");
+            zebrad.print_stdout();
+            zebrad.print_stderr();
+            // assert within task
+            assert_eq!(zebrad.get_chain_height().await, 52.into());
+        });
+
+        // Don't stop either zebrad
+    }
+    // will only be joined when all tasks have completed launch and asserted a chain height.
+    tests_set.join_all().await;
+    // returns pass
 }
 
 #[tokio::test]
