@@ -57,7 +57,6 @@ async fn launch_zebrad() {
     zebrad.print_stderr();
 }
 
-/*
 #[ignore = "temporary during refactor into workspace"]
 #[tokio::test]
 async fn launch_zebrad_with_cache() {
@@ -79,9 +78,8 @@ async fn launch_zebrad_with_cache() {
 
     assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
-*/
-/*
-#[ignore = "temporary during refactor into workspace"]
+
+#[ignore = "added to test multiple zcashd instances"]
 #[tokio::test]
 async fn launch_zebrad_with_cache_again() {
     tracing_subscriber::fmt().init();
@@ -102,14 +100,13 @@ async fn launch_zebrad_with_cache_again() {
 
     assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
-*/
 
-#[ignore = "temporary during refactor into workspace"]
+#[ignore = "added to test multiple zcashd instances"]
 #[tokio::test]
-async fn launch_zebradeez_with_cache() {
+async fn launch_zebrad_multiple_times_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let mut zebradeez1 = Zebrad::launch(ZebradConfig {
+    let zebrad1 = Zebrad::launch(ZebradConfig {
         zebrad_bin: ZEBRAD_BIN,
         network_listen_port: None,
         rpc_listen_port: None,
@@ -120,12 +117,10 @@ async fn launch_zebradeez_with_cache() {
     })
     .await
     .unwrap();
-    zebradeez1.print_stdout();
-    zebradeez1.print_stderr();
+    zebrad1.print_stdout();
+    zebrad1.print_stderr();
 
-    zebradeez1.stop();
-
-    let mut zebradeez2 = Zebrad::launch(ZebradConfig {
+    let zebrad2 = Zebrad::launch(ZebradConfig {
         zebrad_bin: ZEBRAD_BIN,
         network_listen_port: None,
         rpc_listen_port: None,
@@ -136,13 +131,12 @@ async fn launch_zebradeez_with_cache() {
     })
     .await
     .unwrap();
-    zebradeez2.print_stdout();
-    zebradeez2.print_stderr();
+    zebrad2.print_stdout();
+    zebrad2.print_stderr();
 
-    zebradeez2.stop();
-
-    assert_eq!(zebradeez1.get_chain_height().await, 52.into());
-    assert_eq!(zebradeez2.get_chain_height().await, 52.into());
+    // Don't stop either zebrad
+    assert_eq!(zebrad1.get_chain_height().await, 52.into());
+    assert_eq!(zebrad2.get_chain_height().await, 52.into());
 }
 
 #[tokio::test]
