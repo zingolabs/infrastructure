@@ -172,7 +172,6 @@ use_journald = false"
             format!(
                 "\n\n\
 [mining]
-debug_like_zcashd = true
 miner_address = \"{miner_address}\"
 
 [network.testnet_parameters]
