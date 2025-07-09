@@ -176,6 +176,12 @@ miner_address = \"{miner_address}\"
 
 [network.testnet_parameters]
 disable_pow = true
+network_name = \"Regtest\"
+network_magic = [170, 232, 63, 95]
+slow_start_interval = 0
+target_difficulty_limit = \"0f0f0f0000000000000000000000000000000000000000000000000000000000\"
+genesis_hash = \"029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327\"
+pre_blossom_halving_interval = 144
 
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
@@ -186,13 +192,6 @@ NU6 = {nu6_activation_height}"
             .as_bytes(),
         )?;
     } else {
-        config_file.write_all(
-            "\n\n\
-[mining]
-debug_like_zcashd = true"
-                .to_string()
-                .as_bytes(),
-        )?;
     }
 
     Ok(config_file_path)
