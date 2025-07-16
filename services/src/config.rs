@@ -91,6 +91,7 @@ pub(crate) fn zebrad(
     cache_dir: PathBuf,
     network_listen_port: Port,
     rpc_listen_port: Port,
+    indexer_listen_port: Port,
     activation_heights: &ActivationHeights,
     miner_address: &str,
     network: Network,
@@ -145,6 +146,7 @@ debug_force_finished_sync = false
 enable_cookie_auth = false
 parallel_cpu_threads = 0
 listen_addr = \"127.0.0.1:{rpc_listen_port}\"
+indexer_listen_addr = \"127.0.0.1:{indexer_listen_port}\"
 
 [state]
 cache_dir = \"{chain_cache}\"
@@ -162,6 +164,8 @@ parallel_cpu_threads = 0
 buffer_limit = 128000
 force_use_color = false
 use_color = true
+#log_file = \"/home/aloe/.zebradtemplogfile\"
+filter = \"debug\"
 use_journald = false"
         )
         .as_bytes(),
@@ -453,7 +457,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     fn zainod() {
         let config_dir = tempfile::tempdir().unwrap();
         let cache_dir = tempfile::tempdir().unwrap();
-        let zaino_cache_dir = cache_dir.into_path();
+        let zaino_cache_dir = cache_dir.keep();
         let zaino_test_dir = zaino_cache_dir.join("zaino");
         let zaino_test_path = zaino_test_dir.to_str().unwrap();
 
