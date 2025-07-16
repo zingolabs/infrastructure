@@ -48,7 +48,8 @@ mod logs;
 use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
-use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
+use validator::{Validator, Zcashd, ZcashdConfig, Zebrad};
+use zebrad::config::ZebradConfig;
 
 /// All processes currently supported
 #[derive(Clone, Copy)]

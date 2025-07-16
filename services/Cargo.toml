@@ -27,6 +27,7 @@ getset = { workspace = true }
 json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
+zebrad = { tag = "v2.3.0", git = "https://github.com/ZcashFoundation/zebra.git" }
 
 [build-dependencies]
 hex = { workspace = true }
