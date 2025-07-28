@@ -288,7 +288,9 @@ impl Validator for Zcashd {
             command.get_program().to_string_lossy(),
             command
                 .get_args()
-                .fold("".to_string(), |args, arg| args + &arg.to_string_lossy())
+                .map(|arg| arg.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" ")
         ));
 
         logs::write_logs(&mut handle, &logs_dir);
