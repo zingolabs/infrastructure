@@ -22,16 +22,21 @@ tonic = "0.12.2"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
 
-zcash_client_backend = { version = "0.18.0" , features = ["lightwalletd-tonic", "orchard", "transparent-inputs"] }
+zcash_client_backend = { version = "0.18.0", features = [
+    "lightwalletd-tonic",
+    "orchard",
+    "transparent-inputs",
+    "tor",
+] }
 zcash_primitives = "0.22.0"
-zcash_protocol = "0.5.1"
+zcash_protocol = "=0.5.1"
 
-zebra-chain = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.3.0" }
-zebra-node-services = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.3.0" }
-zebra-rpc = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.3.0" }
+zebra-chain = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.4.2" }
+zebra-node-services = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.4.2" }
+zebra-rpc = { git = "https://github.com/ZcashFoundation/zebra.git", tag = "v2.4.2" }
 
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.0-beta2" }
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.0-beta2" }
-testvectors = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.0-beta2" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.2" }
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.2" }
+zingo-testvectors = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.2" }
 
 zingo-infra-services = { path = "services" }
