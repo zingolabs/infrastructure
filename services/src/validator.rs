@@ -20,7 +20,7 @@ use crate::{
     config,
     error::LaunchError,
     launch, logs,
-    network::{self, Network},
+    network::{self, ActivationHeights, Network},
     Process,
 };
 
@@ -110,6 +110,9 @@ pub trait Validator: Sized {
 
     /// Validator config struct
     type Config;
+
+    /// Return activation heights
+    fn activation_heights(&self) -> ActivationHeights;
 
     /// Launch the process.
     fn launch(
@@ -212,6 +215,7 @@ pub struct Zcashd {
     /// Zcash cli binary location
     zcash_cli_bin: Option<PathBuf>,
     /// Network upgrade activation heights
+    #[getset(skip)]
     activation_heights: network::ActivationHeights,
 }
 
@@ -237,6 +241,10 @@ impl Validator for Zcashd {
     const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
 
     type Config = ZcashdConfig;
+
+    fn activation_heights(&self) -> ActivationHeights {
+        self.activation_heights
+    }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
@@ -278,7 +286,7 @@ impl Validator for Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().expect(&format!(
+        let mut handle = command.spawn().unwrap_or_else(|_| panic!(
             "{} {}",
             command.get_program().to_string_lossy(),
             command
@@ -352,7 +360,7 @@ impl Validator for Zcashd {
 
     async fn poll_chain_height(&self, target_height: BlockHeight) {
         while self.get_chain_height().await < target_height {
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(std::time::Duration::from_millis(500));
         }
     }
 
@@ -419,6 +427,7 @@ pub struct Zebrad {
     /// Data directory
     data_dir: TempDir,
     /// Network upgrade activation heights
+    #[getset(skip)]
     activation_heights: network::ActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
@@ -430,6 +439,10 @@ impl Validator for Zebrad {
     const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
 
     type Config = ZebradConfig;
+
+    fn activation_heights(&self) -> ActivationHeights {
+        self.activation_heights
+    }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = dbg!(tempfile::tempdir().unwrap());

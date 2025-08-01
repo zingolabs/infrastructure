@@ -51,6 +51,8 @@ pub struct LightwalletdConfig {
     pub listen_port: Option<Port>,
     /// Zcashd configuration file location. Required even when running non-Zcashd validators.
     pub zcashd_conf: PathBuf,
+    /// Enables darkside
+    pub darkside: bool,
 }
 
 /// Empty configuration
@@ -65,6 +67,9 @@ pub trait Indexer: Sized {
 
     /// Indexer config struct
     type Config;
+
+    /// Indexer listen port
+    fn listen_port(&self) -> Port;
 
     /// Launch the process.
     fn launch(config: Self::Config) -> Result<Self, LaunchError>;
@@ -116,6 +121,10 @@ impl Indexer for Zainod {
     const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
 
     type Config = ZainodConfig;
+
+    fn listen_port(&self) -> Port {
+        self.port
+    }
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
@@ -222,6 +231,10 @@ impl Indexer for Lightwalletd {
 
     type Config = LightwalletdConfig;
 
+    fn listen_port(&self) -> Port {
+        self.port
+    }
+
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
@@ -243,18 +256,23 @@ impl Indexer for Lightwalletd {
             Some(path) => std::process::Command::new(path),
             None => std::process::Command::new("lightwalletd"),
         };
+        let mut args = vec![
+            "--no-tls-very-insecure",
+            "--data-dir",
+            data_dir.path().to_str().unwrap(),
+            "--log-file",
+            lwd_log_file_path.to_str().unwrap(),
+            "--zcash-conf-path",
+            config.zcashd_conf.to_str().unwrap(),
+            "--config",
+            config_file_path.to_str().unwrap(),
+        ];
+        if config.darkside {
+            args.push("--darkside-very-insecure");
+        }
+
         command
-            .args([
-                "--no-tls-very-insecure",
-                "--data-dir",
-                data_dir.path().to_str().unwrap(),
-                "--log-file",
-                lwd_log_file_path.to_str().unwrap(),
-                "--zcash-conf-path",
-                config.zcashd_conf.to_str().unwrap(),
-                "--config",
-                config_file_path.to_str().unwrap(),
-            ])
+            .args(args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
@@ -315,6 +333,10 @@ impl Indexer for Empty {
     const CONFIG_FILENAME: &str = "";
 
     type Config = EmptyConfig;
+
+    fn listen_port(&self) -> Port {
+        0
+    }
 
     fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();

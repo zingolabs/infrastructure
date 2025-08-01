@@ -55,6 +55,7 @@ pub async fn generate_zebrad_large_chain_cache(
             lightwalletd_bin,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZebradConfig {
             zebrad_bin,
@@ -91,6 +92,7 @@ pub async fn generate_zcashd_chain_cache(
             lightwalletd_bin,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZcashdConfig {
             zcashd_bin,
@@ -247,6 +249,7 @@ pub async fn get_lightd_info(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -355,6 +358,7 @@ pub async fn get_latest_block(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -425,6 +429,7 @@ pub async fn get_block(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -494,6 +499,7 @@ pub async fn get_block_out_of_bounds(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -559,6 +565,7 @@ pub async fn get_block_nullifiers(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -636,6 +643,7 @@ pub async fn get_block_range_nullifiers(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -727,6 +735,7 @@ pub async fn get_block_range_nullifiers_reverse(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -818,6 +827,7 @@ pub async fn get_block_range_lower(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -909,6 +919,7 @@ pub async fn get_block_range_upper(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -999,6 +1010,7 @@ pub async fn get_block_range_reverse(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1090,6 +1102,7 @@ pub async fn get_block_range_out_of_bounds(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1206,6 +1219,7 @@ pub async fn get_transaction(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1446,6 +1460,7 @@ pub async fn get_taddress_txids_all(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1562,6 +1577,7 @@ pub async fn get_taddress_txids_lower(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1678,6 +1694,7 @@ pub async fn get_taddress_txids_upper(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1794,6 +1811,7 @@ pub async fn get_taddress_balance(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1869,6 +1887,7 @@ pub async fn get_taddress_balance_stream(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -1946,6 +1965,7 @@ pub async fn get_mempool_tx(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2094,6 +2114,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2291,6 +2312,7 @@ pub async fn get_mempool_stream(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2647,6 +2669,7 @@ pub async fn get_tree_state_by_height(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2719,6 +2742,7 @@ pub async fn get_tree_state_by_hash(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2801,6 +2825,7 @@ pub async fn get_tree_state_out_of_bounds(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2870,6 +2895,7 @@ pub async fn get_latest_tree_state(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -2958,6 +2984,7 @@ pub async fn get_subtree_roots_sapling(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
+            darkside: false,
     })
     .unwrap();
 
@@ -3062,6 +3089,7 @@ pub async fn get_subtree_roots_orchard(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
+            darkside: false,
     })
     .unwrap();
 
@@ -3144,6 +3172,7 @@ pub async fn get_address_utxos_all(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3221,6 +3250,7 @@ pub async fn get_address_utxos_lower(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3299,6 +3329,7 @@ pub async fn get_address_utxos_upper(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3377,6 +3408,7 @@ pub async fn get_address_utxos_out_of_bounds(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3454,6 +3486,7 @@ pub async fn get_address_utxos_stream_all(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3539,6 +3572,7 @@ pub async fn get_address_utxos_stream_lower(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3625,6 +3659,7 @@ pub async fn get_address_utxos_stream_upper(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 
@@ -3711,6 +3746,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zcashd.config_path(),
+            darkside: false,
     })
     .unwrap();
 

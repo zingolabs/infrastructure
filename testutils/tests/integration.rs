@@ -9,7 +9,7 @@ use zingo_infra_testutils::client;
 
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network, utils,
+    network::{self, ActivationHeights}, utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
@@ -34,6 +34,34 @@ async fn launch_zcashd() {
     })
     .await
     .unwrap();
+    zcashd.print_stdout();
+    zcashd.print_stderr();
+}
+
+#[tokio::test]
+async fn launch_zcashd_custom_activation_heights() {
+    tracing_subscriber::fmt().init();
+
+        let activation_heights = ActivationHeights {
+            overwinter: 1.into(),
+            sapling: 1.into(),
+            blossom: 1.into(),
+            heartwood: 1.into(),
+            canopy: 3.into(),
+            nu5: 5.into(),
+            nu6: 7.into(),
+        };
+    let zcashd = Zcashd::launch(ZcashdConfig {
+        zcashd_bin: ZCASHD_BIN,
+        zcash_cli_bin: ZCASH_CLI_BIN,
+        rpc_listen_port: None,
+        activation_heights,
+        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+        chain_cache: None,
+    })
+    .await
+    .unwrap();
+    zcashd.generate_blocks(8).await.unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
 }
@@ -150,6 +178,7 @@ async fn launch_localnet_lightwalletd_zcashd() {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
@@ -178,6 +207,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
@@ -338,6 +368,7 @@ async fn lightwalletd_zcashd_basic_send() {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZcashdConfig {
             zcashd_bin: ZCASHD_BIN,
@@ -394,6 +425,7 @@ async fn lightwalletd_zebrad_basic_send() {
             lightwalletd_bin: LIGHTWALLETD_BIN,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
+            darkside: false,
         },
         ZebradConfig {
             zebrad_bin: ZEBRAD_BIN,
