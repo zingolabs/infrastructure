@@ -91,6 +91,7 @@ pub(crate) fn zebrad(
     cache_dir: PathBuf,
     network_listen_port: Port,
     rpc_listen_port: Port,
+    indexer_listen_port: Port,
     activation_heights: &ActivationHeights,
     miner_address: &str,
     network: Network,
@@ -145,6 +146,7 @@ debug_force_finished_sync = false
 enable_cookie_auth = false
 parallel_cpu_threads = 0
 listen_addr = \"127.0.0.1:{rpc_listen_port}\"
+indexer_listen_addr = \"127.0.0.1:{indexer_listen_port}\"
 
 [state]
 cache_dir = \"{chain_cache}\"
@@ -162,6 +164,8 @@ parallel_cpu_threads = 0
 buffer_limit = 128000
 force_use_color = false
 use_color = true
+#log_file = \"/home/aloe/.zebradtemplogfile\"
+filter = \"debug\"
 use_journald = false"
         )
         .as_bytes(),
@@ -172,11 +176,16 @@ use_journald = false"
             format!(
                 "\n\n\
 [mining]
-debug_like_zcashd = true
 miner_address = \"{miner_address}\"
 
 [network.testnet_parameters]
 disable_pow = true
+network_name = \"Regtest\"
+network_magic = [170, 232, 63, 95]
+slow_start_interval = 0
+target_difficulty_limit = \"0f0f0f0000000000000000000000000000000000000000000000000000000000\"
+genesis_hash = \"029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327\"
+pre_blossom_halving_interval = 144
 
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
@@ -187,13 +196,6 @@ NU6 = {nu6_activation_height}"
             .as_bytes(),
         )?;
     } else {
-        config_file.write_all(
-            "\n\n\
-[mining]
-debug_like_zcashd = true"
-                .to_string()
-                .as_bytes(),
-        )?;
     }
 
     Ok(config_file_path)
@@ -233,11 +235,11 @@ grpc_tls = false
 
 # Path to the TLS certificate file in PEM format.
 # Required if `tls` is true.
-tls_cert_path = \"None\"
+# tls_cert_path = \"None\"
 
 # Path to the TLS private key file in PEM format.
 # Required if `tls` is true.
-tls_key_path = \"None\"
+# tls_key_path = \"None\"
 
 
 
@@ -254,7 +256,7 @@ validator_listen_address = \"localhost:{validator_port}\"
 validator_cookie_auth = false
 
 # Path to the validator cookie file.
-validator_cookie_path = \"None\"
+# validator_cookie_path = \"None\"
 
 # Optional full node / validator Username.
 validator_user = \"xxxxxx\"
@@ -270,7 +272,7 @@ validator_password = \"xxxxxx\"
 # Also use by the BlockCache::NonFinalisedState when using the FetchService.
 #
 # None by default.
-map_capacity = \"None\"
+# map_capacity = \"None\"
 
 # Number of shard used in the DashMap used for the Mempool.
 # Also use by the BlockCache::NonFinalisedState when using the FetchService.
@@ -279,7 +281,7 @@ map_capacity = \"None\"
 # If a shard_amount which is not a power of two is provided, the function will panic.
 #
 # None by default.
-map_shard_amount = \"None\"
+# map_shard_amount = \"None\"
 
 # Block Cache database file path.
 #
@@ -293,7 +295,7 @@ db_path = \"{chain_cache}\"
 # Only used by the FetchService.
 #
 # None by default
-db_size = \"None\"
+# db_size = \"None\"
 
 
 
@@ -455,7 +457,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
     fn zainod() {
         let config_dir = tempfile::tempdir().unwrap();
         let cache_dir = tempfile::tempdir().unwrap();
-        let zaino_cache_dir = cache_dir.path().to_path_buf();
+        let zaino_cache_dir = cache_dir.keep();
         let zaino_test_dir = zaino_cache_dir.join("zaino");
         let zaino_test_path = zaino_test_dir.to_str().unwrap();
 

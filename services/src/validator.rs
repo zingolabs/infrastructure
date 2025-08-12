@@ -72,8 +72,10 @@ pub struct ZebradConfig {
     pub zebrad_bin: Option<PathBuf>,
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
-    /// Zebrad RPC listen port
+    /// Zebrad JSON-RPC listen port
     pub rpc_listen_port: Option<Port>,
+    /// Zebrad gRPC listen port
+    pub indexer_listen_port: Option<Port>,
     /// Local network upgrade activation heights
     pub activation_heights: network::ActivationHeights,
     /// Miner address
@@ -90,6 +92,7 @@ impl Default for ZebradConfig {
             zebrad_bin: None,
             network_listen_port: None,
             rpc_listen_port: None,
+            indexer_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
@@ -440,7 +443,7 @@ impl Validator for Zebrad {
     }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
-        let logs_dir = tempfile::tempdir().unwrap();
+        let logs_dir = dbg!(tempfile::tempdir().unwrap());
         let data_dir = tempfile::tempdir().unwrap();
 
         if !matches!(config.network, Network::Regtest) && config.chain_cache.is_none() {
@@ -456,12 +459,14 @@ impl Validator for Zebrad {
 
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
+        let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zebrad(
             config_dir.path().to_path_buf(),
             cache_dir,
             network_listen_port,
             rpc_listen_port,
+            indexer_listen_port,
             &config.activation_heights,
             config.miner_address,
             config.network,
@@ -501,9 +506,26 @@ impl Validator for Zebrad {
             &mut handle,
             &logs_dir,
             None,
-            &["Release always valid in Testnet", "starting sync"],
-            &["error:"],
-            &["error: \"failed to lookup address information: Temporary failure in name resolution\""]
+            &[
+                "zebra_rpc::server: Opened RPC endpoint at ",
+                "zebra_rpc::indexer::server: Opened RPC endpoint at ",
+                "spawned initial Zebra tasks",
+            ],
+            &[
+                " panicked at",
+                "ERROR ",
+                "fatal",
+                "failed to ",
+                "unable to ",
+                "Aborting",
+                " backtrace:",
+            ],
+            &[
+                // exclude benign noise that often shows up during bootstrap:
+                "DNS error resolving peer IP addresses",
+                "Seed peer DNS resolution failed",
+                "warning: some trace filter directives would enable traces that are disabled statically",
+            ],
         )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
 
