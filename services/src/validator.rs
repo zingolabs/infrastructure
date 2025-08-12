@@ -508,9 +508,26 @@ impl Validator for Zebrad {
             &mut handle,
             &logs_dir,
             None,
-            &["Release always valid in Testnet", "starting sync"],
-            &["error:"],
-            &["error: \"failed to lookup address information: Temporary failure in name resolution\""]
+            &[
+                "zebra_rpc::server: Opened RPC endpoint at ",
+                "zebra_rpc::indexer::server: Opened RPC endpoint at ",
+                "spawned initial Zebra tasks",
+            ],
+            &[
+                " panicked at",
+                "ERROR ",
+                "fatal",
+                "failed to ",
+                "unable to ",
+                "Aborting",
+                " backtrace:",
+            ],
+            &[
+                // exclude benign noise that often shows up during bootstrap:
+                "DNS error resolving peer IP addresses",
+                "Seed peer DNS resolution failed",
+                "warning: some trace filter directives would enable traces that are disabled statically",
+            ],
         )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
 
