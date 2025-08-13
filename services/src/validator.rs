@@ -443,7 +443,7 @@ impl Validator for Zebrad {
     }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
-        let logs_dir = dbg!(tempfile::tempdir().unwrap());
+        let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
         if !matches!(config.network, Network::Regtest) && config.chain_cache.is_none() {
