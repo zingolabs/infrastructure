@@ -185,24 +185,24 @@ use_journald = false"
 miner_address = \"{miner_address}\"
 
 [network.testnet_parameters]
-disable_pow = true
-network_name = \"Regtest\"
-network_magic = [170, 232, 63, 95]
-slow_start_interval = 0
-target_difficulty_limit = \"0f0f0f0000000000000000000000000000000000000000000000000000000000\"
-genesis_hash = \"029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327\"
-pre_blossom_halving_interval = 144
+# disable_pow = true
+# network_name = \"Regtest\"
+# network_magic = [170, 232, 63, 95]
+# slow_start_interval = 0
+# target_difficulty_limit = \"0f0f0f0000000000000000000000000000000000000000000000000000000000\"
+# genesis_hash = \"029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327\"
+# pre_blossom_halving_interval = 144
 
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
 # block height 0 is reserved for the Genesis network upgrade in Zebra
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
-BeforeOverwinter = 1
-Overwinter = {overwinter_activation_height}
-Sapling = {sapling_activation_height}
-Blossom = {blossom_activation_height}
-Heartwood = {heartwood_activation_height}
-Canopy = {canopy_activation_height}
+# BeforeOverwinter = 1
+# Overwinter = {overwinter_activation_height}
+# Sapling = {sapling_activation_height}
+# Blossom = {blossom_activation_height}
+# Heartwood = {heartwood_activation_height}
+# Canopy = {canopy_activation_height}
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}"
             )
