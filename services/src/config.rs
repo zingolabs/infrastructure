@@ -500,11 +500,11 @@ grpc_tls = false
 
 # Path to the TLS certificate file in PEM format.
 # Required if `tls` is true.
-tls_cert_path = \"None\"
+# tls_cert_path = \"None\"
 
 # Path to the TLS private key file in PEM format.
 # Required if `tls` is true.
-tls_key_path = \"None\"
+# tls_key_path = \"None\"
 
 
 
@@ -521,7 +521,7 @@ validator_listen_address = \"localhost:18232\"
 validator_cookie_auth = false
 
 # Path to the validator cookie file.
-validator_cookie_path = \"None\"
+# validator_cookie_path = \"None\"
 
 # Optional full node / validator Username.
 validator_user = \"xxxxxx\"
@@ -537,7 +537,7 @@ validator_password = \"xxxxxx\"
 # Also use by the BlockCache::NonFinalisedState when using the FetchService.
 #
 # None by default.
-map_capacity = \"None\"
+# map_capacity = \"None\"
 
 # Number of shard used in the DashMap used for the Mempool.
 # Also use by the BlockCache::NonFinalisedState when using the FetchService.
@@ -546,7 +546,7 @@ map_capacity = \"None\"
 # If a shard_amount which is not a power of two is provided, the function will panic.
 #
 # None by default.
-map_shard_amount = \"None\"
+# map_shard_amount = \"None\"
 
 # Block Cache database file path.
 #
@@ -560,7 +560,7 @@ db_path = \"{zaino_test_path}\"
 # Only used by the FetchService.
 #
 # None by default
-db_size = \"None\"
+# db_size = \"None\"
 
 
 
