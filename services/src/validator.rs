@@ -10,11 +10,9 @@ use zcash_protocol::consensus::BlockHeight;
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::{parameters::NetworkUpgrade, serialization::ZcashSerialize as _};
+use zebra_chain::{parameters::testnet::ConfiguredActivationHeights, serialization::ZcashSerialize as _};
 use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::methods::get_block_template_rpcs::get_block_template::{
-    proposal::TimeSource, proposal_block_from_template, GetBlockTemplate,
-};
+use zebra_rpc::{client::{BlockTemplateResponse, BlockTemplateTimeSource}, proposal_block_from_template};
 
 use crate::{
     config,
@@ -447,7 +445,7 @@ impl Validator for Zebrad {
     }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
-        let logs_dir = dbg!(tempfile::tempdir().unwrap());
+        let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
         if !matches!(config.network, Network::Regtest) && config.chain_cache.is_none() {
@@ -565,25 +563,19 @@ impl Validator for Zebrad {
         let chain_height = self.get_chain_height().await;
 
         for _ in 0..n {
-            let block_template: GetBlockTemplate = self
+            let block_template: BlockTemplateResponse = self
                 .client
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network_upgrade = if block_template.height < self.activation_heights().nu5.into() {
-                NetworkUpgrade::Canopy
-            } else if block_template.height < self.activation_heights().nu6.into() {
-                NetworkUpgrade::Nu5
-            } else {
-                NetworkUpgrade::Nu6
-            };
+            let network = zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights { before_overwinter: Some(1), overwinter: Some(self.activation_heights.overwinter.into()), sapling: Some(self.activation_heights.sapling.into()), blossom: Some(self.activation_heights.blossom.into()), heartwood: Some(self.activation_heights.heartwood.into()), canopy: Some(self.activation_heights.canopy.into()), nu5: Some(self.activation_heights.nu5.into()), nu6: Some(self.activation_heights.nu6.into()), nu6_1:  None,nu7:  None});
 
             let block_data = hex::encode(
                 proposal_block_from_template(
                     &block_template,
-                    TimeSource::default(),
-                    network_upgrade,
+                    BlockTemplateTimeSource::default(),
+                    &network,
                 )
                 .unwrap()
                 .zcash_serialize_to_vec()

@@ -86,6 +86,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 /// Returns the path to the config file.
 ///
 /// Canopy (and all earlier network upgrades) must have an activation height of 1 for zebrad regtest mode
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn zebrad(
     config_dir: PathBuf,
     cache_dir: PathBuf,
@@ -102,6 +103,11 @@ pub(crate) fn zebrad(
     if activation_heights.canopy != 1.into() {
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
+    // let overwinter_activation_height: u32 = activation_heights.overwinter.into();
+    // let sapling_activation_height: u32 = activation_heights.sapling.into();
+    // let blossom_activation_height: u32 = activation_heights.blossom.into();
+    // let heartwood_activation_height: u32 = activation_heights.heartwood.into();
+    // let canopy_activation_height: u32 = activation_heights.canopy.into();
     let nu5_activation_height: u32 = activation_heights.nu5.into();
     let nu6_activation_height: u32 = activation_heights.nu6.into();
 
@@ -178,24 +184,16 @@ use_journald = false"
 [mining]
 miner_address = \"{miner_address}\"
 
-[network.testnet_parameters]
-disable_pow = true
-network_name = \"Regtest\"
-network_magic = [170, 232, 63, 95]
-slow_start_interval = 0
-target_difficulty_limit = \"0f0f0f0000000000000000000000000000000000000000000000000000000000\"
-genesis_hash = \"029f11d80ef9765602235e1bc9727e3eb6ba20839319f761fee920d63401e327\"
-pre_blossom_halving_interval = 144
-
 [network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
 # block height 0 is reserved for the Genesis network upgrade in Zebra
+# pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
+Canopy = 1
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}"
             )
             .as_bytes(),
         )?;
-    } else {
     }
 
     Ok(config_file_path)
