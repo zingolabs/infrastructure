@@ -9,7 +9,8 @@ use zingo_infra_testutils::client;
 
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network::{self, ActivationHeights}, utils,
+    network::{self, ActivationHeights},
+    utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
@@ -42,15 +43,15 @@ async fn launch_zcashd() {
 async fn launch_zcashd_custom_activation_heights() {
     tracing_subscriber::fmt().init();
 
-        let activation_heights = ActivationHeights {
-            overwinter: 1.into(),
-            sapling: 1.into(),
-            blossom: 1.into(),
-            heartwood: 1.into(),
-            canopy: 3.into(),
-            nu5: 5.into(),
-            nu6: 7.into(),
-        };
+    let activation_heights = ActivationHeights {
+        overwinter: 1.into(),
+        sapling: 1.into(),
+        blossom: 1.into(),
+        heartwood: 1.into(),
+        canopy: 3.into(),
+        nu5: 5.into(),
+        nu6: 7.into(),
+    };
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin: ZCASHD_BIN,
         zcash_cli_bin: ZCASH_CLI_BIN,

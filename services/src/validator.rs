@@ -10,9 +10,14 @@ use zcash_protocol::consensus::BlockHeight;
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::{parameters::testnet::ConfiguredActivationHeights, serialization::ZcashSerialize as _};
+use zebra_chain::{
+    parameters::testnet::ConfiguredActivationHeights, serialization::ZcashSerialize as _,
+};
 use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{client::{BlockTemplateResponse, BlockTemplateTimeSource}, proposal_block_from_template};
+use zebra_rpc::{
+    client::{BlockTemplateResponse, BlockTemplateTimeSource},
+    proposal_block_from_template,
+};
 
 use crate::{
     config,
@@ -284,15 +289,17 @@ impl Validator for Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|_| panic!(
-            "{} {}",
-            command.get_program().to_string_lossy(),
-            command
-                .get_args()
-                .map(|arg| arg.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ")
-        ));
+        let mut handle = command.spawn().unwrap_or_else(|_| {
+            panic!(
+                "{} {}",
+                command.get_program().to_string_lossy(),
+                command
+                    .get_args()
+                    .map(|arg| arg.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        });
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
@@ -569,7 +576,19 @@ impl Validator for Zebrad {
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights { before_overwinter: Some(1), overwinter: Some(self.activation_heights.overwinter.into()), sapling: Some(self.activation_heights.sapling.into()), blossom: Some(self.activation_heights.blossom.into()), heartwood: Some(self.activation_heights.heartwood.into()), canopy: Some(self.activation_heights.canopy.into()), nu5: Some(self.activation_heights.nu5.into()), nu6: Some(self.activation_heights.nu6.into()), nu6_1:  None,nu7:  None});
+            let network =
+                zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
+                    before_overwinter: Some(1),
+                    overwinter: Some(self.activation_heights.overwinter.into()),
+                    sapling: Some(self.activation_heights.sapling.into()),
+                    blossom: Some(self.activation_heights.blossom.into()),
+                    heartwood: Some(self.activation_heights.heartwood.into()),
+                    canopy: Some(self.activation_heights.canopy.into()),
+                    nu5: Some(self.activation_heights.nu5.into()),
+                    nu6: Some(self.activation_heights.nu6.into()),
+                    nu6_1: None,
+                    nu7: None,
+                });
 
             let block_data = hex::encode(
                 proposal_block_from_template(
