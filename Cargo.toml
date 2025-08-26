@@ -1,6 +1,8 @@
 [workspace]
-members = ["services", "testutils"]
-default-members = ["services"]
+members = [
+  "services",
+  "testutils",
+  ]
 resolver = "2"
 
 [workspace.dependencies]
@@ -20,13 +22,9 @@ tonic = "0.12.2"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
 
-zcash_client_backend = { git = "https://github.com/zcash/librustzcash.git", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
-  "lightwalletd-tonic",
-  "orchard",
-  "transparent-inputs",
-] }
-zcash_primitives = { git = "https://github.com/zcash/librustzcash.git", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
-zcash_protocol = { git = "https://github.com/zcash/librustzcash.git", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
+zcash_client_backend = { version = "0.18.0" , features = ["lightwalletd-tonic", "orchard", "transparent-inputs"] }
+zcash_primitives = "0.22.0"
+zcash_protocol = "0.5.1"
 
 zebra-chain = { git = "https://github.com/ZcashFoundation/zebra.git", rev = "0893e1a7f499cadad1d9480216b3057dfd7900c7" }
 zebra-node-services = { git = "https://github.com/ZcashFoundation/zebra.git", rev = "0893e1a7f499cadad1d9480216b3057dfd7900c7" }
