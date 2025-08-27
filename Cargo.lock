@@ -1023,6 +1023,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "env_home"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7f84e12ccf0a7ddc17a6c41c93326024c42920d7ee630d04950e6926645c0fe"
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4335,7 +4341,8 @@ dependencies = [
 [[package]]
 name = "tower-batch-control"
 version = "0.2.41"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6823ca72ad0d8ebf40ddfe11c104f0ccb242befb7fd3bc20c33b6798a31eba"
 dependencies = [
  "futures",
  "futures-core",
@@ -4351,7 +4358,8 @@ dependencies = [
 [[package]]
 name = "tower-fallback"
 version = "0.2.41"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4434e19ee996ee5c6aa42f11463a355138452592e5c5b5b73b6f0f19534556af"
 dependencies = [
  "futures-core",
  "pin-project",
@@ -4833,6 +4841,17 @@ dependencies = [
  "either",
  "home",
  "rustix 0.38.44",
+ "winsafe",
+]
+
+[[package]]
+name = "which"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fabb953106c3c8eea8306e4393700d7657561cb43122571b172bbfb7c7ba1d"
+dependencies = [
+ "env_home",
+ "rustix 1.0.7",
  "winsafe",
 ]
 
@@ -5634,7 +5653,8 @@ dependencies = [
 [[package]]
 name = "zebra-chain"
 version = "2.0.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17a86ec712da2f25d3edc7e5cf0b1d15ef41ab35305e253f0f7cd9cecc0f1939"
 dependencies = [
  "bech32",
  "bitflags",
@@ -5692,7 +5712,8 @@ dependencies = [
 [[package]]
 name = "zebra-consensus"
 version = "2.0.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19a44698a96b007f00da9a2e4c4cdee6c5adfc22996bdeb06ccc781b96d597c0"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -5729,7 +5750,8 @@ dependencies = [
 [[package]]
 name = "zebra-network"
 version = "1.1.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0230d1e515518e0ef33ca668f3abb98e364485f384f7ee101506ec64bca7e7d3"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -5765,7 +5787,8 @@ dependencies = [
 [[package]]
 name = "zebra-node-services"
 version = "1.0.1"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c808614a9d245ae8d6d3177c06a8c78c2a8566219b090d6a85dc46f4364eadad"
 dependencies = [
  "color-eyre",
  "jsonrpsee-types",
@@ -5778,8 +5801,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-rpc"
-version = "2.0.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1ae56eb3c668366a751621f40e1c0569c32ae92467ec1f8bac5b755db308126"
 dependencies = [
  "base64",
  "chrono",
@@ -5808,6 +5832,7 @@ dependencies = [
  "tonic-reflection",
  "tower 0.4.13",
  "tracing",
+ "which 8.0.0",
  "zcash_address 0.9.0",
  "zcash_keys 0.10.1",
  "zcash_primitives 0.24.0",
@@ -5824,7 +5849,8 @@ dependencies = [
 [[package]]
 name = "zebra-script"
 version = "2.0.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76a2e972e414caa3635b8c2d21f20c21a71c69f76b37bf7419d97ed0c2277e7"
 dependencies = [
  "thiserror 2.0.12",
  "zcash_primitives 0.24.0",
@@ -5835,7 +5861,8 @@ dependencies = [
 [[package]]
 name = "zebra-state"
 version = "2.0.0"
-source = "git+https://github.com/ZcashFoundation/zebra.git?tag=v2.5.0#d1a3c7417bcf01f18d5a9d93f8c8ba037b563a49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "129b32692f22207719dd1c5ddcbae59b96a322e2329664787f6247acef78c7f3"
 dependencies = [
  "bincode",
  "chrono",
