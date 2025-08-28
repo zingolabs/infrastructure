@@ -20,11 +20,15 @@
 //! }
 //! ```
 
+use lightwallet_protocol::{
+    Address, AddressList, BlockId, BlockRange, ChainSpec, CompactBlock, Empty, Exclude,
+    GetAddressUtxosArg, GetSubtreeRootsArg, RawTransaction, TransparentAddressBlockFilter,
+    TxFilter,
+};
 use std::path::PathBuf;
 
 use testvectors::REG_O_ADDR_FROM_ABANDONART;
 use tokio::sync::mpsc::unbounded_channel;
-use zcash_client_backend::proto::{self, compact_formats::CompactBlock};
 use zcash_primitives::transaction::Transaction;
 use zcash_protocol::{
     consensus::{BlockHeight, BranchId},
@@ -257,7 +261,7 @@ pub async fn get_lightd_info(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::Empty {});
+    let request = tonic::Request::new(Empty {});
     let zainod_response = zainod_client
         .get_lightd_info(request)
         .await
@@ -267,7 +271,7 @@ pub async fn get_lightd_info(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::Empty {});
+    let request = tonic::Request::new(Empty {});
     let lwd_response = lwd_client
         .get_lightd_info(request)
         .await
@@ -368,7 +372,7 @@ pub async fn get_latest_block(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::ChainSpec {});
+    let request = tonic::Request::new(ChainSpec {});
     let zainod_response = zainod_client
         .get_latest_block(request)
         .await
@@ -378,7 +382,7 @@ pub async fn get_latest_block(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::ChainSpec {});
+    let request = tonic::Request::new(ChainSpec {});
     let mut lwd_response = lwd_client
         .get_latest_block(request)
         .await
@@ -436,7 +440,7 @@ pub async fn get_block(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 5,
         hash: vec![],
     };
@@ -506,7 +510,7 @@ pub async fn get_block_out_of_bounds(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 20,
         hash: vec![],
     };
@@ -572,7 +576,7 @@ pub async fn get_block_nullifiers(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 5,
         hash: vec![],
     };
@@ -650,12 +654,12 @@ pub async fn get_block_range_nullifiers(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 1,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 6,
             hash: vec![],
         }),
@@ -742,12 +746,12 @@ pub async fn get_block_range_nullifiers_reverse(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 10,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 4,
             hash: vec![],
         }),
@@ -834,12 +838,12 @@ pub async fn get_block_range_lower(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 1,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 6,
             hash: vec![],
         }),
@@ -926,12 +930,12 @@ pub async fn get_block_range_upper(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 4,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 10,
             hash: vec![],
         }),
@@ -1017,12 +1021,12 @@ pub async fn get_block_range_reverse(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 10,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 1,
             hash: vec![],
         }),
@@ -1109,12 +1113,12 @@ pub async fn get_block_range_out_of_bounds(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 4,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 20,
             hash: vec![],
         }),
@@ -1239,7 +1243,7 @@ pub async fn get_transaction(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let tx_filter = proto::service::TxFilter {
+    let tx_filter = TxFilter {
         block: None,
         index: 0,
         hash: txids.first().as_ref().to_vec(),
@@ -1328,7 +1332,7 @@ pub async fn send_transaction(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let tx_filter = proto::service::TxFilter {
+    let tx_filter = TxFilter {
         block: None,
         index: 0,
         hash: txids.first().as_ref().to_vec(),
@@ -1384,7 +1388,7 @@ pub async fn send_transaction(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let tx_filter = proto::service::TxFilter {
+    let tx_filter = TxFilter {
         block: None,
         index: 0,
         hash: txids.first().as_ref().to_vec(),
@@ -1469,18 +1473,18 @@ pub async fn get_taddress_txids_all(
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 1,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 10,
             hash: vec![],
         }),
     };
 
-    let taddr_block_filter = proto::service::TransparentAddressBlockFilter {
+    let taddr_block_filter = TransparentAddressBlockFilter {
         address: "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
         range: Some(block_range),
     };
@@ -1586,18 +1590,18 @@ pub async fn get_taddress_txids_lower(
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 1,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 4,
             hash: vec![],
         }),
     };
 
-    let taddr_block_filter = proto::service::TransparentAddressBlockFilter {
+    let taddr_block_filter = TransparentAddressBlockFilter {
         address: "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
         range: Some(block_range),
     };
@@ -1703,18 +1707,18 @@ pub async fn get_taddress_txids_upper(
 
     let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
 
-    let block_range = proto::service::BlockRange {
-        start: Some(proto::service::BlockId {
+    let block_range = BlockRange {
+        start: Some(BlockId {
             height: 5,
             hash: vec![],
         }),
-        end: Some(proto::service::BlockId {
+        end: Some(BlockId {
             height: 10,
             hash: vec![],
         }),
     };
 
-    let taddr_block_filter = proto::service::TransparentAddressBlockFilter {
+    let taddr_block_filter = TransparentAddressBlockFilter {
         address: "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
         range: Some(block_range),
     };
@@ -1818,7 +1822,7 @@ pub async fn get_taddress_balance(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_list = proto::service::AddressList {
+    let address_list = AddressList {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -1895,10 +1899,10 @@ pub async fn get_taddress_balance_stream(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     let address_list = vec![
-        proto::service::Address {
+        Address {
             address: "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
         },
-        proto::service::Address {
+        Address {
             address: "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
         },
     ];
@@ -2028,7 +2032,7 @@ pub async fn get_mempool_tx(
     let mut full_txid_4 = txids_4.first().as_ref().to_vec();
     let truncated_txid_4 = full_txid_4.drain(16..).collect();
 
-    let exclude_list = proto::service::Exclude {
+    let exclude_list = Exclude {
         txid: vec![full_txid_2, truncated_txid_4],
     };
 
@@ -2320,15 +2324,14 @@ pub async fn get_mempool_stream(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // start mempool tasks
-    let (zainod_sender, mut zainod_receiver) =
-        unbounded_channel::<proto::service::RawTransaction>();
+    let (zainod_sender, mut zainod_receiver) = unbounded_channel::<RawTransaction>();
     let zainod_port = zainod.port();
     let _zainod_handle = tokio::spawn(async move {
         let mut zainod_client = client::build_client(network::localhost_uri(zainod_port))
             .await
             .unwrap();
         loop {
-            let request = tonic::Request::new(proto::service::Empty {});
+            let request = tonic::Request::new(Empty {});
             let mut zainod_response = zainod_client
                 .get_mempool_stream(request)
                 .await
@@ -2341,14 +2344,14 @@ pub async fn get_mempool_stream(
         }
     });
 
-    let (lwd_sender, mut lwd_receiver) = unbounded_channel::<proto::service::RawTransaction>();
+    let (lwd_sender, mut lwd_receiver) = unbounded_channel::<RawTransaction>();
     let lwd_port = lightwalletd.port();
     let _lwd_handle = tokio::spawn(async move {
         let mut lwd_client = client::build_client(network::localhost_uri(lwd_port))
             .await
             .unwrap();
         loop {
-            let request = tonic::Request::new(proto::service::Empty {});
+            let request = tonic::Request::new(Empty {});
             let mut lwd_response = lwd_client
                 .get_mempool_stream(request)
                 .await
@@ -2676,7 +2679,7 @@ pub async fn get_tree_state_by_height(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 5,
         hash: vec![],
     };
@@ -2749,7 +2752,7 @@ pub async fn get_tree_state_by_hash(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 5,
         hash: vec![],
     };
@@ -2759,10 +2762,10 @@ pub async fn get_tree_state_by_hash(
         .unwrap();
     let request = tonic::Request::new(block_id.clone());
     let block = lwd_client.get_block(request).await.unwrap().into_inner();
-    let mut block_hash = block.hash().0.to_vec();
+    let mut block_hash = block.hash.clone();
     block_hash.reverse();
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 0,
         hash: block_hash,
     };
@@ -2832,7 +2835,7 @@ pub async fn get_tree_state_out_of_bounds(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let block_id = proto::service::BlockId {
+    let block_id = BlockId {
         height: 20,
         hash: vec![],
     };
@@ -2908,7 +2911,7 @@ pub async fn get_latest_tree_state(
     let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::Empty {});
+    let request = tonic::Request::new(Empty {});
     let zainod_response = zainod_client
         .get_latest_tree_state(request)
         .await
@@ -2918,7 +2921,7 @@ pub async fn get_latest_tree_state(
     let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
         .await
         .unwrap();
-    let request = tonic::Request::new(proto::service::Empty {});
+    let request = tonic::Request::new(Empty {});
     let lwd_response = lwd_client
         .get_latest_tree_state(request)
         .await
@@ -2992,7 +2995,7 @@ pub async fn get_subtree_roots_sapling(
     })
     .unwrap();
 
-    let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
+    let subtree_roots_arg = GetSubtreeRootsArg {
         start_index: 0,
         shielded_protocol: 0,
         max_entries: 0,
@@ -3097,7 +3100,7 @@ pub async fn get_subtree_roots_orchard(
     })
     .unwrap();
 
-    let subtree_roots_arg = proto::service::GetSubtreeRootsArg {
+    let subtree_roots_arg = GetSubtreeRootsArg {
         start_index: 0,
         shielded_protocol: 1,
         max_entries: 0,
@@ -3182,7 +3185,7 @@ pub async fn get_address_utxos_all(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3260,7 +3263,7 @@ pub async fn get_address_utxos_lower(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3339,7 +3342,7 @@ pub async fn get_address_utxos_upper(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3418,7 +3421,7 @@ pub async fn get_address_utxos_out_of_bounds(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3496,7 +3499,7 @@ pub async fn get_address_utxos_stream_all(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3582,7 +3585,7 @@ pub async fn get_address_utxos_stream_lower(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3669,7 +3672,7 @@ pub async fn get_address_utxos_stream_upper(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
@@ -3756,7 +3759,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let address_utxos_arg = proto::service::GetAddressUtxosArg {
+    let address_utxos_arg = GetAddressUtxosArg {
         addresses: vec![
             "tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i".to_string(),
             "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd".to_string(),
