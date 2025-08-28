@@ -12,10 +12,11 @@ github = { repository = "zingolabs/infrastructure/testutils" }
 zingo-infra-services = { workspace = true }
 # Zingo
 zingo-netutils = { workspace = true }
+tower_service = { workspace = true }
+lightwallet-protocol = { workspace = true }
 zingolib = { workspace = true, features = ["test-elevation"] }
 testvectors = { workspace = true }
 #Zcash
-zcash_client_backend = { workspace = true }
 zcash_protocol = { workspace = true }
 zcash_primitives = { workspace = true }
 #Community

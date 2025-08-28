@@ -2,11 +2,12 @@
 
 use std::path::PathBuf;
 
+use lightwallet_protocol::CompactTxStreamerClient;
 use portpicker::Port;
 use testvectors::seeds;
-use zcash_client_backend::proto::service::compact_tx_streamer_client::CompactTxStreamerClient;
+use tower_service::UnderlyingService;
 use zingo_infra_services::network;
-use zingo_netutils::{GetClientError, GrpcConnector, UnderlyingService};
+use zingo_netutils::{GetClientError, GrpcConnector};
 use zingolib::{
     config::RegtestNetwork, lightclient::LightClient, testutils::scenarios::setup::ClientBuilder,
 };

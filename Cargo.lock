@@ -2122,6 +2122,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lightwallet-protocol"
+version = "0.1.0"
+source = "git+https://github.com/zingolabs/lightwallet-protocol-rust.git?branch=main#7343f4e095aed8d0f4dbb5057a4e313ee2c22e60"
+dependencies = [
+ "prost",
+ "tonic",
+ "tonic-build",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2668,7 +2678,7 @@ dependencies = [
  "zcash_protocol 0.5.1",
  "zcash_transparent 0.2.3",
  "zingo-memo",
- "zingo-netutils",
+ "zingo-netutils 0.1.0",
  "zingo-status",
  "zip32",
 ]
@@ -4380,6 +4390,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
+name = "tower_service"
+version = "0.1.0"
+source = "git+https://github.com/zingolabs/zingolib.git?branch=dev#f4705a0f0c92767fc50f991e98d2cebefb206831"
+dependencies = [
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "prost",
+ "tonic",
+ "tower 0.5.2",
+]
+
+[[package]]
 name = "tracing"
 version = "0.1.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6014,18 +6038,19 @@ name = "zingo-infra-testutils"
 version = "0.1.0"
 dependencies = [
  "http",
+ "lightwallet-protocol",
  "portpicker",
  "tempfile",
  "testvectors",
  "tokio",
  "tokio-stream",
  "tonic",
+ "tower_service",
  "tracing-subscriber",
- "zcash_client_backend",
  "zcash_primitives 0.22.0",
  "zcash_protocol 0.5.1",
  "zingo-infra-services",
- "zingo-netutils",
+ "zingo-netutils 0.0.1",
  "zingolib",
 ]
 
@@ -6039,6 +6064,27 @@ dependencies = [
  "zcash_encoding",
  "zcash_keys 0.8.1",
  "zcash_primitives 0.22.0",
+]
+
+[[package]]
+name = "zingo-netutils"
+version = "0.0.1"
+source = "git+https://github.com/zingolabs/zingolib.git?branch=dev#f4705a0f0c92767fc50f991e98d2cebefb206831"
+dependencies = [
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "lightwallet-protocol",
+ "prost",
+ "thiserror 2.0.12",
+ "tokio-rustls",
+ "tonic",
+ "tower 0.5.2",
+ "tower_service",
+ "webpki-roots 0.25.4",
 ]
 
 [[package]]
@@ -6125,7 +6171,7 @@ dependencies = [
  "zcash_protocol 0.5.1",
  "zcash_transparent 0.2.3",
  "zingo-memo",
- "zingo-netutils",
+ "zingo-netutils 0.1.0",
  "zingo-status",
  "zip32",
 ]
