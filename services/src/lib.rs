@@ -52,11 +52,13 @@ use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
-enum Process {
+#[allow(missing_docs)]
+pub enum Process {
     Zcashd,
     Zebrad,
     Zainod,
     Lightwalletd,
+    Empty, // TODO: to be revised
 }
 
 impl std::fmt::Display for Process {
@@ -66,6 +68,7 @@ impl std::fmt::Display for Process {
             Self::Zebrad => "zebrad",
             Self::Zainod => "zainod",
             Self::Lightwalletd => "lightwalletd",
+            Self::Empty => "empty",
         };
         write!(f, "{}", process)
     }

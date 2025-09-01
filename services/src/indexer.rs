@@ -65,6 +65,9 @@ pub trait Indexer: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
 
+    /// Process
+    const PROCESS: Process;
+
     /// Indexer config struct
     type Config;
 
@@ -119,6 +122,7 @@ pub struct Zainod {
 
 impl Indexer for Zainod {
     const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
+    const PROCESS: Process = Process::Zainod;
 
     type Config = ZainodConfig;
 
@@ -228,6 +232,7 @@ impl Lightwalletd {
 
 impl Indexer for Lightwalletd {
     const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
+    const PROCESS: Process = Process::Lightwalletd;
 
     type Config = LightwalletdConfig;
 
@@ -331,6 +336,7 @@ pub struct Empty {
 
 impl Indexer for Empty {
     const CONFIG_FILENAME: &str = "";
+    const PROCESS: Process = Process::Empty;
 
     type Config = EmptyConfig;
 

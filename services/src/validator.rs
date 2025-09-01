@@ -111,6 +111,9 @@ pub trait Validator: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
 
+    /// Process
+    const PROCESS: Process;
+
     /// Validator config struct
     type Config;
 
@@ -242,6 +245,7 @@ impl Zcashd {
 
 impl Validator for Zcashd {
     const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
+    const PROCESS: Process = Process::Zcashd;
 
     type Config = ZcashdConfig;
 
@@ -444,6 +448,7 @@ pub struct Zebrad {
 
 impl Validator for Zebrad {
     const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
+    const PROCESS: Process = Process::Zebrad;
 
     type Config = ZebradConfig;
 
