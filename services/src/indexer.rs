@@ -102,6 +102,11 @@ pub trait Indexer: Sized {
         let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
         logs::print_log(stdout_log_path);
     }
+
+    /// Returns the indexer process.
+    fn process(&self) -> Process {
+        Self::PROCESS
+    }
 }
 
 /// This struct is used to represent and manage the Zainod process.
