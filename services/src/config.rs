@@ -32,6 +32,7 @@ pub(crate) fn zcashd(
     let canopy_activation_height = activation_heights.canopy;
     let nu5_activation_height = activation_heights.nu5;
     let nu6_activation_height = activation_heights.nu6;
+    let nu6_1_activation_height = activation_heights.nu6_1;
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -43,6 +44,7 @@ nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
+nuparams=4dec4df0:{nu6_1_activation_height} # NU6.1
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -105,6 +107,7 @@ pub(crate) fn zebrad(
     }
     let nu5_activation_height: u32 = activation_heights.nu5.into();
     let nu6_activation_height: u32 = activation_heights.nu6.into();
+    let nu6_1_activation_height: u32 = activation_heights.nu6_1.into();
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -185,7 +188,8 @@ miner_address = \"{miner_address}\"
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
 Canopy = 1
 NU5 = {nu5_activation_height}
-NU6 = {nu6_activation_height}"
+NU6 = {nu6_activation_height}
+NU6.1 = {nu6_1_activation_height}"
             )
             .as_bytes(),
         )?;
