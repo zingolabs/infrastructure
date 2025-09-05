@@ -9,8 +9,8 @@ github = { repository = "zingolabs/infrastructure/services" }
 
 [dependencies]
 # Zcash
-zcash_primitives = { workspace = true }
-zcash_protocol = { workspace = true }
+zcash_primitives = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
+zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
 # Zebra
 zebra-node-services = { workspace = true }
 zebra-rpc = { workspace = true }
