@@ -65,6 +65,9 @@ pub trait Indexer: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
 
+    /// Process
+    const PROCESS: Process;
+
     /// Indexer config struct
     type Config;
 
@@ -99,6 +102,11 @@ pub trait Indexer: Sized {
         let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
         logs::print_log(stdout_log_path);
     }
+
+    /// Returns the indexer process.
+    fn process(&self) -> Process {
+        Self::PROCESS
+    }
 }
 
 /// This struct is used to represent and manage the Zainod process.
@@ -119,6 +127,7 @@ pub struct Zainod {
 
 impl Indexer for Zainod {
     const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
+    const PROCESS: Process = Process::Zainod;
 
     type Config = ZainodConfig;
 
@@ -228,6 +237,7 @@ impl Lightwalletd {
 
 impl Indexer for Lightwalletd {
     const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
+    const PROCESS: Process = Process::Lightwalletd;
 
     type Config = LightwalletdConfig;
 
@@ -331,6 +341,7 @@ pub struct Empty {
 
 impl Indexer for Empty {
     const CONFIG_FILENAME: &str = "";
+    const PROCESS: Process = Process::Empty;
 
     type Config = EmptyConfig;
 

@@ -111,6 +111,9 @@ pub trait Validator: Sized {
     /// Config filename
     const CONFIG_FILENAME: &str;
 
+    /// Process
+    const PROCESS: Process;
+
     /// Validator config struct
     type Config;
 
@@ -197,6 +200,11 @@ pub trait Validator: Sized {
         let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
         logs::print_log(stdout_log_path);
     }
+
+    /// Returns the validator process.
+    fn process(&self) -> Process {
+        Self::PROCESS
+    }
 }
 
 /// This struct is used to represent and manage the Zcashd process.
@@ -242,6 +250,7 @@ impl Zcashd {
 
 impl Validator for Zcashd {
     const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
+    const PROCESS: Process = Process::Zcashd;
 
     type Config = ZcashdConfig;
 
@@ -444,6 +453,7 @@ pub struct Zebrad {
 
 impl Validator for Zebrad {
     const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
+    const PROCESS: Process = Process::Zebrad;
 
     type Config = ZebradConfig;
 
