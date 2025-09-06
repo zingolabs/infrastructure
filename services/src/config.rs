@@ -189,7 +189,7 @@ miner_address = \"{miner_address}\"
 Canopy = 1
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}
-NU6.1 = {nu6_1_activation_height}"
+\"NU6.1\" = {nu6_1_activation_height}"
             )
             .as_bytes(),
         )?;
@@ -373,6 +373,7 @@ nuparams=f5b9230b:4 # Heartwood
 nuparams=e9ff75a6:5 # Canopy
 nuparams=c2d6d0b4:6 # NU5 (Orchard)
 nuparams=c8e71055:7 # NU6
+nuparams=4dec4df0:8 # NU6.1
 
 ### MetaData Storage and Retrieval
 # txindex:
