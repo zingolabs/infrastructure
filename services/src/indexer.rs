@@ -38,10 +38,13 @@ pub struct ZainodConfig {
     pub network: Network,
 }
 
-impl Default for ZainodConfig {
-    fn default() -> Self {
+impl ZainodConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zainod")
+    }
+    pub fn default_test() -> Self {
         ZainodConfig {
-            zainod_bin: ExecutableLocation::by_name("zainod"),
+            zainod_bin: Self::default_location(),
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
@@ -67,10 +70,13 @@ pub struct LightwalletdConfig {
     pub darkside: bool,
 }
 
-impl Default for LightwalletdConfig {
-    fn default() -> Self {
+impl LightwalletdConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("lightwalletd")
+    }
+    pub fn default_test() -> Self {
         LightwalletdConfig {
-            lightwalletd_bin: ExecutableLocation::by_name("lightwalletd"),
+            lightwalletd_bin: Self::default_location(),
             listen_port: None,
             zcashd_conf: PathBuf::new(),
             darkside: false,

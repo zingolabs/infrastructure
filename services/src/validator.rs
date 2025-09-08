@@ -67,11 +67,17 @@ pub struct ZcashdConfig {
     pub chain_cache: Option<PathBuf>,
 }
 
-impl Default for ZcashdConfig {
-    fn default() -> Self {
+impl ZcashdConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zcashd")
+    }
+    pub fn default_cli_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zcash-cli")
+    }
+    pub fn default_test() -> Self {
         Self {
-            zcashd_bin: ExecutableLocation::by_name("zcashd"),
-            zcash_cli_bin: ExecutableLocation::by_name("zcash-cli"),
+            zcashd_bin: Self::default_location(),
+            zcash_cli_bin: Self::default_cli_location(),
             rpc_listen_port: None,
             activation_heights: network::ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
@@ -114,10 +120,13 @@ pub struct ZebradConfig {
     pub network: Network,
 }
 
-impl Default for ZebradConfig {
-    fn default() -> Self {
+impl ZebradConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zebrad")
+    }
+    pub fn default_test() -> Self {
         Self {
-            zebrad_bin: ExecutableLocation::by_name("zebrad"),
+            zebrad_bin: Self::default_location(),
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
