@@ -10,16 +10,16 @@ use zingo_infra_testutils::client;
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, ActivationHeights},
-    utils,
+    utils::{self, ExecutableLocation},
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 
-const ZCASHD_BIN: Option<PathBuf> = None;
-const ZCASH_CLI_BIN: Option<PathBuf> = None;
-const ZEBRAD_BIN: Option<PathBuf> = None;
-const LIGHTWALLETD_BIN: Option<PathBuf> = None;
-const ZAINOD_BIN: Option<PathBuf> = None;
+const ZCASHD_BIN: ExecutableLocation = ExecutableLocation::by_name("zcashd");
+const ZCASH_CLI_BIN: ExecutableLocation = ExecutableLocation::by_name("zcash-cli");
+const ZEBRAD_BIN: ExecutableLocation = ExecutableLocation::by_name("zebrad");
+const LIGHTWALLETD_BIN: ExecutableLocation = ExecutableLocation::by_name("lightwalletd");
+const ZAINOD_BIN: ExecutableLocation = ExecutableLocation::by_name("zainod");
 
 #[tokio::test]
 async fn launch_zcashd() {

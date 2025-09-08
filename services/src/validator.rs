@@ -24,6 +24,7 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self, ActivationHeights, Network},
+    utils::ExecutableLocation,
     Process,
 };
 
@@ -44,9 +45,9 @@ pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 /// If `chain_cache` path is `None`, a new chain is launched.
 pub struct ZcashdConfig {
     /// Zcashd binary location
-    pub zcashd_bin: Option<PathBuf>,
+    pub zcashd_bin: ExecutableLocation,
     /// Zcash-cli binary location
-    pub zcash_cli_bin: Option<PathBuf>,
+    pub zcash_cli_bin: ExecutableLocation,
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
@@ -74,7 +75,7 @@ pub struct ZcashdConfig {
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
 pub struct ZebradConfig {
     /// Zebrad binary location
-    pub zebrad_bin: Option<PathBuf>,
+    pub zebrad_bin: ExecutableLocation,
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
     /// Zebrad JSON-RPC listen port
@@ -94,7 +95,7 @@ pub struct ZebradConfig {
 impl Default for ZebradConfig {
     fn default() -> Self {
         Self {
-            zebrad_bin: None,
+            zebrad_bin: ExecutableLocation::by_name("zebrad"),
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
@@ -224,7 +225,7 @@ pub struct Zcashd {
     /// Data directory
     data_dir: TempDir,
     /// Zcash cli binary location
-    zcash_cli_bin: Option<PathBuf>,
+    zcash_cli_bin: ExecutableLocation,
     /// Network upgrade activation heights
     #[getset(skip)]
     activation_heights: network::ActivationHeights,
@@ -238,10 +239,7 @@ impl Zcashd {
     /// self.zcash_cli_command(&["generate", "1"]);
     /// ```
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        let mut command = match &self.zcash_cli_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcash-cli"),
-        };
+        let mut command = self.zcash_cli_bin.command();
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
         command.args(args).output()
@@ -276,10 +274,7 @@ impl Validator for Zcashd {
         )
         .unwrap();
 
-        let mut command = match config.zcashd_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcashd"),
-        };
+        let mut command = config.zcashd_bin.command();
         command
             .args([
                 "--printtoconsole",
@@ -299,9 +294,11 @@ impl Validator for Zcashd {
             .stderr(std::process::Stdio::piped());
 
         let mut handle = command.spawn().unwrap_or_else(|err| {
+            let executable_location = config.zcashd_bin;
             panic!(
-                "{} {}
-Zcashd could not spawn. Error: {err}",
+                "Running {executable_location:?}
+{} {}
+Error: {err}",
                 command.get_program().to_string_lossy(),
                 command
                     .get_args()
@@ -370,7 +367,16 @@ Zcashd could not spawn. Error: {err}",
     }
 
     async fn get_chain_height(&self) -> BlockHeight {
-        let output = self.zcash_cli_command(&["getchaintips"]).unwrap();
+        let output = self
+            .zcash_cli_command(&["getchaintips"])
+            .unwrap_or_else(|err| {
+                let executable_location = &self.zcash_cli_bin;
+                panic!(
+                    "Running {executable_location:?}
+getchaintips
+Error: {err}",
+                )
+            });
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
         BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
     }
@@ -501,10 +507,7 @@ impl Validator for Zebrad {
         )
         .unwrap();
 
-        let mut command = match config.zebrad_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zebrad"),
-        };
+        let mut command = config.zebrad_bin.command();
         command
             .args([
                 "--config",

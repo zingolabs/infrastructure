@@ -14,6 +14,7 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self, Network},
+    utils::ExecutableLocation,
     Process,
 };
 
@@ -26,7 +27,7 @@ use crate::{
 /// `network` must match the configured network of the validator.
 pub struct ZainodConfig {
     /// Zainod binary location
-    pub zainod_bin: Option<PathBuf>,
+    pub zainod_bin: ExecutableLocation,
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Validator RPC port
@@ -46,7 +47,7 @@ pub struct ZainodConfig {
 /// validator port. This is automatically handled by [`crate::LocalNet::launch`] when using [`crate::LocalNet`].
 pub struct LightwalletdConfig {
     /// Lightwalletd binary location
-    pub lightwalletd_bin: Option<PathBuf>,
+    pub lightwalletd_bin: ExecutableLocation,
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Zcashd configuration file location. Required even when running non-Zcashd validators.
@@ -157,10 +158,7 @@ impl Indexer for Zainod {
         )
         .unwrap();
 
-        let mut command = match config.zainod_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zainod"),
-        };
+        let mut command = config.zainod_bin.command();
         command
             .args([
                 "--config",
@@ -262,10 +260,7 @@ impl Indexer for Lightwalletd {
         )
         .unwrap();
 
-        let mut command = match config.lightwalletd_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("lightwalletd"),
-        };
+        let mut command = config.lightwalletd_bin.command();
         let mut args = vec![
             "--no-tls-very-insecure",
             "--data-dir",
