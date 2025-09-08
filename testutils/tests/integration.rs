@@ -10,31 +10,17 @@ use zingo_infra_testutils::client;
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, ActivationHeights},
-    utils,
+    utils::{self, ExecutableLocation},
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
-
-const ZCASHD_BIN: Option<PathBuf> = None;
-const ZCASH_CLI_BIN: Option<PathBuf> = None;
-const ZEBRAD_BIN: Option<PathBuf> = None;
-const LIGHTWALLETD_BIN: Option<PathBuf> = None;
-const ZAINOD_BIN: Option<PathBuf> = None;
 
 #[tokio::test]
 async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin: ZCASHD_BIN,
-        zcash_cli_bin: ZCASH_CLI_BIN,
-        rpc_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: None,
-    })
-    .await
-    .unwrap();
+    let config = ZcashdConfig::default_test();
+    let zcashd = Zcashd::launch(config).await.unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
 }
@@ -52,16 +38,10 @@ async fn launch_zcashd_custom_activation_heights() {
         nu5: 5.into(),
         nu6: 7.into(),
     };
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin: ZCASHD_BIN,
-        zcash_cli_bin: ZCASH_CLI_BIN,
-        rpc_listen_port: None,
-        activation_heights,
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: None,
-    })
-    .await
-    .unwrap();
+    let mut config = ZcashdConfig::default_test();
+    config.activation_heights = activation_heights;
+    let zcashd = Zcashd::launch(config).await.unwrap();
+
     zcashd.generate_blocks(8).await.unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
@@ -71,18 +51,8 @@ async fn launch_zcashd_custom_activation_heights() {
 async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin: ZEBRAD_BIN,
-        network_listen_port: None,
-        rpc_listen_port: None,
-        indexer_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: None,
-        network: network::Network::Regtest,
-    })
-    .await
-    .unwrap();
+    let config = ZebradConfig::default_test();
+    let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 }
@@ -92,18 +62,10 @@ async fn launch_zebrad() {
 async fn launch_zebrad_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin: ZEBRAD_BIN,
-        network_listen_port: None,
-        rpc_listen_port: None,
-        indexer_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
-        network: network::Network::Regtest,
-    })
-    .await
-    .unwrap();
+    let mut config = ZebradConfig::default_test();
+    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+
+    let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 
@@ -115,21 +77,8 @@ async fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        ZainodConfig::default_test(),
+        ZcashdConfig::default_test(),
     )
     .await;
 
@@ -144,23 +93,8 @@ async fn launch_localnet_zainod_zebrad() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        ZainodConfig::default_test(),
+        ZebradConfig::default_test(),
     )
     .await;
 
@@ -175,20 +109,8 @@ async fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        LightwalletdConfig::default_test(),
+        ZcashdConfig::default_test(),
     )
     .await;
 
@@ -204,22 +126,8 @@ async fn launch_localnet_lightwalletd_zebrad() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        LightwalletdConfig::default_test(),
+        ZebradConfig::default_test(),
     )
     .await;
 
@@ -235,21 +143,8 @@ async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        ZainodConfig::default_test(),
+        ZcashdConfig::default_test(),
     )
     .await;
 
@@ -295,23 +190,8 @@ async fn zainod_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        ZainodConfig::default_test(),
+        ZebradConfig::default_test(),
     )
     .await;
 
@@ -366,20 +246,8 @@ async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        LightwalletdConfig::default_test(),
+        ZcashdConfig::default_test(),
     )
     .await;
 
@@ -423,22 +291,8 @@ async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        LightwalletdConfig::default_test(),
+        ZebradConfig::default_test(),
     )
     .await;
 
@@ -502,9 +356,11 @@ mod client_rpcs {
     //!              ├── [     114923]  OPTIONS-000007
     //!              └── [          3]  version
     //! ```
-    use zingo_infra_services::network::Network;
-
-    use crate::{LIGHTWALLETD_BIN, ZAINOD_BIN, ZCASHD_BIN, ZCASH_CLI_BIN, ZEBRAD_BIN};
+    use zingo_infra_services::{
+        indexer::{LightwalletdConfig, ZainodConfig},
+        network::Network,
+        validator::{ZcashdConfig, ZebradConfig},
+    };
 
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
     #[tokio::test]
@@ -512,8 +368,8 @@ mod client_rpcs {
         tracing_subscriber::fmt().init();
 
         zingo_infra_testutils::test_fixtures::generate_zebrad_large_chain_cache(
-            ZEBRAD_BIN,
-            LIGHTWALLETD_BIN,
+            ZebradConfig::default_location(),
+            LightwalletdConfig::default_location(),
         )
         .await;
     }
@@ -524,9 +380,9 @@ mod client_rpcs {
         tracing_subscriber::fmt().init();
 
         zingo_infra_testutils::test_fixtures::generate_zcashd_chain_cache(
-            ZCASHD_BIN,
-            ZCASH_CLI_BIN,
-            LIGHTWALLETD_BIN,
+            ZcashdConfig::default_location(),
+            ZcashdConfig::default_cli_location(),
+            LightwalletdConfig::default_location(),
         )
         .await;
     }
@@ -538,14 +394,51 @@ mod client_rpcs {
                 tracing_subscriber::fmt().init();
 
                 zingo_infra_testutils::test_fixtures::$test_name(
-                    ZCASHD_BIN,
-                    ZCASH_CLI_BIN,
-                    ZAINOD_BIN,
-                    LIGHTWALLETD_BIN,
+                    ZcashdConfig::default_location(),
+                    ZcashdConfig::default_cli_location(),
+                    ZainodConfig::default_location(),
+                    LightwalletdConfig::default_location(),
                 )
                 .await;
             }
         };
+    }
+
+    mod get_subtree_roots {
+        //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
+        //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
+        use super::*;
+        /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+        /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
+        #[ignore = "this test requires manual setup"]
+        #[tokio::test]
+        async fn sapling() {
+            tracing_subscriber::fmt().init();
+
+            zingo_infra_testutils::test_fixtures::get_subtree_roots_sapling(
+                ZebradConfig::default_location(),
+                ZainodConfig::default_location(),
+                LightwalletdConfig::default_location(),
+                Network::Testnet,
+            )
+            .await;
+        }
+
+        /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
+        /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
+        #[ignore = "this test requires manual setup"]
+        #[tokio::test]
+        async fn orchard() {
+            tracing_subscriber::fmt().init();
+
+            zingo_infra_testutils::test_fixtures::get_subtree_roots_orchard(
+                ZebradConfig::default_location(),
+                ZainodConfig::default_location(),
+                LightwalletdConfig::default_location(),
+                Network::Mainnet,
+            )
+            .await;
+        }
     }
     // previously ignored
     // rpc_fixture_test!(get_block_out_of_bounds);
@@ -576,54 +469,4 @@ mod client_rpcs {
     rpc_fixture_test!(get_address_utxos_stream_lower);
     rpc_fixture_test!(get_address_utxos_stream_upper);
     rpc_fixture_test!(get_address_utxos_stream_out_of_bounds);
-
-    // regtest_block_parse tests
-    // These tests fail due to lightwalletd v0.4.18+ expecting mainnet-sized
-    // Equihash solutions (1344 bytes) when parsing regtest blocks (which use 48 bytes).
-    // Uncomment when lightwalletd properly handles regtest block parsing.
-    // rpc_fixture_test!(get_block);
-    // rpc_fixture_test!(get_block_nullifiers);
-    // rpc_fixture_test!(get_block_range_nullifiers);
-    // rpc_fixture_test!(get_block_range_nullifiers_reverse);
-    // rpc_fixture_test!(get_block_range_lower);
-    // rpc_fixture_test!(get_block_range_upper);
-    // rpc_fixture_test!(get_block_range_reverse);
-    // rpc_fixture_test!(get_tree_state_by_hash);
-
-    mod get_subtree_roots {
-        //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
-        //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
-        use super::*;
-        /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
-        /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
-        #[ignore = "this test requires manual setup"]
-        #[tokio::test]
-        async fn sapling() {
-            tracing_subscriber::fmt().init();
-
-            zingo_infra_testutils::test_fixtures::get_subtree_roots_sapling(
-                ZEBRAD_BIN,
-                ZAINOD_BIN,
-                LIGHTWALLETD_BIN,
-                Network::Testnet,
-            )
-            .await;
-        }
-
-        /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
-        /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
-        #[ignore = "this test requires manual setup"]
-        #[tokio::test]
-        async fn orchard() {
-            tracing_subscriber::fmt().init();
-
-            zingo_infra_testutils::test_fixtures::get_subtree_roots_orchard(
-                ZEBRAD_BIN,
-                ZAINOD_BIN,
-                LIGHTWALLETD_BIN,
-                Network::Mainnet,
-            )
-            .await;
-        }
-    }
 }

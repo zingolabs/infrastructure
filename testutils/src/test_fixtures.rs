@@ -46,14 +46,14 @@ use zingo_infra_services::{
     config,
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::{self, Network},
-    utils,
+    utils::{self, ExecutableLocation},
     validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache(
-    zebrad_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zebrad_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
         LightwalletdConfig {
@@ -88,9 +88,9 @@ pub async fn generate_zebrad_large_chain_cache(
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let mut local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
         LightwalletdConfig {
@@ -227,10 +227,10 @@ pub async fn generate_zcashd_chain_cache(
 
 /// GetLightdInfo RPC test
 pub async fn get_lightd_info(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -336,10 +336,10 @@ pub async fn get_lightd_info(
 
 /// GetLatestBlock RPC test
 pub async fn get_latest_block(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -407,10 +407,10 @@ pub async fn get_latest_block(
 
 /// GetBlock RPC test
 pub async fn get_block(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -477,10 +477,10 @@ pub async fn get_block(
 
 /// GetBlock RPC test
 pub async fn get_block_out_of_bounds(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -543,10 +543,10 @@ pub async fn get_block_out_of_bounds(
 
 /// GetBlockNullifiers RPC test
 pub async fn get_block_nullifiers(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -621,10 +621,10 @@ pub async fn get_block_nullifiers(
 
 /// GetBlockRangeNullifiers RPC test
 pub async fn get_block_range_nullifiers(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -713,10 +713,10 @@ pub async fn get_block_range_nullifiers(
 
 /// GetBlockRangeNullifiers RPC test
 pub async fn get_block_range_nullifiers_reverse(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -805,10 +805,10 @@ pub async fn get_block_range_nullifiers_reverse(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_lower(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -897,10 +897,10 @@ pub async fn get_block_range_lower(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_upper(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -988,10 +988,10 @@ pub async fn get_block_range_upper(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_reverse(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1080,10 +1080,10 @@ pub async fn get_block_range_reverse(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_out_of_bounds(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1197,10 +1197,10 @@ pub async fn get_block_range_out_of_bounds(
 
 /// GetTransaction RPC test
 pub async fn get_transaction(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1286,10 +1286,10 @@ pub async fn get_transaction(
 ///
 /// INCOMPLETE
 pub async fn send_transaction(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    _lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    _lightwalletd_bin: ExecutableLocation,
 ) {
     let local_net = LocalNet::<Zainod, Zcashd>::launch(
         ZainodConfig {
@@ -1438,10 +1438,10 @@ pub async fn send_transaction(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_all(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1555,10 +1555,10 @@ pub async fn get_taddress_txids_all(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_lower(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1672,10 +1672,10 @@ pub async fn get_taddress_txids_lower(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_upper(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1789,10 +1789,10 @@ pub async fn get_taddress_txids_upper(
 
 /// GetTaddressBalance RPC test
 pub async fn get_taddress_balance(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1865,10 +1865,10 @@ pub async fn get_taddress_balance(
 
 /// GetTaddressBalanceStream RPC test
 pub async fn get_taddress_balance_stream(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -1943,10 +1943,10 @@ pub async fn get_taddress_balance_stream(
 
 /// GetMempoolTx RPC test
 pub async fn get_mempool_tx(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2092,10 +2092,10 @@ pub async fn get_mempool_tx(
 
 /// GetMempoolStream RPC test (zingolib mempool monitor)
 pub async fn get_mempool_stream_zingolib_mempool_monitor(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2290,10 +2290,10 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
 /// GetMempoolStream RPC test
 pub async fn get_mempool_stream(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2646,10 +2646,10 @@ pub async fn get_mempool_stream(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_by_height(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2719,10 +2719,10 @@ pub async fn get_tree_state_by_height(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_by_hash(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2802,10 +2802,10 @@ pub async fn get_tree_state_by_hash(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_out_of_bounds(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2875,10 +2875,10 @@ pub async fn get_tree_state_out_of_bounds(
 
 /// GetLatestTreeState RPC test
 pub async fn get_latest_tree_state(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -2958,9 +2958,9 @@ pub async fn get_latest_tree_state(
 /// ```
 ///
 pub async fn get_subtree_roots_sapling(
-    zebrad_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zebrad_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
     network: Network,
 ) {
     if matches!(network, Network::Regtest) {
@@ -3063,9 +3063,9 @@ pub async fn get_subtree_roots_sapling(
 /// ```
 ///
 pub async fn get_subtree_roots_orchard(
-    zebrad_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zebrad_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
     network: Network,
 ) {
     if matches!(network, Network::Regtest) {
@@ -3152,10 +3152,10 @@ pub async fn get_subtree_roots_orchard(
 
 /// GetAddressUtxos RPC test
 pub async fn get_address_utxos_all(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3230,10 +3230,10 @@ pub async fn get_address_utxos_all(
 
 /// GetAddressUtxos RPC test
 pub async fn get_address_utxos_lower(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3309,10 +3309,10 @@ pub async fn get_address_utxos_lower(
 
 /// GetAddressUtxos RPC test
 pub async fn get_address_utxos_upper(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3388,10 +3388,10 @@ pub async fn get_address_utxos_upper(
 
 /// GetAddressUtxos RPC test
 pub async fn get_address_utxos_out_of_bounds(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3466,10 +3466,10 @@ pub async fn get_address_utxos_out_of_bounds(
 
 /// GetAddressUtxosStream RPC test
 pub async fn get_address_utxos_stream_all(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3552,10 +3552,10 @@ pub async fn get_address_utxos_stream_all(
 
 /// GetAddressUtxosStream RPC test
 pub async fn get_address_utxos_stream_lower(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3639,10 +3639,10 @@ pub async fn get_address_utxos_stream_lower(
 
 /// GetAddressUtxosStream RPC test
 pub async fn get_address_utxos_stream_upper(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,
@@ -3726,10 +3726,10 @@ pub async fn get_address_utxos_stream_upper(
 
 /// GetAddressUtxosStream RPC test
 pub async fn get_address_utxos_stream_out_of_bounds(
-    zcashd_bin: Option<PathBuf>,
-    zcash_cli_bin: Option<PathBuf>,
-    zainod_bin: Option<PathBuf>,
-    lightwalletd_bin: Option<PathBuf>,
+    zcashd_bin: ExecutableLocation,
+    zcash_cli_bin: ExecutableLocation,
+    zainod_bin: ExecutableLocation,
+    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
         zcashd_bin,

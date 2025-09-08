@@ -24,8 +24,18 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self, ActivationHeights, Network},
+    utils::ExecutableLocation,
     Process,
 };
+
+/// faucet addresses
+/// this should be in a test-vectors crate. However, in order to distangle this knot, a cut and paste in merited here -fv
+pub const REG_O_ADDR_FROM_ABANDONART: &str = "uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8r7h4daun2zkznrjaa8ra8asgdm8wwgwjvlwwrxx7347r8w0ee6dqyw4rufw4wg9djwcr6frzkezmdw6dud3wsm99eany5r8wgsctlxquu009nzd6hsme2tcsk0v3sgjvxa70er7h27z5epr67p5q767s2z5gt88paru56mxpm6pwz0cu35m";
+/// TODO: Add Doc Comment Here!
+pub const REG_Z_ADDR_FROM_ABANDONART: &str =
+    "zregtestsapling1fmq2ufux3gm0v8qf7x585wj56le4wjfsqsj27zprjghntrerntggg507hxh2ydcdkn7sx8kya7p";
+/// TODO: Add Doc Comment Here!
+pub const REG_T_ADDR_FROM_ABANDONART: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 
 /// Zebrad default miner address. Regtest/Testnet transparent address for [Abandon Abandon .. Art] seed (entropy all zeros)
 pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
@@ -44,9 +54,9 @@ pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 /// If `chain_cache` path is `None`, a new chain is launched.
 pub struct ZcashdConfig {
     /// Zcashd binary location
-    pub zcashd_bin: Option<PathBuf>,
+    pub zcashd_bin: ExecutableLocation,
     /// Zcash-cli binary location
-    pub zcash_cli_bin: Option<PathBuf>,
+    pub zcash_cli_bin: ExecutableLocation,
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
@@ -55,6 +65,25 @@ pub struct ZcashdConfig {
     pub miner_address: Option<&'static str>,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
+}
+
+impl ZcashdConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zcashd")
+    }
+    pub fn default_cli_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zcash-cli")
+    }
+    pub fn default_test() -> Self {
+        Self {
+            zcashd_bin: Self::default_location(),
+            zcash_cli_bin: Self::default_cli_location(),
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: None,
+        }
+    }
 }
 
 /// Zebrad configuration
@@ -74,7 +103,7 @@ pub struct ZcashdConfig {
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
 pub struct ZebradConfig {
     /// Zebrad binary location
-    pub zebrad_bin: Option<PathBuf>,
+    pub zebrad_bin: ExecutableLocation,
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
     /// Zebrad JSON-RPC listen port
@@ -91,10 +120,13 @@ pub struct ZebradConfig {
     pub network: Network,
 }
 
-impl Default for ZebradConfig {
-    fn default() -> Self {
+impl ZebradConfig {
+    pub fn default_location() -> ExecutableLocation {
+        ExecutableLocation::by_name("zebrad")
+    }
+    pub fn default_test() -> Self {
         Self {
-            zebrad_bin: None,
+            zebrad_bin: Self::default_location(),
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
@@ -224,7 +256,7 @@ pub struct Zcashd {
     /// Data directory
     data_dir: TempDir,
     /// Zcash cli binary location
-    zcash_cli_bin: Option<PathBuf>,
+    zcash_cli_bin: ExecutableLocation,
     /// Network upgrade activation heights
     #[getset(skip)]
     activation_heights: network::ActivationHeights,
@@ -238,10 +270,7 @@ impl Zcashd {
     /// self.zcash_cli_command(&["generate", "1"]);
     /// ```
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        let mut command = match &self.zcash_cli_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcash-cli"),
-        };
+        let mut command = self.zcash_cli_bin.command();
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
         command.args(args).output()
@@ -276,10 +305,7 @@ impl Validator for Zcashd {
         )
         .unwrap();
 
-        let mut command = match config.zcashd_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zcashd"),
-        };
+        let mut command = config.zcashd_bin.command();
         command
             .args([
                 "--printtoconsole",
@@ -299,9 +325,11 @@ impl Validator for Zcashd {
             .stderr(std::process::Stdio::piped());
 
         let mut handle = command.spawn().unwrap_or_else(|err| {
+            let executable_location = config.zcashd_bin;
             panic!(
-                "{} {}
-Zcashd could not spawn. Error: {err}",
+                "Running {executable_location:?}
+{} {}
+Error: {err}",
                 command.get_program().to_string_lossy(),
                 command
                     .get_args()
@@ -370,7 +398,16 @@ Zcashd could not spawn. Error: {err}",
     }
 
     async fn get_chain_height(&self) -> BlockHeight {
-        let output = self.zcash_cli_command(&["getchaintips"]).unwrap();
+        let output = self
+            .zcash_cli_command(&["getchaintips"])
+            .unwrap_or_else(|err| {
+                let executable_location = &self.zcash_cli_bin;
+                panic!(
+                    "Running {executable_location:?}
+getchaintips
+Error: {err}",
+                )
+            });
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
         BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
     }
@@ -501,10 +538,7 @@ impl Validator for Zebrad {
         )
         .unwrap();
 
-        let mut command = match config.zebrad_bin {
-            Some(path) => std::process::Command::new(path),
-            None => std::process::Command::new("zebrad"),
-        };
+        let mut command = config.zebrad_bin.command();
         command
             .args([
                 "--config",
@@ -518,7 +552,20 @@ impl Validator for Zebrad {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap();
+        let mut handle = command.spawn().unwrap_or_else(|err| {
+            let executable_location = config.zebrad_bin;
+            panic!(
+                "Running {executable_location:?}
+{} {}
+Error: {err}",
+                command.get_program().to_string_lossy(),
+                command
+                    .get_args()
+                    .map(|arg| arg.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        });
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
