@@ -298,9 +298,10 @@ impl Validator for Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|_| {
+        let mut handle = command.spawn().unwrap_or_else(|err| {
             panic!(
-                "{} {}",
+                "{} {}
+Zcashd could not spawn. Error: {err}",
                 command.get_program().to_string_lossy(),
                 command
                     .get_args()
