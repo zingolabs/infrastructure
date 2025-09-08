@@ -15,12 +15,6 @@ use zingo_infra_services::{
     LocalNet,
 };
 
-const ZCASHD_BIN: ExecutableLocation = ExecutableLocation::by_name("zcashd");
-const ZCASH_CLI_BIN: ExecutableLocation = ExecutableLocation::by_name("zcash-cli");
-const ZEBRAD_BIN: ExecutableLocation = ExecutableLocation::by_name("zebrad");
-const LIGHTWALLETD_BIN: ExecutableLocation = ExecutableLocation::by_name("lightwalletd");
-const ZAINOD_BIN: ExecutableLocation = ExecutableLocation::by_name("zainod");
-
 #[tokio::test]
 async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
@@ -71,18 +65,7 @@ async fn launch_zcashd_custom_activation_heights() {
 async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin: ZEBRAD_BIN,
-        network_listen_port: None,
-        rpc_listen_port: None,
-        indexer_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: None,
-        network: network::Network::Regtest,
-    })
-    .await
-    .unwrap();
+    let zebrad = Zebrad::launch(ZebradConfig::default()).await.unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 }

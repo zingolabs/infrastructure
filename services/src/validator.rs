@@ -28,6 +28,15 @@ use crate::{
     Process,
 };
 
+/// faucet addresses
+/// this should be in a test-vectors crate. However, in order to distangle this knot, a cut and paste in merited here -fv
+pub const REG_O_ADDR_FROM_ABANDONART: &str = "uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8r7h4daun2zkznrjaa8ra8asgdm8wwgwjvlwwrxx7347r8w0ee6dqyw4rufw4wg9djwcr6frzkezmdw6dud3wsm99eany5r8wgsctlxquu009nzd6hsme2tcsk0v3sgjvxa70er7h27z5epr67p5q767s2z5gt88paru56mxpm6pwz0cu35m";
+/// TODO: Add Doc Comment Here!
+pub const REG_Z_ADDR_FROM_ABANDONART: &str =
+    "zregtestsapling1fmq2ufux3gm0v8qf7x585wj56le4wjfsqsj27zprjghntrerntggg507hxh2ydcdkn7sx8kya7p";
+/// TODO: Add Doc Comment Here!
+pub const REG_T_ADDR_FROM_ABANDONART: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
+
 /// Zebrad default miner address. Regtest/Testnet transparent address for [Abandon Abandon .. Art] seed (entropy all zeros)
 pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 
@@ -56,6 +65,19 @@ pub struct ZcashdConfig {
     pub miner_address: Option<&'static str>,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
+}
+
+impl Default for ZcashdConfig {
+    fn default() -> Self {
+        Self {
+            zcashd_bin: ExecutableLocation::by_name("zcashd"),
+            zcash_cli_bin: ExecutableLocation::by_name("zcash-cli"),
+            rpc_listen_port: None,
+            activation_heights: network::ActivationHeights::default(),
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: None,
+        }
+    }
 }
 
 /// Zebrad configuration
