@@ -194,7 +194,20 @@ impl Indexer for Zainod {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap();
+        let mut handle = command.spawn().unwrap_or_else(|err| {
+            let executable_location = config.zainod_bin;
+            panic!(
+                "Running {executable_location:?}
+{} {}
+Error: {err}",
+                command.get_program().to_string_lossy(),
+                command
+                    .get_args()
+                    .map(|arg| arg.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        });
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
@@ -308,7 +321,20 @@ impl Indexer for Lightwalletd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap();
+        let mut handle = command.spawn().unwrap_or_else(|err| {
+            let executable_location = config.lightwalletd_bin;
+            panic!(
+                "Running {executable_location:?}
+{} {}
+Error: {err}",
+                command.get_program().to_string_lossy(),
+                command
+                    .get_args()
+                    .map(|arg| arg.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        });
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
