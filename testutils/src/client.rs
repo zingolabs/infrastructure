@@ -2,15 +2,23 @@
 
 use std::path::PathBuf;
 
+use http_body_util::combinators::UnsyncBoxBody;
 use lightwallet_protocol::CompactTxStreamerClient;
 use portpicker::Port;
 use testvectors::seeds;
-use tower_service::UnderlyingService;
+use tower::util::BoxCloneService;
 use zingo_infra_services::network;
 use zingo_netutils::{GetClientError, GrpcConnector};
 use zingolib::{
     config::RegtestNetwork, lightclient::LightClient, testutils::scenarios::setup::ClientBuilder,
 };
+
+/// The underlying service type used for gRPC connections
+pub type UnderlyingService = BoxCloneService<
+    http::Request<UnsyncBoxBody<prost::bytes::Bytes, tonic::Status>>,
+    http::Response<hyper::body::Incoming>,
+    hyper_util::client::legacy::Error,
+>;
 
 /// Builds a client for creating RPC requests to the indexer/light-node
 pub async fn build_client(
