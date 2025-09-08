@@ -38,6 +38,17 @@ pub struct ZainodConfig {
     pub network: Network,
 }
 
+impl Default for ZainodConfig {
+    fn default() -> Self {
+        ZainodConfig {
+            zainod_bin: ExecutableLocation::by_name("zainod"),
+            listen_port: None,
+            validator_port: 0,
+            chain_cache: None,
+            network: network::Network::Regtest,
+        }
+    }
+}
 /// Lightwalletd configuration
 ///
 /// If `listen_port` is `None`, a port is picked at random between 15000-25000.
@@ -56,6 +67,16 @@ pub struct LightwalletdConfig {
     pub darkside: bool,
 }
 
+impl Default for LightwalletdConfig {
+    fn default() -> Self {
+        LightwalletdConfig {
+            lightwalletd_bin: ExecutableLocation::by_name("lightwalletd"),
+            listen_port: None,
+            zcashd_conf: PathBuf::new(),
+            darkside: false,
+        }
+    }
+}
 /// Empty configuration
 ///
 /// For use when not launching an Indexer with [`crate::LocalNet::launch`].

@@ -19,16 +19,8 @@ use zingo_infra_services::{
 async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin: ZCASHD_BIN,
-        zcash_cli_bin: ZCASH_CLI_BIN,
-        rpc_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: None,
-    })
-    .await
-    .unwrap();
+    let config = ZcashdConfig::default();
+    let zcashd = Zcashd::launch(config).await.unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
 }
@@ -46,16 +38,10 @@ async fn launch_zcashd_custom_activation_heights() {
         nu5: 5.into(),
         nu6: 7.into(),
     };
-    let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin: ZCASHD_BIN,
-        zcash_cli_bin: ZCASH_CLI_BIN,
-        rpc_listen_port: None,
-        activation_heights,
-        miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-        chain_cache: None,
-    })
-    .await
-    .unwrap();
+    let mut config = ZcashdConfig::default();
+    config.activation_heights = activation_heights;
+    let zcashd = Zcashd::launch(config).await.unwrap();
+
     zcashd.generate_blocks(8).await.unwrap();
     zcashd.print_stdout();
     zcashd.print_stderr();
@@ -65,7 +51,8 @@ async fn launch_zcashd_custom_activation_heights() {
 async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::launch(ZebradConfig::default()).await.unwrap();
+    let config = ZebradConfig::default();
+    let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 }
@@ -75,18 +62,10 @@ async fn launch_zebrad() {
 async fn launch_zebrad_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin: ZEBRAD_BIN,
-        network_listen_port: None,
-        rpc_listen_port: None,
-        indexer_listen_port: None,
-        activation_heights: network::ActivationHeights::default(),
-        miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
-        network: network::Network::Regtest,
-    })
-    .await
-    .unwrap();
+    let mut config = ZebradConfig::default();
+    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+
+    let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_stdout();
     zebrad.print_stderr();
 
@@ -134,16 +113,7 @@ async fn launch_localnet_zainod_zebrad() {
             chain_cache: None,
             network: network::Network::Regtest,
         },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        ZebradConfig::default(),
     )
     .await;
 
@@ -164,14 +134,7 @@ async fn launch_localnet_lightwalletd_zcashd() {
             zcashd_conf: PathBuf::new(),
             darkside: false,
         },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        ZcashdConfig::default(),
     )
     .await;
 
@@ -193,16 +156,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
             zcashd_conf: PathBuf::new(),
             darkside: false,
         },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        ZebradConfig::default(),
     )
     .await;
 
@@ -217,24 +171,8 @@ async fn launch_localnet_lightwalletd_zebrad() {
 async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
-    )
-    .await;
+    let local_net =
+        LocalNet::<Zainod, Zcashd>::launch(ZainodConfig::default(), ZcashdConfig::default()).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (mut faucet, mut recipient) = client::build_lightclients(
@@ -277,26 +215,8 @@ async fn zainod_zcashd_basic_send() {
 async fn zainod_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig {
-            zainod_bin: ZAINOD_BIN,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-    )
-    .await;
+    let local_net =
+        LocalNet::<Zainod, Zebrad>::launch(ZainodConfig::default(), ZebradConfig::default()).await;
 
     let lightclient_dir = tempfile::tempdir().unwrap();
     let (mut faucet, mut recipient) = client::build_lightclients(
@@ -348,20 +268,8 @@ async fn lightwalletd_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZcashdConfig {
-            zcashd_bin: ZCASHD_BIN,
-            zcash_cli_bin: ZCASH_CLI_BIN,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        LightwalletdConfig::default(),
+        ZcashdConfig::default(),
     )
     .await;
 
@@ -405,22 +313,8 @@ async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
 
     let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin: LIGHTWALLETD_BIN,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZebradConfig {
-            zebrad_bin: ZEBRAD_BIN,
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
+        LightwalletdConfig::default(),
+        ZebradConfig::default(),
     )
     .await;
 
