@@ -12,9 +12,9 @@ testing in the development of:
 
 ## List of Managed Processes
 - Zebrad
-- Zcashd
+- [Zcashd](https://github.com/zcash/zcash)
 - Zainod
-- Lightwalletd
+- [Lightwalletd](https://github.com/zcash/lightwalletd/)
 
 ## Prerequisites
 
