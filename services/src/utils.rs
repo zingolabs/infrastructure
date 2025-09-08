@@ -3,8 +3,11 @@
 use std::{env, path::PathBuf, process::Command};
 
 #[derive(Clone)] //
+/// Where the executable is launched from
 pub enum ExecutableLocation {
+    /// a specific path
     Specific(PathBuf),
+    /// a program name, e.g. a program in $PATH
     Global(String),
 }
 
