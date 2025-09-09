@@ -126,9 +126,12 @@ pub struct ZebradConfig {
 }
 
 impl ZebradConfig {
+    /// Default location for `zebrad` resolved via `PATH`.
     pub fn default_location() -> ExecutableLocation {
         ExecutableLocation::by_name("zebrad")
     }
+
+    /// Zebrad defaults for testing
     pub fn default_test() -> Self {
         Self {
             zebrad_bin: Self::default_location(),
