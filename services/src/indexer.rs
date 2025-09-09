@@ -39,9 +39,12 @@ pub struct ZainodConfig {
 }
 
 impl ZainodConfig {
+    /// The default way to locate the `zainod` binary.
     pub fn default_location() -> ExecutableLocation {
         ExecutableLocation::by_name("zainod")
     }
+
+    /// A convenience configuration suitable for tests.
     pub fn default_test() -> Self {
         ZainodConfig {
             zainod_bin: Self::default_location(),
@@ -71,9 +74,12 @@ pub struct LightwalletdConfig {
 }
 
 impl LightwalletdConfig {
+    /// The default way to locate the `lightwalletd` binary.
     pub fn default_location() -> ExecutableLocation {
         ExecutableLocation::by_name("lightwalletd")
     }
+
+    /// A convenience configuration suitable for tests.
     pub fn default_test() -> Self {
         LightwalletdConfig {
             lightwalletd_bin: Self::default_location(),

@@ -1,17 +1,14 @@
-use std::path::PathBuf;
-
 use zcash_protocol::{PoolType, ShieldedProtocol};
 
-use testvectors::REG_O_ADDR_FROM_ABANDONART;
 use zingolib::testutils::lightclient::{from_inputs, get_base_address};
 
 use zingo_infra_testutils::client;
 
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network::{self, ActivationHeights},
-    utils::{self, ExecutableLocation},
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    network::ActivationHeights,
+    utils::{self},
+    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
     LocalNet,
 };
 
