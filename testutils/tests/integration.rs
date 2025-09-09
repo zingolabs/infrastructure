@@ -1,214 +1,202 @@
-use zcash_protocol::{PoolType, ShieldedProtocol};
+// #[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
+// #[tokio::test]
+// async fn zainod_zcashd_basic_send() {
+//     tracing_subscriber::fmt().init();
 
-use zingolib::testutils::lightclient::{from_inputs, get_base_address};
+//     let local_net = LocalNet::<Zainod, Zcashd>::launch(
+//         ZainodConfig::default_test(),
+//         ZcashdConfig::default_test(),
+//     )
+//     .await;
 
-use zingo_infra_testutils::client;
+//     let lightclient_dir = tempfile::tempdir().unwrap();
+//     let (mut faucet, mut recipient) = client::build_lightclients(
+//         lightclient_dir.path().to_path_buf(),
+//         local_net.indexer().port(),
+//     );
+//     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-use zingo_infra_services::{
-    indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
-    LocalNet,
-};
+//     faucet.sync_and_await().await.unwrap();
+//     from_inputs::quick_send(
+//         &mut faucet,
+//         vec![(
+//             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+//             100_000,
+//             None,
+//         )],
+//     )
+//     .await
+//     .unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
-#[tokio::test]
-async fn zainod_zcashd_basic_send() {
-    tracing_subscriber::fmt().init();
+//     faucet.sync_and_await().await.unwrap();
+//     recipient.sync_and_await().await.unwrap();
 
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
+//     let recipient_balance = recipient.do_balance().await;
+//     assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
-        local_net.indexer().port(),
-    );
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+//     local_net.validator().print_stdout();
+//     local_net.validator().print_stderr();
+//     local_net.indexer().print_stdout();
+//     local_net.indexer().print_stderr();
+//     println!("faucet balance:");
+//     println!("{:?}\n", faucet.do_balance().await);
+//     println!("recipient balance:");
+//     println!("{:?}\n", recipient_balance);
+// }
 
-    faucet.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+// #[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
+// #[tokio::test]
+// async fn zainod_zebrad_basic_send() {
+//     tracing_subscriber::fmt().init();
 
-    faucet.sync_and_await().await.unwrap();
-    recipient.sync_and_await().await.unwrap();
+//     let local_net = LocalNet::<Zainod, Zebrad>::launch(
+//         ZainodConfig::default_test(),
+//         ZebradConfig::default_test(),
+//     )
+//     .await;
 
-    let recipient_balance = recipient.do_balance().await;
-    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+//     let lightclient_dir = tempfile::tempdir().unwrap();
+//     let (mut faucet, mut recipient) = client::build_lightclients(
+//         lightclient_dir.path().to_path_buf(),
+//         local_net.indexer().port(),
+//     );
 
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
-    println!("faucet balance:");
-    println!("{:?}\n", faucet.do_balance().await);
-    println!("recipient balance:");
-    println!("{:?}\n", recipient_balance);
-}
+//     local_net.validator().generate_blocks(100).await.unwrap();
+//     tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
-#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
-#[tokio::test]
-async fn zainod_zebrad_basic_send() {
-    tracing_subscriber::fmt().init();
+//     faucet.sync_and_await().await.unwrap();
+//     faucet.quick_shield().await.unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
+//     faucet.sync_and_await().await.unwrap();
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
-        local_net.indexer().port(),
-    );
+//     from_inputs::quick_send(
+//         &mut faucet,
+//         vec![(
+//             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+//             100_000,
+//             None,
+//         )],
+//     )
+//     .await
+//     .unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    local_net.validator().generate_blocks(100).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+//     faucet.sync_and_await().await.unwrap();
+//     recipient.sync_and_await().await.unwrap();
 
-    faucet.sync_and_await().await.unwrap();
-    faucet.quick_shield().await.unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+//     let recipient_balance = recipient.do_balance().await;
+//     assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
 
-    faucet.sync_and_await().await.unwrap();
+//     local_net.validator().print_stdout();
+//     local_net.validator().print_stderr();
+//     local_net.indexer().print_stdout();
+//     local_net.indexer().print_stderr();
+//     println!("faucet balance:");
+//     println!("{:?}\n", faucet.do_balance().await);
+//     println!("recipient balance:");
+//     println!("{:?}\n", recipient_balance);
+// }
 
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+// #[ignore = "lightwalletd v0.4.18+ incorrectly expects 1344-byte Equihash solutions for regtest blocks"]
+// #[tokio::test]
+// async fn lightwalletd_zcashd_basic_send() {
+//     tracing_subscriber::fmt().init();
 
-    faucet.sync_and_await().await.unwrap();
-    recipient.sync_and_await().await.unwrap();
+//     let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
+//         LightwalletdConfig::default_test(),
+//         ZcashdConfig::default_test(),
+//     )
+//     .await;
 
-    let recipient_balance = recipient.do_balance().await;
-    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+//     let lightclient_dir = tempfile::tempdir().unwrap();
+//     let (mut faucet, mut recipient) = client::build_lightclients(
+//         lightclient_dir.path().to_path_buf(),
+//         local_net.indexer().port(),
+//     );
 
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
-    println!("faucet balance:");
-    println!("{:?}\n", faucet.do_balance().await);
-    println!("recipient balance:");
-    println!("{:?}\n", recipient_balance);
-}
+//     faucet.sync_and_await().await.unwrap();
+//     from_inputs::quick_send(
+//         &mut faucet,
+//         vec![(
+//             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+//             100_000,
+//             None,
+//         )],
+//     )
+//     .await
+//     .unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     faucet.sync_and_await().await.unwrap();
+//     recipient.sync_and_await().await.unwrap();
 
-#[ignore = "lightwalletd v0.4.18+ incorrectly expects 1344-byte Equihash solutions for regtest blocks"]
-#[tokio::test]
-async fn lightwalletd_zcashd_basic_send() {
-    tracing_subscriber::fmt().init();
+//     let recipient_balance = recipient.do_balance().await;
+//     assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
 
-    let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
+//     local_net.validator().print_stdout();
+//     local_net.validator().print_stderr();
+//     local_net.indexer().print_stdout();
+//     local_net.indexer().print_lwd_log();
+//     local_net.indexer().print_stderr();
+//     println!("faucet balance:");
+//     println!("{:?}\n", faucet.do_balance().await);
+//     println!("recipient balance:");
+//     println!("{:?}\n", recipient_balance);
+// }
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
-        local_net.indexer().port(),
-    );
+// #[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
+// #[tokio::test]
+// async fn lightwalletd_zebrad_basic_send() {
+//     tracing_subscriber::fmt().init();
 
-    faucet.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    faucet.sync_and_await().await.unwrap();
-    recipient.sync_and_await().await.unwrap();
+//     let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
+//         LightwalletdConfig::default_test(),
+//         ZebradConfig::default_test(),
+//     )
+//     .await;
 
-    let recipient_balance = recipient.do_balance().await;
-    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
+//     let lightclient_dir = tempfile::tempdir().unwrap();
+//     let (mut faucet, mut recipient) = client::build_lightclients(
+//         lightclient_dir.path().to_path_buf(),
+//         local_net.indexer().port(),
+//     );
 
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_lwd_log();
-    local_net.indexer().print_stderr();
-    println!("faucet balance:");
-    println!("{:?}\n", faucet.do_balance().await);
-    println!("recipient balance:");
-    println!("{:?}\n", recipient_balance);
-}
+//     local_net.validator().generate_blocks(100).await.unwrap();
+//     faucet.sync_and_await().await.unwrap();
+//     faucet.quick_shield().await.unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     faucet.sync_and_await().await.unwrap();
 
-#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
-#[tokio::test]
-async fn lightwalletd_zebrad_basic_send() {
-    tracing_subscriber::fmt().init();
+//     from_inputs::quick_send(
+//         &mut faucet,
+//         vec![(
+//             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+//             100_000,
+//             None,
+//         )],
+//     )
+//     .await
+//     .unwrap();
+//     local_net.validator().generate_blocks(1).await.unwrap();
+//     faucet.sync_and_await().await.unwrap();
+//     recipient.sync_and_await().await.unwrap();
 
-    let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
+//     let recipient_balance = recipient.do_balance().await;
+//     assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
-        local_net.indexer().port(),
-    );
-
-    local_net.validator().generate_blocks(100).await.unwrap();
-    faucet.sync_and_await().await.unwrap();
-    faucet.quick_shield().await.unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    faucet.sync_and_await().await.unwrap();
-
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
-    faucet.sync_and_await().await.unwrap();
-    recipient.sync_and_await().await.unwrap();
-
-    let recipient_balance = recipient.do_balance().await;
-    assert_eq!(recipient_balance.verified_orchard_balance, Some(100_000));
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
-    println!("faucet balance:");
-    println!("{:?}\n", faucet.do_balance().await);
-    println!("recipient balance:");
-    println!("{:?}\n", recipient_balance);
-}
+//     local_net.validator().print_stdout();
+//     local_net.validator().print_stderr();
+//     local_net.indexer().print_stdout();
+//     local_net.indexer().print_stderr();
+//     println!("faucet balance:");
+//     println!("{:?}\n", faucet.do_balance().await);
+//     println!("recipient balance:");
+//     println!("{:?}\n", recipient_balance);
+// }
 
 mod client_rpcs {
     //! - In order to generate a cached blockchain from zebrad run:
@@ -232,8 +220,7 @@ mod client_rpcs {
     //!              └── [          3]  version
     //! ```
     use zingo_infra_services::{
-        indexer::{LightwalletdConfig, ZainodConfig},
-        network::Network,
+        indexer::LightwalletdConfig,
         validator::{ZcashdConfig, ZebradConfig},
     };
 
@@ -264,7 +251,7 @@ mod client_rpcs {
         .await;
     }
 
-    macro_rules! rpc_fixture_test {
+    macro_rules! _rpc_fixture_test {
         ($test_name:ident) => {
             #[tokio::test]
             async fn $test_name() {
@@ -281,42 +268,44 @@ mod client_rpcs {
         };
     }
 
-    mod get_subtree_roots {
-        //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
-        //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
-        use super::*;
-        /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
-        /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
-        #[ignore = "this test requires manual setup"]
-        #[tokio::test]
-        async fn sapling() {
-            tracing_subscriber::fmt().init();
+    // FIXME: These tests DO make sense to keep around.
+    // They need to be refactored so that they don't require a specific lightclient usage (a grpc client should be enough).
+    // mod get_subtree_roots {
+    //     //! - To run the `get_subtree_roots_sapling` test, sync Zebrad in testnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_sapling`. At least 2 sapling shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_sapling] doc comments for more details.
+    //     //! - To run the `get_subtree_roots_orchard` test, sync Zebrad in mainnet mode and copy the cache to `zcash_local_net/chain_cache/testnet_get_subtree_roots_orchard`. At least 2 orchard shards must be synced to pass. See [crate::test_fixtures::get_subtree_roots_orchard] doc comments for more details.
+    //     use super::*;
+    //     /// This test requires Zebrad testnet to be already synced to at least 2 sapling shards with the cache at
+    //     /// `zcash_local_net/chain_cache/get_subtree_roots_sapling`
+    //     #[ignore = "this test requires manual setup"]
+    //     #[tokio::test]
+    //     async fn sapling() {
+    //         tracing_subscriber::fmt().init();
 
-            zingo_infra_testutils::test_fixtures::get_subtree_roots_sapling(
-                ZebradConfig::default_location(),
-                ZainodConfig::default_location(),
-                LightwalletdConfig::default_location(),
-                Network::Testnet,
-            )
-            .await;
-        }
+    //         zingo_infra_testutils::test_fixtures::get_subtree_roots_sapling(
+    //             ZebradConfig::default_location(),
+    //             ZainodConfig::default_location(),
+    //             LightwalletdConfig::default_location(),
+    //             Network::Testnet,
+    //         )
+    //         .await;
+    //     }
 
-        /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
-        /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
-        #[ignore = "this test requires manual setup"]
-        #[tokio::test]
-        async fn orchard() {
-            tracing_subscriber::fmt().init();
+    //     /// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
+    //     /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
+    //     #[ignore = "this test requires manual setup"]
+    //     #[tokio::test]
+    //     async fn orchard() {
+    //         tracing_subscriber::fmt().init();
 
-            zingo_infra_testutils::test_fixtures::get_subtree_roots_orchard(
-                ZebradConfig::default_location(),
-                ZainodConfig::default_location(),
-                LightwalletdConfig::default_location(),
-                Network::Mainnet,
-            )
-            .await;
-        }
-    }
+    //         zingo_infra_testutils::test_fixtures::get_subtree_roots_orchard(
+    //             ZebradConfig::default_location(),
+    //             ZainodConfig::default_location(),
+    //             LightwalletdConfig::default_location(),
+    //             Network::Mainnet,
+    //         )
+    //         .await;
+    //     }
+    // }
     // previously ignored
     // rpc_fixture_test!(get_block_out_of_bounds);
     // rpc_fixture_test!(get_block_range_out_of_bounds);

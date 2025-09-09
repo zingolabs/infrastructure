@@ -3,12 +3,10 @@
 use std::path::PathBuf;
 
 use http_body_util::combinators::UnsyncBoxBody;
-use lightwallet_protocol::CompactTxStreamerClient;
 use portpicker::Port;
 use testvectors::seeds;
 use tower::util::BoxCloneService;
 use zingo_infra_services::network;
-use zingo_netutils::{GetClientError, GrpcConnector};
 use zingolib::{
     config::RegtestNetwork, lightclient::LightClient, testutils::scenarios::setup::ClientBuilder,
 };
@@ -19,13 +17,6 @@ pub type UnderlyingService = BoxCloneService<
     http::Response<hyper::body::Incoming>,
     hyper_util::client::legacy::Error,
 >;
-
-/// Builds a client for creating RPC requests to the indexer/light-node
-pub async fn build_client(
-    uri: http::Uri,
-) -> Result<CompactTxStreamerClient<UnderlyingService>, GetClientError> {
-    GrpcConnector::new(uri).get_client().await
-}
 
 // NOTE: this should be migrated to zingolib when LocalNet replaces regtest manager in zingoilb::testutils
 /// Builds faucet (miner) and recipient lightclients for local network integration testing
