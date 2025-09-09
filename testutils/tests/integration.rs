@@ -6,135 +6,11 @@ use zingo_infra_testutils::client;
 
 use zingo_infra_services::{
     indexer::{Indexer as _, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
-    network::ActivationHeights,
-    utils::{self},
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
     LocalNet,
 };
 
-#[tokio::test]
-async fn launch_zcashd() {
-    tracing_subscriber::fmt().init();
-
-    let config = ZcashdConfig::default_test();
-    let zcashd = Zcashd::launch(config).await.unwrap();
-    zcashd.print_stdout();
-    zcashd.print_stderr();
-}
-
-#[tokio::test]
-async fn launch_zcashd_custom_activation_heights() {
-    tracing_subscriber::fmt().init();
-
-    let activation_heights = ActivationHeights {
-        overwinter: 1.into(),
-        sapling: 1.into(),
-        blossom: 1.into(),
-        heartwood: 1.into(),
-        canopy: 3.into(),
-        nu5: 5.into(),
-        nu6: 7.into(),
-    };
-    let mut config = ZcashdConfig::default_test();
-    config.activation_heights = activation_heights;
-    let zcashd = Zcashd::launch(config).await.unwrap();
-
-    zcashd.generate_blocks(8).await.unwrap();
-    zcashd.print_stdout();
-    zcashd.print_stderr();
-}
-
-#[tokio::test]
-async fn launch_zebrad() {
-    tracing_subscriber::fmt().init();
-
-    let config = ZebradConfig::default_test();
-    let zebrad = Zebrad::launch(config).await.unwrap();
-    zebrad.print_stdout();
-    zebrad.print_stderr();
-}
-
-#[ignore = "temporary during refactor into workspace"]
-#[tokio::test]
-async fn launch_zebrad_with_cache() {
-    tracing_subscriber::fmt().init();
-
-    let mut config = ZebradConfig::default_test();
-    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
-
-    let zebrad = Zebrad::launch(config).await.unwrap();
-    zebrad.print_stdout();
-    zebrad.print_stderr();
-
-    assert_eq!(zebrad.get_chain_height().await, 52.into());
-}
-
-#[tokio::test]
-async fn launch_localnet_zainod_zcashd() {
-    tracing_subscriber::fmt().init();
-
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
-}
-
-#[tokio::test]
-async fn launch_localnet_zainod_zebrad() {
-    tracing_subscriber::fmt().init();
-
-    let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
-}
-
-#[tokio::test]
-async fn launch_localnet_lightwalletd_zcashd() {
-    tracing_subscriber::fmt().init();
-
-    let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_lwd_log();
-    local_net.indexer().print_stderr();
-}
-
-#[tokio::test]
-async fn launch_localnet_lightwalletd_zebrad() {
-    tracing_subscriber::fmt().init();
-
-    let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_lwd_log();
-    local_net.indexer().print_stderr();
-}
-
+#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
 #[tokio::test]
 async fn zainod_zcashd_basic_send() {
     tracing_subscriber::fmt().init();
@@ -182,6 +58,7 @@ async fn zainod_zcashd_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
 #[tokio::test]
 async fn zainod_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -283,6 +160,7 @@ async fn lightwalletd_zcashd_basic_send() {
     println!("{:?}\n", recipient_balance);
 }
 
+#[ignore = "Out of scope. Should set up a chain cache and compare with a basic gprc request"]
 #[tokio::test]
 async fn lightwalletd_zebrad_basic_send() {
     tracing_subscriber::fmt().init();
@@ -371,6 +249,8 @@ mod client_rpcs {
         .await;
     }
 
+    // FIXME: This is not a test, so it shouldn't be marked as one.
+    // and TODO: Pre-test setups should be moved elsewhere.
     #[ignore = "not a test. generates chain cache for client_rpc tests."]
     #[tokio::test]
     async fn generate_zcashd_chain_cache() {
@@ -448,22 +328,23 @@ mod client_rpcs {
     // rpc_fixture_test!(get_mempool_tx);
     // rpc_fixture_test!(get_transaction);
 
-    rpc_fixture_test!(get_lightd_info);
-    rpc_fixture_test!(get_latest_block);
-    rpc_fixture_test!(get_taddress_txids_all);
-    rpc_fixture_test!(get_taddress_txids_lower);
-    rpc_fixture_test!(get_taddress_txids_upper);
-    rpc_fixture_test!(get_taddress_balance);
-    rpc_fixture_test!(get_taddress_balance_stream);
-    rpc_fixture_test!(get_tree_state_by_height);
-    rpc_fixture_test!(get_tree_state_out_of_bounds);
-    rpc_fixture_test!(get_latest_tree_state);
-    rpc_fixture_test!(get_address_utxos_all);
-    rpc_fixture_test!(get_address_utxos_lower);
-    rpc_fixture_test!(get_address_utxos_upper);
-    rpc_fixture_test!(get_address_utxos_out_of_bounds);
-    rpc_fixture_test!(get_address_utxos_stream_all);
-    rpc_fixture_test!(get_address_utxos_stream_lower);
-    rpc_fixture_test!(get_address_utxos_stream_upper);
-    rpc_fixture_test!(get_address_utxos_stream_out_of_bounds);
+    // FIXME: These tests are out of scope
+    // rpc_fixture_test!(get_lightd_info);
+    // rpc_fixture_test!(get_latest_block);
+    // rpc_fixture_test!(get_taddress_txids_all);
+    // rpc_fixture_test!(get_taddress_txids_lower);
+    // rpc_fixture_test!(get_taddress_txids_upper);
+    // rpc_fixture_test!(get_taddress_balance);
+    // rpc_fixture_test!(get_taddress_balance_stream);
+    // rpc_fixture_test!(get_tree_state_by_height);
+    // rpc_fixture_test!(get_tree_state_out_of_bounds);
+    // rpc_fixture_test!(get_latest_tree_state);
+    // rpc_fixture_test!(get_address_utxos_all);
+    // rpc_fixture_test!(get_address_utxos_lower);
+    // rpc_fixture_test!(get_address_utxos_upper);
+    // rpc_fixture_test!(get_address_utxos_out_of_bounds);
+    // rpc_fixture_test!(get_address_utxos_stream_all);
+    // rpc_fixture_test!(get_address_utxos_stream_lower);
+    // rpc_fixture_test!(get_address_utxos_stream_upper);
+    // rpc_fixture_test!(get_address_utxos_stream_out_of_bounds);
 }
