@@ -68,12 +68,17 @@ pub struct ZcashdConfig {
 }
 
 impl ZcashdConfig {
+    /// Default location for `zcashd` resolved via `PATH`.
     pub fn default_location() -> ExecutableLocation {
         ExecutableLocation::by_name("zcashd")
     }
+
+    /// Default location for `zcash-cli` resolved via `PATH`.
     pub fn default_cli_location() -> ExecutableLocation {
         ExecutableLocation::by_name("zcash-cli")
     }
+
+    /// Regtest-friendly defaults for testing.
     pub fn default_test() -> Self {
         Self {
             zcashd_bin: Self::default_location(),
