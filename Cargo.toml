@@ -1,5 +1,5 @@
 [workspace]
-members = ["services", "testutils"]
+members = ["services"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -19,21 +19,9 @@ tonic = "0.12.3"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
 
-zcash_client_backend = { version = "0.18.0", features = [
-  "lightwalletd-tonic",
-  "orchard",
-  "transparent-inputs",
-] }
 zcash_primitives = "0.22.0"
 zcash_protocol = "0.5.1"
 
 zebra-chain = "2.0"
 zebra-node-services = "1.0"
 zebra-rpc = "2.0"
-
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib.git", branch = "dev" }
-lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust.git", branch = "main" }
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.0-beta2" }
-testvectors = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.0-beta2" }
-
-zingo-infra-services = { path = "services" }

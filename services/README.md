@@ -29,13 +29,6 @@ See the config structs for each process in validator.rs and indexer.rs for more 
 
 See [`crate::LocalNet`].
 
-## Testing
-
-See [`crate::test_fixtures`] doc comments for running client rpc tests from external crates for indexer/validator development.
-
-Test should be run with the `test_fixtures` feature enabled.
-
-
 Current version: 0.1.0
 
 License: MIT License
