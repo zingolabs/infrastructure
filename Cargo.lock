@@ -5372,15 +5372,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo-infra-testutils"
-version = "0.1.0"
-dependencies = [
- "tokio",
- "tracing-subscriber",
- "zingo-infra-services",
-]
-
-[[package]]
 name = "zip32"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -28,12 +28,6 @@
 //!
 //! See [`crate::LocalNet`].
 //!
-//! # Testing
-//!
-//! See [`crate::test_fixtures`] doc comments for running client rpc tests from external crates for indexer/validator development.
-//!
-//! The `test_fixtures` feature is enabled by default to allow tests to run.
-//!
 
 pub mod config;
 pub mod error;
