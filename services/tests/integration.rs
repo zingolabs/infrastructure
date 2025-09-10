@@ -30,6 +30,7 @@ async fn launch_zcashd_custom_activation_heights() {
         canopy: 3.into(),
         nu5: 5.into(),
         nu6: 7.into(),
+        nu6_1: 9.into(),
     };
     let mut config = ZcashdConfig::default_test();
     config.activation_heights = activation_heights;

@@ -404,6 +404,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
             canopy: 5.into(),
             nu5: 6.into(),
             nu6: 7.into(),
+            nu6_1: 9.into(),
         };
 
         super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
@@ -425,6 +426,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
             canopy: 5.into(),
             nu5: 6.into(),
             nu6: 7.into(),
+            nu6_1: 9.into(),
         };
 
         super::zcashd(
