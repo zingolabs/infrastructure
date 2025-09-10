@@ -19,11 +19,6 @@ tonic = "0.12.3"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
 
-zcash_client_backend = { version = "0.18.0", features = [
-  "lightwalletd-tonic",
-  "orchard",
-  "transparent-inputs",
-] }
 zcash_primitives = "0.22.0"
 zcash_protocol = "0.5.1"
 
