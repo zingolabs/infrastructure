@@ -22,13 +22,13 @@
 
 use std::path::PathBuf;
 
-use testvectors::REG_O_ADDR_FROM_ABANDONART;
+// use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
 use zingo_infra_services::{
     indexer::{Lightwalletd, LightwalletdConfig},
     network::{self, Network},
     utils::{self, ExecutableLocation},
-    validator::{Validator as _, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
@@ -71,29 +71,29 @@ pub async fn generate_zebrad_large_chain_cache(
 /// Generates zcashd chain cache for client RPC test fixtures
 #[ignore = "FIXME: could've not been ignored, but relies on zingolib"]
 pub async fn generate_zcashd_chain_cache(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
+    _zcashd_bin: ExecutableLocation,
+    _zcash_cli_bin: ExecutableLocation,
+    _lightwalletd_bin: ExecutableLocation,
 ) {
-    let mut local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig {
-            lightwalletd_bin,
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZcashdConfig {
-            zcashd_bin,
-            zcash_cli_bin,
-            rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
-    )
-    .await;
+    // let mut local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
+    //     LightwalletdConfig {
+    //         lightwalletd_bin,
+    //         listen_port: None,
+    //         zcashd_conf: PathBuf::new(),
+    //         darkside: false,
+    //     },
+    //     ZcashdConfig {
+    //         zcashd_bin,
+    //         zcash_cli_bin,
+    //         rpc_listen_port: None,
+    //         activation_heights: network::ActivationHeights::default(),
+    //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+    //         chain_cache: None,
+    //     },
+    // )
+    // .await;
 
-    local_net.validator().generate_blocks(2).await.unwrap();
+    // local_net.validator().generate_blocks(2).await.unwrap();
 
     // let lightclient_dir = tempfile::tempdir().unwrap();
     // FIXME
@@ -146,12 +146,12 @@ pub async fn generate_zcashd_chain_cache(
     // )
     // .await
     // .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
 
     // FIXME
     // recipient.sync_and_await().await.unwrap();
     // recipient.quick_shield().await.unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
 
     // FIXME
     // faucet.sync_and_await().await.unwrap();
@@ -165,7 +165,7 @@ pub async fn generate_zcashd_chain_cache(
     // )
     // .await
     // .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
 
     // FIXME
     // recipient.sync_and_await().await.unwrap();
@@ -179,7 +179,7 @@ pub async fn generate_zcashd_chain_cache(
     // )
     // .await
     // .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
 
     // FIXME
     // recipient.sync_and_await().await.unwrap();
@@ -190,7 +190,7 @@ pub async fn generate_zcashd_chain_cache(
     // )
     // .await
     // .unwrap();
-    local_net.validator().generate_blocks(2).await.unwrap();
+    // local_net.validator().generate_blocks(2).await.unwrap();
 
     // FIXME
     // faucet.sync_and_await().await.unwrap();
@@ -204,15 +204,15 @@ pub async fn generate_zcashd_chain_cache(
     // )
     // .await
     // .unwrap();
-    local_net.validator().generate_blocks(1).await.unwrap();
+    // local_net.validator().generate_blocks(1).await.unwrap();
 
     let chain_cache_dir = utils::chain_cache_dir();
     if !chain_cache_dir.exists() {
         std::fs::create_dir_all(chain_cache_dir.clone()).unwrap();
     }
-    local_net
-        .validator_mut()
-        .cache_chain(chain_cache_dir.join("client_rpc_tests"));
+    // local_net
+    //     .validator_mut()
+    //     .cache_chain(chain_cache_dir.join("client_rpc_tests"));
 }
 
 // /// GetLightdInfo RPC test
