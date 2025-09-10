@@ -20,7 +20,7 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
 
 zcash_primitives = "0.24.0"
-zcash_protocol = { version = "0.6.1" }
+zcash_protocol = { version = "0.6.1", features = ["local-consensus"] }
 
 zebra-chain = "2.0"
 zebra-node-services = "1.0"

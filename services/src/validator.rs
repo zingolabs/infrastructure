@@ -5,7 +5,7 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::BlockHeight;
+use zcash_protocol::consensus::{BlockHeight, Parameters};
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
@@ -645,14 +645,64 @@ Error: {err}",
             let network =
                 zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
                     before_overwinter: Some(1),
-                    overwinter: Some(self.activation_heights.overwinter.into()),
-                    sapling: Some(self.activation_heights.sapling.into()),
-                    blossom: Some(self.activation_heights.blossom.into()),
-                    heartwood: Some(self.activation_heights.heartwood.into()),
-                    canopy: Some(self.activation_heights.canopy.into()),
-                    nu5: Some(self.activation_heights.nu5.into()),
-                    nu6: Some(self.activation_heights.nu6.into()),
-                    nu6_1: None,
+                    // overwinter: Some(self.activation_heights.overwinter.into()),
+                    overwinter: Some(
+                        self.activation_heights
+                            .activation_height(
+                                zcash_protocol::consensus::NetworkUpgrade::Overwinter,
+                            )
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // sapling: Some(self.activation_heights.sapling.into()),
+                    sapling: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Sapling)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // blossom: Some(self.activation_heights.blossom.into()),
+                    blossom: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Blossom)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // heartwood: Some(self.activation_heights.heartwood.into()),
+                    heartwood: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Heartwood)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // canopy: Some(self.activation_heights.canopy.into()),
+                    canopy: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Canopy)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // nu5: Some(self.activation_heights.nu5.into()),
+                    nu5: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu5)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // nu6: Some(self.activation_heights.nu6.into()),
+                    nu6: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
+                    // nu6_1: None,
+                    nu6_1: Some(
+                        self.activation_heights
+                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6_1)
+                            .unwrap_or(1.into())
+                            .into(),
+                    ),
                     nu7: None,
                 });
 
