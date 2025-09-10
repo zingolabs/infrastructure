@@ -417,8 +417,6 @@ zcash-conf-path: {zcashd_conf}"
 mod tests {
     use std::path::PathBuf;
 
-    use zcash_protocol::consensus::BlockHeight;
-
     use crate::{logs, network};
 
     const EXPECTED_CONFIG: &str = "\
@@ -459,17 +457,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights =
-            network::ActivationHeights::new(zcash_protocol::local_consensus::LocalNetwork {
-                overwinter: Some(BlockHeight::from(1)),
-                sapling: Some(BlockHeight::from(2)),
-                blossom: Some(BlockHeight::from(3)),
-                heartwood: Some(BlockHeight::from(4)),
-                canopy: Some(BlockHeight::from(5)),
-                nu5: Some(BlockHeight::from(6)),
-                nu6: Some(BlockHeight::from(7)),
-                nu6_1: Some(BlockHeight::from(8)),
-            });
+        let activation_heights = network::ActivationHeights::sequential_heights();
         // overwinter: 1.into(),
         // sapling: 2.into(),
         // blossom: 3.into(),
@@ -490,17 +478,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights =
-            network::ActivationHeights::new(zcash_protocol::local_consensus::LocalNetwork {
-                overwinter: Some(BlockHeight::from(1)),
-                sapling: Some(BlockHeight::from(2)),
-                blossom: Some(BlockHeight::from(3)),
-                heartwood: Some(BlockHeight::from(4)),
-                canopy: Some(BlockHeight::from(5)),
-                nu5: Some(BlockHeight::from(6)),
-                nu6: Some(BlockHeight::from(7)),
-                nu6_1: Some(BlockHeight::from(8)),
-            });
+        let activation_heights = network::ActivationHeights::sequential_heights();
         // overwinter: 1.into(),
         // sapling: 2.into(),
         // blossom: 3.into(),

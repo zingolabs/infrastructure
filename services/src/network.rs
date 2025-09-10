@@ -55,6 +55,22 @@ impl ActivationHeights {
     pub fn new(inner: zcash_protocol::local_consensus::LocalNetwork) -> Self {
         Self { inner }
     }
+
+    /// Creates activation heights with sequential block heights for testing (1, 2, 3, 4, 5, 6, 7, 8)
+    pub fn sequential_heights() -> Self {
+        Self {
+            inner: zcash_protocol::local_consensus::LocalNetwork {
+                overwinter: Some(BlockHeight::from(1)),
+                sapling: Some(BlockHeight::from(2)),
+                blossom: Some(BlockHeight::from(3)),
+                heartwood: Some(BlockHeight::from(4)),
+                canopy: Some(BlockHeight::from(5)),
+                nu5: Some(BlockHeight::from(6)),
+                nu6: Some(BlockHeight::from(7)),
+                nu6_1: Some(BlockHeight::from(8)),
+            },
+        }
+    }
 }
 
 impl zcash_protocol::consensus::Parameters for ActivationHeights {
