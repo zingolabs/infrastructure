@@ -6059,6 +6059,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "testvectors",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -6068,6 +6069,7 @@ dependencies = [
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
+ "zingolib",
 ]
 
 [[package]]

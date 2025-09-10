@@ -23,14 +23,6 @@
 use std::path::PathBuf;
 
 use testvectors::REG_O_ADDR_FROM_ABANDONART;
-use zcash_protocol::{
-    PoolType, ShieldedProtocol,
-};
-use zingolib::{
-    testutils::lightclient::{from_inputs, get_base_address},
-};
-
-use crate::client;
 
 use zingo_infra_services::{
     indexer::{Lightwalletd, LightwalletdConfig},
@@ -75,7 +67,9 @@ pub async fn generate_zebrad_large_chain_cache(
         .cache_chain(chain_cache_dir.join("client_rpc_tests_large"));
 }
 
+// FIXME: could've not been ignored, but relies on zingolib.
 /// Generates zcashd chain cache for client RPC test fixtures
+#[ignore = "FIXME: could've not been ignored, but relies on zingolib"]
 pub async fn generate_zcashd_chain_cache(
     zcashd_bin: ExecutableLocation,
     zcash_cli_bin: ExecutableLocation,
@@ -101,11 +95,12 @@ pub async fn generate_zcashd_chain_cache(
 
     local_net.validator().generate_blocks(2).await.unwrap();
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
-        local_net.indexer().port(),
-    );
+    // let lightclient_dir = tempfile::tempdir().unwrap();
+    // FIXME
+    // let (mut faucet, mut recipient) = client::build_lightclients(
+    //     lightclient_dir.path().to_path_buf(),
+    //     local_net.indexer().port(),
+    // );
 
     // TODO: use second recipient taddr
     // recipient.do_new_address("ozt").await.unwrap();
@@ -119,90 +114,96 @@ pub async fn generate_zcashd_chain_cache(
     // faucet taddr child index 0:
     // tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
 
-    faucet.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-            100_000,
-            Some("orchard test memo"),
-        )],
-    )
-    .await
-    .unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
-            100_000,
-            Some("sapling test memo"),
-        )],
-    )
-    .await
-    .unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Transparent).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
+    // FIXME
+    // faucet.sync_and_await().await.unwrap();
+    // from_inputs::quick_send(
+    //     &mut faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+    //         100_000,
+    //         Some("orchard test memo"),
+    //     )],
+    // )
+    // .await
+    // .unwrap();
+    // from_inputs::quick_send(
+    //     &mut faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+    //         100_000,
+    //         Some("sapling test memo"),
+    //     )],
+    // )
+    // .await
+    // .unwrap();
+    // from_inputs::quick_send(
+    //     &mut faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Transparent).await,
+    //         100_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
 
-    recipient.sync_and_await().await.unwrap();
-    recipient.quick_shield().await.unwrap();
+    // FIXME
+    // recipient.sync_and_await().await.unwrap();
+    // recipient.quick_shield().await.unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
 
-    faucet.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Transparent).await,
-            200_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
+    // FIXME
+    // faucet.sync_and_await().await.unwrap();
+    // from_inputs::quick_send(
+    //     &mut faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Transparent).await,
+    //         200_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
 
-    recipient.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut recipient,
-        vec![(
-            &get_base_address(&faucet, PoolType::Transparent).await,
-            10_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
+    // FIXME
+    // recipient.sync_and_await().await.unwrap();
+    // from_inputs::quick_send(
+    //     &mut recipient,
+    //     vec![(
+    //         &get_base_address(&faucet, PoolType::Transparent).await,
+    //         10_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
 
-    recipient.sync_and_await().await.unwrap();
-    let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
-    from_inputs::quick_send(
-        &mut recipient,
-        vec![(&recipient_ua, 10_000, Some("orchard test memo"))],
-    )
-    .await
-    .unwrap();
+    // FIXME
+    // recipient.sync_and_await().await.unwrap();
+    // let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
+    // from_inputs::quick_send(
+    //     &mut recipient,
+    //     vec![(&recipient_ua, 10_000, Some("orchard test memo"))],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(2).await.unwrap();
 
-    faucet.sync_and_await().await.unwrap();
-    from_inputs::quick_send(
-        &mut faucet,
-        vec![(
-            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
-            100_000,
-            None,
-        )],
-    )
-    .await
-    .unwrap();
+    // FIXME
+    // faucet.sync_and_await().await.unwrap();
+    // from_inputs::quick_send(
+    //     &mut faucet,
+    //     vec![(
+    //         &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+    //         100_000,
+    //         None,
+    //     )],
+    // )
+    // .await
+    // .unwrap();
     local_net.validator().generate_blocks(1).await.unwrap();
 
     let chain_cache_dir = utils::chain_cache_dir();

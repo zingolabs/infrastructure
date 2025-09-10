@@ -219,37 +219,37 @@ mod client_rpcs {
     //!              ├── [     114923]  OPTIONS-000007
     //!              └── [          3]  version
     //! ```
-    use zingo_infra_services::{
-        indexer::LightwalletdConfig,
-        validator::{ZcashdConfig, ZebradConfig},
-    };
+    // use zingo_infra_services::{
+    //     indexer::LightwalletdConfig,
+    //     validator::{ZcashdConfig, ZebradConfig},
+    // };
 
-    #[ignore = "not a test. generates chain cache for client_rpc tests."]
-    #[tokio::test]
-    async fn generate_zebrad_large_chain_cache() {
-        tracing_subscriber::fmt().init();
+    // #[ignore = "not a test. generates chain cache for client_rpc tests."]
+    // #[tokio::test]
+    // async fn generate_zebrad_large_chain_cache() {
+    //     tracing_subscriber::fmt().init();
 
-        zingo_infra_testutils::test_fixtures::generate_zebrad_large_chain_cache(
-            ZebradConfig::default_location(),
-            LightwalletdConfig::default_location(),
-        )
-        .await;
-    }
+    //     zingo_infra_testutils::test_fixtures::generate_zebrad_large_chain_cache(
+    //         ZebradConfig::default_location(),
+    //         LightwalletdConfig::default_location(),
+    //     )
+    //     .await;
+    // }
 
-    // FIXME: This is not a test, so it shouldn't be marked as one.
-    // and TODO: Pre-test setups should be moved elsewhere.
-    #[ignore = "not a test. generates chain cache for client_rpc tests."]
-    #[tokio::test]
-    async fn generate_zcashd_chain_cache() {
-        tracing_subscriber::fmt().init();
+    // // FIXME: This is not a test, so it shouldn't be marked as one.
+    // // and TODO: Pre-test setups should be moved elsewhere.
+    // #[ignore = "not a test. generates chain cache for client_rpc tests."]
+    // #[tokio::test]
+    // async fn generate_zcashd_chain_cache() {
+    //     tracing_subscriber::fmt().init();
 
-        zingo_infra_testutils::test_fixtures::generate_zcashd_chain_cache(
-            ZcashdConfig::default_location(),
-            ZcashdConfig::default_cli_location(),
-            LightwalletdConfig::default_location(),
-        )
-        .await;
-    }
+    //     zingo_infra_testutils::test_fixtures::generate_zcashd_chain_cache(
+    //         ZcashdConfig::default_location(),
+    //         ZcashdConfig::default_cli_location(),
+    //         LightwalletdConfig::default_location(),
+    //     )
+    //     .await;
+    // }
 
     macro_rules! _rpc_fixture_test {
         ($test_name:ident) => {

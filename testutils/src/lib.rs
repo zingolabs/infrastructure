@@ -35,7 +35,6 @@
 //! The `test_fixtures` feature is enabled by default to allow tests to run.
 //!
 pub mod client;
-pub mod test_fixtures;
 
 /// Offer internal "service" logic via a pub interface
 pub mod services {

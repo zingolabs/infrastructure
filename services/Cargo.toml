@@ -27,6 +27,9 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
+testvectors = { workspace = true }
+zingolib = { workspace = true }
+
 
 [build-dependencies]
 hex = { workspace = true }
