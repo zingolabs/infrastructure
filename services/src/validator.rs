@@ -5,7 +5,7 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::{BlockHeight, Parameters};
+use zcash_protocol::consensus::BlockHeight;
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
@@ -641,6 +641,7 @@ Error: {err}",
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
+            use zcash_protocol::consensus::NetworkUpgrade;
 
             let network =
                 zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
@@ -648,61 +649,25 @@ Error: {err}",
                     // overwinter: Some(self.activation_heights.overwinter.into()),
                     overwinter: Some(
                         self.activation_heights
-                            .activation_height(
-                                zcash_protocol::consensus::NetworkUpgrade::Overwinter,
-                            )
-                            .unwrap_or(1.into())
-                            .into(),
+                            .set_height(NetworkUpgrade::Overwinter),
                     ),
                     // sapling: Some(self.activation_heights.sapling.into()),
-                    sapling: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Sapling)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    sapling: Some(self.activation_heights.set_height(NetworkUpgrade::Sapling)),
                     // blossom: Some(self.activation_heights.blossom.into()),
-                    blossom: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Blossom)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    blossom: Some(self.activation_heights.set_height(NetworkUpgrade::Blossom)),
                     // heartwood: Some(self.activation_heights.heartwood.into()),
                     heartwood: Some(
                         self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Heartwood)
-                            .unwrap_or(1.into())
-                            .into(),
+                            .set_height(NetworkUpgrade::Heartwood),
                     ),
                     // canopy: Some(self.activation_heights.canopy.into()),
-                    canopy: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Canopy)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    canopy: Some(self.activation_heights.set_height(NetworkUpgrade::Canopy)),
                     // nu5: Some(self.activation_heights.nu5.into()),
-                    nu5: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu5)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    nu5: Some(self.activation_heights.set_height(NetworkUpgrade::Nu5)),
                     // nu6: Some(self.activation_heights.nu6.into()),
-                    nu6: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    nu6: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6)),
                     // nu6_1: None,
-                    nu6_1: Some(
-                        self.activation_heights
-                            .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6_1)
-                            .unwrap_or(1.into())
-                            .into(),
-                    ),
+                    nu6_1: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6_1)),
                     nu7: None,
                 });
 
