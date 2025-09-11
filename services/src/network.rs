@@ -2,7 +2,7 @@
 
 use portpicker::Port;
 use zcash_primitives::consensus::BlockHeight;
-use zcash_protocol::consensus::NetworkUpgrade;
+use zcash_protocol::consensus::{NetworkUpgrade, Parameters as _};
 
 pub(crate) const LOCALHOST_IPV4: &str = "http://127.0.0.1";
 
@@ -70,6 +70,11 @@ impl ActivationHeights {
                 nu6_1: Some(BlockHeight::from(8)),
             },
         }
+    }
+    pub(crate) fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
+        self.activation_height(upgrade)
+            .unwrap_or(BlockHeight::from(1))
+            .into()
     }
 }
 

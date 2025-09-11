@@ -20,58 +20,29 @@ pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpc_port: Port,
-    activation_heights: &ActivationHeights,
+    act_heights: &ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
+    use zcash_protocol::consensus::NetworkUpgrade::*;
     // let overwinter_activation_height = activation_heights.overwinter;
-    let overwinter_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Overwinter)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let overwinter_activation_height = act_heights.set_height(Overwinter);
     // let sapling_activation_height = activation_heights.sapling;
-    let sapling_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Sapling)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let sapling_activation_height = act_heights.set_height(Sapling);
     // let blossom_activation_height = activation_heights.blossom;
-    let blossom_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Blossom)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let blossom_activation_height = act_heights.set_height(Blossom);
     // let heartwood_activation_height = activation_heights.heartwood;
-    let heartwood_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Heartwood)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let heartwood_activation_height = act_heights.set_height(Heartwood);
     // let canopy_activation_height = activation_heights.canopy;
-    let canopy_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Canopy)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let canopy_activation_height = act_heights.set_height(Canopy);
     // let nu5_activation_height = activation_heights.nu5;
-    let nu5_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu5)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
+    let nu5_activation_height = act_heights.set_height(Nu5);
     // let nu6_activation_height = activation_heights.nu6;
-    let nu6_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
-
-    let nu6_1_activation_height: u32 = activation_heights
-        .activation_height(zcash_protocol::consensus::NetworkUpgrade::Nu6_1)
-        .unwrap_or(BlockHeight::from(1))
-        .into();
+    let nu6_activation_height = act_heights.set_height(Nu6);
+    // let nu6_1_activation_height = activation_heights.nu6_1;
+    let nu6_1_activation_height = act_heights.set_height(Nu6_1);
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -83,7 +54,7 @@ nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
-nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1
+nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
