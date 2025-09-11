@@ -27,14 +27,14 @@ pub(crate) fn zcashd(
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    let overwinter_activation_height = act_heights.set_height(NetworkUpgrade::Overwinter);
-    let sapling_activation_height = act_heights.set_height(NetworkUpgrade::Sapling);
-    let blossom_activation_height = act_heights.set_height(NetworkUpgrade::Blossom);
-    let heartwood_activation_height = act_heights.set_height(NetworkUpgrade::Heartwood);
-    let canopy_activation_height = act_heights.set_height(NetworkUpgrade::Canopy);
-    let nu5_activation_height = act_heights.set_height(NetworkUpgrade::Nu5);
-    let nu6_activation_height = act_heights.set_height(NetworkUpgrade::Nu6);
-    let nu6_1_activation_height = act_heights.set_height(NetworkUpgrade::Nu6_1);
+    let overwinter_activation_height = act_heights.get_height(NetworkUpgrade::Overwinter);
+    let sapling_activation_height = act_heights.get_height(NetworkUpgrade::Sapling);
+    let blossom_activation_height = act_heights.get_height(NetworkUpgrade::Blossom);
+    let heartwood_activation_height = act_heights.get_height(NetworkUpgrade::Heartwood);
+    let canopy_activation_height = act_heights.get_height(NetworkUpgrade::Canopy);
+    let nu5_activation_height = act_heights.get_height(NetworkUpgrade::Nu5);
+    let nu6_activation_height = act_heights.get_height(NetworkUpgrade::Nu6);
+    let nu6_1_activation_height = act_heights.get_height(NetworkUpgrade::Nu6_1);
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -108,9 +108,9 @@ pub(crate) fn zebrad(
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
 
-    let nu5_activation_height = activation_heights.set_height(NetworkUpgrade::Nu5);
-    let nu6_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6);
-    let nu6_1_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6_1);
+    let nu5_activation_height = activation_heights.get_height(NetworkUpgrade::Nu5);
+    let nu6_activation_height = activation_heights.get_height(NetworkUpgrade::Nu6);
+    let nu6_1_activation_height = activation_heights.get_height(NetworkUpgrade::Nu6_1);
 
     let chain_cache = cache_dir.to_str().unwrap();
 
