@@ -429,7 +429,7 @@ nuparams=f5b9230b:4 # Heartwood
 nuparams=e9ff75a6:5 # Canopy
 nuparams=c2d6d0b4:6 # NU5 (Orchard)
 nuparams=c8e71055:7 # NU6
-nuparams=4dec4df0:8 # NU6_1
+nuparams=4dec4df0:8 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
