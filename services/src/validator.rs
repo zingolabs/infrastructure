@@ -646,27 +646,19 @@ Error: {err}",
             let network =
                 zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
                     before_overwinter: Some(1),
-                    // overwinter: Some(self.activation_heights.overwinter.into()),
                     overwinter: Some(
                         self.activation_heights
                             .set_height(NetworkUpgrade::Overwinter),
                     ),
-                    // sapling: Some(self.activation_heights.sapling.into()),
                     sapling: Some(self.activation_heights.set_height(NetworkUpgrade::Sapling)),
-                    // blossom: Some(self.activation_heights.blossom.into()),
                     blossom: Some(self.activation_heights.set_height(NetworkUpgrade::Blossom)),
-                    // heartwood: Some(self.activation_heights.heartwood.into()),
                     heartwood: Some(
                         self.activation_heights
                             .set_height(NetworkUpgrade::Heartwood),
                     ),
-                    // canopy: Some(self.activation_heights.canopy.into()),
                     canopy: Some(self.activation_heights.set_height(NetworkUpgrade::Canopy)),
-                    // nu5: Some(self.activation_heights.nu5.into()),
                     nu5: Some(self.activation_heights.set_height(NetworkUpgrade::Nu5)),
-                    // nu6: Some(self.activation_heights.nu6.into()),
                     nu6: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6)),
-                    // nu6_1: None,
                     nu6_1: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6_1)),
                     nu7: None,
                 });
