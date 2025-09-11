@@ -88,22 +88,6 @@ impl zcash_protocol::consensus::Parameters for ActivationHeights {
     }
 }
 
-// impl ActivationHeights {
-//     /// Returns activation height for given `network_upgrade`.
-//     pub fn activation_height(&self, network_upgrade: NetworkUpgrade) -> BlockHeight {
-//         match network_upgrade {
-//             NetworkUpgrade::Overwinter => self.overwinter,
-//             NetworkUpgrade::Sapling => self.sapling,
-//             NetworkUpgrade::Blossom => self.blossom,
-//             NetworkUpgrade::Heartwood => self.heartwood,
-//             NetworkUpgrade::Canopy => self.canopy,
-//             NetworkUpgrade::Nu5 => self.nu5,
-//             NetworkUpgrade::Nu6 => self.nu6,
-//             NetworkUpgrade::Nu6_1 => self.nu6_1,
-//         }
-//     }
-// }
-
 /// Checks `fixed_port` is not in use.
 /// If `fixed_port` is `None`, returns a random free port between 15_000 and 25_000.
 pub fn pick_unused_port(fixed_port: Option<Port>) -> Port {
