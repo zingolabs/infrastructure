@@ -71,7 +71,7 @@ impl ActivationHeights {
             },
         }
     }
-    pub(crate) fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
+    pub fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
         self.activation_height(upgrade)
             .unwrap_or(BlockHeight::from(1))
             .into()
