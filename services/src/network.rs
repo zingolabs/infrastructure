@@ -56,7 +56,7 @@ impl ActivationHeights {
         Self { inner }
     }
 
-    /// Creates activation heights with sequential block heights for testing (1, 2, 3, 4, 5, 6, 7, 8)
+    /// Creates activation heights with sequential block heights (1, 2, 3, 4, 5, 6, 7, 8)
     pub fn sequential_heights() -> Self {
         Self {
             inner: zcash_protocol::local_consensus::LocalNetwork {
