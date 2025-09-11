@@ -1,5 +1,6 @@
 mod testutils;
 
+use zcash_protocol::consensus::BlockHeight;
 use zingo_infra_services::{
     indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     network::ActivationHeights,
@@ -22,15 +23,17 @@ async fn launch_zcashd() {
 async fn launch_zcashd_custom_activation_heights() {
     tracing_subscriber::fmt().init();
 
-    let activation_heights = ActivationHeights {
-        overwinter: 1.into(),
-        sapling: 1.into(),
-        blossom: 1.into(),
-        heartwood: 1.into(),
-        canopy: 3.into(),
-        nu5: 5.into(),
-        nu6: 7.into(),
-    };
+    let activation_heights =
+        ActivationHeights::new(zcash_protocol::local_consensus::LocalNetwork {
+            overwinter: Some(BlockHeight::from(1)),
+            sapling: Some(BlockHeight::from(1)),
+            blossom: Some(BlockHeight::from(1)),
+            heartwood: Some(BlockHeight::from(1)),
+            canopy: Some(BlockHeight::from(3)),
+            nu5: Some(BlockHeight::from(5)),
+            nu6: Some(BlockHeight::from(7)),
+            nu6_1: Some(BlockHeight::from(9)),
+        });
     let mut config = ZcashdConfig::default_test();
     config.activation_heights = activation_heights;
     let zcashd = Zcashd::launch(config).await.unwrap();

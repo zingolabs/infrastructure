@@ -5,6 +5,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use portpicker::Port;
+use zcash_protocol::consensus::{BlockHeight, Parameters};
 
 use crate::network::{ActivationHeights, Network};
 
@@ -14,24 +15,26 @@ pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
+use zcash_protocol::consensus::NetworkUpgrade;
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpc_port: Port,
-    activation_heights: &ActivationHeights,
+    act_heights: &ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    let overwinter_activation_height = activation_heights.overwinter;
-    let sapling_activation_height = activation_heights.sapling;
-    let blossom_activation_height = activation_heights.blossom;
-    let heartwood_activation_height = activation_heights.heartwood;
-    let canopy_activation_height = activation_heights.canopy;
-    let nu5_activation_height = activation_heights.nu5;
-    let nu6_activation_height = activation_heights.nu6;
+    let overwinter_activation_height = act_heights.set_height(NetworkUpgrade::Overwinter);
+    let sapling_activation_height = act_heights.set_height(NetworkUpgrade::Sapling);
+    let blossom_activation_height = act_heights.set_height(NetworkUpgrade::Blossom);
+    let heartwood_activation_height = act_heights.set_height(NetworkUpgrade::Heartwood);
+    let canopy_activation_height = act_heights.set_height(NetworkUpgrade::Canopy);
+    let nu5_activation_height = act_heights.set_height(NetworkUpgrade::Nu5);
+    let nu6_activation_height = act_heights.set_height(NetworkUpgrade::Nu6);
+    let nu6_1_activation_height = act_heights.set_height(NetworkUpgrade::Nu6_1);
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -43,6 +46,7 @@ nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
+nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -100,11 +104,13 @@ pub(crate) fn zebrad(
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    if activation_heights.canopy != 1.into() {
+    if !activation_heights.is_nu_active(NetworkUpgrade::Canopy, BlockHeight::from(1)) {
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
-    let nu5_activation_height: u32 = activation_heights.nu5.into();
-    let nu6_activation_height: u32 = activation_heights.nu6.into();
+
+    let nu5_activation_height = activation_heights.set_height(NetworkUpgrade::Nu5);
+    let nu6_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6);
+    let nu6_1_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6_1);
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -185,7 +191,8 @@ miner_address = \"{miner_address}\"
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
 Canopy = 1
 NU5 = {nu5_activation_height}
-NU6 = {nu6_activation_height}"
+NU6 = {nu6_activation_height}
+\"NU6.1\" = {nu6_1_activation_height}"
             )
             .as_bytes(),
         )?;
@@ -369,6 +376,7 @@ nuparams=f5b9230b:4 # Heartwood
 nuparams=e9ff75a6:5 # Canopy
 nuparams=c2d6d0b4:6 # NU5 (Orchard)
 nuparams=c8e71055:7 # NU6
+nuparams=4dec4df0:8 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -396,15 +404,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = network::ActivationHeights {
-            overwinter: 1.into(),
-            sapling: 2.into(),
-            blossom: 3.into(),
-            heartwood: 4.into(),
-            canopy: 5.into(),
-            nu5: 6.into(),
-            nu6: 7.into(),
-        };
+        let activation_heights = network::ActivationHeights::sequential_heights();
 
         super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
 
@@ -417,15 +417,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = network::ActivationHeights {
-            overwinter: 1.into(),
-            sapling: 2.into(),
-            blossom: 3.into(),
-            heartwood: 4.into(),
-            canopy: 5.into(),
-            nu5: 6.into(),
-            nu6: 7.into(),
-        };
+        let activation_heights = network::ActivationHeights::sequential_heights();
 
         super::zcashd(
             config_dir.path(),

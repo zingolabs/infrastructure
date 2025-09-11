@@ -2,7 +2,7 @@
 
 use portpicker::Port;
 use zcash_primitives::consensus::BlockHeight;
-use zcash_protocol::consensus::NetworkUpgrade;
+use zcash_protocol::consensus::{NetworkUpgrade, Parameters as _};
 
 pub(crate) const LOCALHOST_IPV4: &str = "http://127.0.0.1";
 
@@ -30,48 +30,61 @@ impl std::fmt::Display for Network {
 /// Activation heights for local network upgrades
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivationHeights {
-    /// Overwinter network upgrade activation height
-    pub overwinter: BlockHeight,
-    /// Sapling network upgrade activation height
-    pub sapling: BlockHeight,
-    /// Blossom network upgrade activation height
-    pub blossom: BlockHeight,
-    /// Heartwood network upgrade activation height
-    pub heartwood: BlockHeight,
-    /// Canopy network upgrade activation height
-    pub canopy: BlockHeight,
-    /// Nu5 (a.k.a. Orchard) network upgrade activation height
-    pub nu5: BlockHeight,
-    /// Nu6 network upgrade activation height
-    pub nu6: BlockHeight,
+    inner: zcash_protocol::local_consensus::LocalNetwork,
 }
 
 impl Default for ActivationHeights {
     fn default() -> Self {
         Self {
-            overwinter: 1.into(),
-            sapling: 1.into(),
-            blossom: 1.into(),
-            heartwood: 1.into(),
-            canopy: 1.into(),
-            nu5: 1.into(),
-            nu6: 1.into(),
+            inner: zcash_protocol::local_consensus::LocalNetwork {
+                overwinter: Some(BlockHeight::from(1)),
+                sapling: Some(BlockHeight::from(1)),
+                blossom: Some(BlockHeight::from(1)),
+                heartwood: Some(BlockHeight::from(1)),
+                canopy: Some(BlockHeight::from(1)),
+                nu5: Some(BlockHeight::from(1)),
+                nu6: Some(BlockHeight::from(1)),
+                nu6_1: Some(BlockHeight::from(1)),
+            },
         }
     }
 }
 
 impl ActivationHeights {
     /// Returns activation height for given `network_upgrade`.
-    pub fn activation_height(&self, network_upgrade: NetworkUpgrade) -> BlockHeight {
-        match network_upgrade {
-            NetworkUpgrade::Overwinter => self.overwinter,
-            NetworkUpgrade::Sapling => self.sapling,
-            NetworkUpgrade::Blossom => self.blossom,
-            NetworkUpgrade::Heartwood => self.heartwood,
-            NetworkUpgrade::Canopy => self.canopy,
-            NetworkUpgrade::Nu5 => self.nu5,
-            NetworkUpgrade::Nu6 => self.nu6,
+    pub fn new(inner: zcash_protocol::local_consensus::LocalNetwork) -> Self {
+        Self { inner }
+    }
+
+    /// Creates activation heights with sequential block heights (1, 2, 3, 4, 5, 6, 7, 8)
+    pub fn sequential_heights() -> Self {
+        Self {
+            inner: zcash_protocol::local_consensus::LocalNetwork {
+                overwinter: Some(BlockHeight::from(1)),
+                sapling: Some(BlockHeight::from(2)),
+                blossom: Some(BlockHeight::from(3)),
+                heartwood: Some(BlockHeight::from(4)),
+                canopy: Some(BlockHeight::from(5)),
+                nu5: Some(BlockHeight::from(6)),
+                nu6: Some(BlockHeight::from(7)),
+                nu6_1: Some(BlockHeight::from(8)),
+            },
         }
+    }
+    pub(crate) fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
+        self.activation_height(upgrade)
+            .unwrap_or(BlockHeight::from(1))
+            .into()
+    }
+}
+
+impl zcash_protocol::consensus::Parameters for ActivationHeights {
+    fn network_type(&self) -> zcash_protocol::consensus::NetworkType {
+        self.inner.network_type()
+    }
+
+    fn activation_height(&self, nu: NetworkUpgrade) -> Option<BlockHeight> {
+        self.inner.activation_height(nu)
     }
 }
 

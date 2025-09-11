@@ -641,18 +641,25 @@ Error: {err}",
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
+            use zcash_protocol::consensus::NetworkUpgrade;
 
             let network =
                 zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
                     before_overwinter: Some(1),
-                    overwinter: Some(self.activation_heights.overwinter.into()),
-                    sapling: Some(self.activation_heights.sapling.into()),
-                    blossom: Some(self.activation_heights.blossom.into()),
-                    heartwood: Some(self.activation_heights.heartwood.into()),
-                    canopy: Some(self.activation_heights.canopy.into()),
-                    nu5: Some(self.activation_heights.nu5.into()),
-                    nu6: Some(self.activation_heights.nu6.into()),
-                    nu6_1: None,
+                    overwinter: Some(
+                        self.activation_heights
+                            .set_height(NetworkUpgrade::Overwinter),
+                    ),
+                    sapling: Some(self.activation_heights.set_height(NetworkUpgrade::Sapling)),
+                    blossom: Some(self.activation_heights.set_height(NetworkUpgrade::Blossom)),
+                    heartwood: Some(
+                        self.activation_heights
+                            .set_height(NetworkUpgrade::Heartwood),
+                    ),
+                    canopy: Some(self.activation_heights.set_height(NetworkUpgrade::Canopy)),
+                    nu5: Some(self.activation_heights.set_height(NetworkUpgrade::Nu5)),
+                    nu6: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6)),
+                    nu6_1: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6_1)),
                     nu7: None,
                 });
 
