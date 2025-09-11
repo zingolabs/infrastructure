@@ -97,20 +97,20 @@ pub(crate) fn zebrad(
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    act_heights: &ActivationHeights,
+    activation_heights: &ActivationHeights,
     miner_address: &str,
     network: Network,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    if !act_heights.is_nu_active(NetworkUpgrade::Canopy, BlockHeight::from(1)) {
+    if !activation_heights.is_nu_active(NetworkUpgrade::Canopy, BlockHeight::from(1)) {
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
 
-    let nu5_activation_height = act_heights.set_height(NetworkUpgrade::Nu5);
-    let nu6_activation_height = act_heights.set_height(NetworkUpgrade::Nu6);
-    let nu6_1_activation_height = act_heights.set_height(NetworkUpgrade::Nu6_1);
+    let nu5_activation_height = activation_heights.set_height(NetworkUpgrade::Nu5);
+    let nu6_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6);
+    let nu6_1_activation_height = activation_heights.set_height(NetworkUpgrade::Nu6_1);
 
     let chain_cache = cache_dir.to_str().unwrap();
 
