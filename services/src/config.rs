@@ -27,21 +27,13 @@ pub(crate) fn zcashd(
     let mut config_file = File::create(config_file_path.clone())?;
 
     use zcash_protocol::consensus::NetworkUpgrade::*;
-    // let overwinter_activation_height = activation_heights.overwinter;
     let overwinter_activation_height = act_heights.set_height(Overwinter);
-    // let sapling_activation_height = activation_heights.sapling;
     let sapling_activation_height = act_heights.set_height(Sapling);
-    // let blossom_activation_height = activation_heights.blossom;
     let blossom_activation_height = act_heights.set_height(Blossom);
-    // let heartwood_activation_height = activation_heights.heartwood;
     let heartwood_activation_height = act_heights.set_height(Heartwood);
-    // let canopy_activation_height = activation_heights.canopy;
     let canopy_activation_height = act_heights.set_height(Canopy);
-    // let nu5_activation_height = activation_heights.nu5;
     let nu5_activation_height = act_heights.set_height(Nu5);
-    // let nu6_activation_height = activation_heights.nu6;
     let nu6_activation_height = act_heights.set_height(Nu6);
-    // let nu6_1_activation_height = activation_heights.nu6_1;
     let nu6_1_activation_height = act_heights.set_height(Nu6_1);
 
     config_file.write_all(format!("\
