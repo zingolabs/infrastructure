@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 use portpicker::Port;
 use zcash_protocol::consensus::{BlockHeight, Parameters};
 
-use crate::network::{ActivationHeights, Network};
+use crate::network::ActivationHeights;
+use zebra_chain::parameters::NetworkKind;
 
 /// Used in subtree roots tests in zaino_testutils.  Fix later.
 pub const ZCASHD_FILENAME: &str = "zcash.conf";
@@ -99,7 +100,7 @@ pub(crate) fn zebrad(
     indexer_listen_port: Port,
     activation_heights: &ActivationHeights,
     miner_address: &str,
-    network: Network,
+    network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -178,7 +179,7 @@ use_journald = false"
         .as_bytes(),
     )?;
 
-    if matches!(network, Network::Regtest) {
+    if matches!(network, NetworkKind::Regtest) {
         config_file.write_all(
             format!(
                 "\n\n\
@@ -208,7 +209,7 @@ pub(crate) fn zainod(
     validator_cache_dir: PathBuf,
     listen_port: Port,
     validator_port: Port,
-    network: Network,
+    network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -299,7 +300,7 @@ db_path = \"{chain_cache}\"
 
 
 
-# Network:
+# NetworkKind:
 
 # Network chain type (Mainnet, Testnet, Regtest).
 network = \"{network_string}\"
@@ -451,7 +452,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
             zaino_cache_dir,
             1234,
             18232,
-            network::Network::Regtest,
+            network::NetworkKind::Regtest,
         )
         .unwrap();
 

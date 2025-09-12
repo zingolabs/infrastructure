@@ -9,11 +9,13 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
+use zebra_chain::parameters::NetworkKind;
+
 use crate::{
     config,
     error::LaunchError,
     launch, logs,
-    network::{self, Network},
+    network::{self},
     utils::ExecutableLocation,
     Process,
 };
@@ -35,7 +37,7 @@ pub struct ZainodConfig {
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type.
-    pub network: Network,
+    pub network: NetworkKind,
 }
 
 impl ZainodConfig {
@@ -51,7 +53,7 @@ impl ZainodConfig {
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
-            network: network::Network::Regtest,
+            network: NetworkKind::Regtest,
         }
     }
 }
