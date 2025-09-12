@@ -10,6 +10,7 @@ use zcash_protocol::consensus::BlockHeight;
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
+use zebra_chain::parameters::NetworkKind;
 use zebra_chain::{
     parameters::testnet::ConfiguredActivationHeights, serialization::ZcashSerialize as _,
 };
@@ -23,7 +24,7 @@ use crate::{
     config,
     error::LaunchError,
     launch, logs,
-    network::{self, ActivationHeights, Network},
+    network::{self, ActivationHeights},
     utils::ExecutableLocation,
     Process,
 };
@@ -122,7 +123,7 @@ pub struct ZebradConfig {
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type
-    pub network: Network,
+    pub network: NetworkKind,
 }
 
 impl ZebradConfig {
@@ -141,7 +142,7 @@ impl ZebradConfig {
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            network: Network::Regtest,
+            network: NetworkKind::Regtest,
         }
     }
 }
@@ -199,7 +200,7 @@ pub trait Validator: Sized {
     }
 
     /// Network type
-    fn network(&self) -> Network;
+    fn network(&self) -> NetworkKind;
 
     /// Caches chain. This stops the zcashd process.
     fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
@@ -226,7 +227,7 @@ pub trait Validator: Sized {
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        validator_network: Network,
+        validator_network: NetworkKind,
     ) -> PathBuf;
 
     /// Prints the stdout log.
@@ -300,7 +301,7 @@ impl Validator for Zcashd {
         let data_dir = tempfile::tempdir().unwrap();
 
         if let Some(cache) = config.chain_cache.clone() {
-            Self::load_chain(cache, data_dir.path().to_path_buf(), Network::Regtest);
+            Self::load_chain(cache, data_dir.path().to_path_buf(), NetworkKind::Regtest);
         }
 
         let port = network::pick_unused_port(config.rpc_listen_port);
@@ -438,14 +439,14 @@ Error: {err}",
         &self.data_dir
     }
 
-    fn network(&self) -> Network {
+    fn network(&self) -> NetworkKind {
         unimplemented!();
     }
 
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        _validator_network: Network,
+        _validator_network: NetworkKind,
     ) -> PathBuf {
         let regtest_dir = chain_cache.clone().join("regtest");
         if !regtest_dir.exists() {
@@ -494,7 +495,7 @@ pub struct Zebrad {
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
-    network: Network,
+    network: NetworkKind,
 }
 
 impl Validator for Zebrad {
@@ -511,7 +512,7 @@ impl Validator for Zebrad {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        if !matches!(config.network, Network::Regtest) && config.chain_cache.is_none() {
+        if !matches!(config.network, NetworkKind::Regtest) && config.chain_cache.is_none() {
             panic!("chain cache must be specified when not using a regtest network!")
         }
 
@@ -619,7 +620,7 @@ Error: {err}",
             network: config.network,
         };
 
-        if config.chain_cache.is_none() && matches!(config.network, Network::Regtest) {
+        if config.chain_cache.is_none() && matches!(config.network, NetworkKind::Regtest) {
             // generate genesis block
             zebrad.generate_blocks(1).await.unwrap();
         }
@@ -724,21 +725,21 @@ Error: {err}",
         &self.data_dir
     }
 
-    fn network(&self) -> Network {
+    fn network(&self) -> NetworkKind {
         self.network
     }
 
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        validator_network: Network,
+        validator_network: NetworkKind,
     ) -> PathBuf {
         let state_dir = chain_cache.clone().join("state");
         if !state_dir.exists() {
             panic!("state directory not found!");
         }
 
-        if matches!(validator_network, Network::Regtest) {
+        if matches!(validator_network, NetworkKind::Regtest) {
             std::process::Command::new("cp")
                 .arg("-r")
                 .arg(state_dir)
