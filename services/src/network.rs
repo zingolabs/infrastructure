@@ -6,8 +6,6 @@ use zcash_protocol::consensus::{NetworkUpgrade, Parameters as _};
 
 pub(crate) const LOCALHOST_IPV4: &str = "http://127.0.0.1";
 
-use zebra_chain::parameters::NetworkKind;
-
 /// Activation heights for local network upgrades
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActivationHeights {
@@ -52,7 +50,8 @@ impl ActivationHeights {
             },
         }
     }
-    pub fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
+    /// get the activation height of a specific network, as specified by the struct
+    pub fn get_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
         self.activation_height(upgrade)
             .unwrap_or(BlockHeight::from(1))
             .into()

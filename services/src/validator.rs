@@ -649,18 +649,18 @@ Error: {err}",
                     before_overwinter: Some(1),
                     overwinter: Some(
                         self.activation_heights
-                            .set_height(NetworkUpgrade::Overwinter),
+                            .get_height(NetworkUpgrade::Overwinter),
                     ),
-                    sapling: Some(self.activation_heights.set_height(NetworkUpgrade::Sapling)),
-                    blossom: Some(self.activation_heights.set_height(NetworkUpgrade::Blossom)),
+                    sapling: Some(self.activation_heights.get_height(NetworkUpgrade::Sapling)),
+                    blossom: Some(self.activation_heights.get_height(NetworkUpgrade::Blossom)),
                     heartwood: Some(
                         self.activation_heights
-                            .set_height(NetworkUpgrade::Heartwood),
+                            .get_height(NetworkUpgrade::Heartwood),
                     ),
-                    canopy: Some(self.activation_heights.set_height(NetworkUpgrade::Canopy)),
-                    nu5: Some(self.activation_heights.set_height(NetworkUpgrade::Nu5)),
-                    nu6: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6)),
-                    nu6_1: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6_1)),
+                    canopy: Some(self.activation_heights.get_height(NetworkUpgrade::Canopy)),
+                    nu5: Some(self.activation_heights.get_height(NetworkUpgrade::Nu5)),
+                    nu6: Some(self.activation_heights.get_height(NetworkUpgrade::Nu6)),
+                    nu6_1: Some(self.activation_heights.get_height(NetworkUpgrade::Nu6_1)),
                     nu7: None,
                 });
 
