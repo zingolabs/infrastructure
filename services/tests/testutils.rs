@@ -24,9 +24,10 @@ use std::path::PathBuf;
 
 // use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
+use zebra_chain::parameters::NetworkKind;
 use zingo_infra_services::{
     indexer::{Lightwalletd, LightwalletdConfig},
-    network::{self, Network},
+    network,
     utils::{self, ExecutableLocation},
     validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
@@ -51,7 +52,7 @@ pub async fn generate_zebrad_large_chain_cache(
             activation_heights: network::ActivationHeights::default(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
-            network: Network::Regtest,
+            network: NetworkKind::Regtest,
         },
     )
     .await;
