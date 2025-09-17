@@ -5,7 +5,7 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::BlockHeight;
+use zcash_protocol::consensus::{BlockHeight, Parameters};
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
@@ -647,20 +647,38 @@ Error: {err}",
             let network =
                 zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
                     before_overwinter: Some(1),
-                    overwinter: Some(
-                        self.activation_heights
-                            .set_height(NetworkUpgrade::Overwinter),
-                    ),
-                    sapling: Some(self.activation_heights.set_height(NetworkUpgrade::Sapling)),
-                    blossom: Some(self.activation_heights.set_height(NetworkUpgrade::Blossom)),
-                    heartwood: Some(
-                        self.activation_heights
-                            .set_height(NetworkUpgrade::Heartwood),
-                    ),
-                    canopy: Some(self.activation_heights.set_height(NetworkUpgrade::Canopy)),
-                    nu5: Some(self.activation_heights.set_height(NetworkUpgrade::Nu5)),
-                    nu6: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6)),
-                    nu6_1: Some(self.activation_heights.set_height(NetworkUpgrade::Nu6_1)),
+                    overwinter: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Overwinter)
+                        .map(u32::from),
+                    sapling: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Sapling)
+                        .map(u32::from),
+                    blossom: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Blossom)
+                        .map(u32::from),
+                    heartwood: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Heartwood)
+                        .map(u32::from),
+                    canopy: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Canopy)
+                        .map(u32::from),
+                    nu5: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Nu5)
+                        .map(u32::from),
+                    nu6: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Nu6)
+                        .map(u32::from),
+                    nu6_1: self
+                        .activation_heights
+                        .activation_height(NetworkUpgrade::Nu6_1)
+                        .map(u32::from),
                     nu7: None,
                 });
 

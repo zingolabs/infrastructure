@@ -2,11 +2,9 @@
 
 use portpicker::Port;
 use zcash_primitives::consensus::BlockHeight;
-use zcash_protocol::consensus::{NetworkUpgrade, Parameters as _};
+use zcash_protocol::consensus::NetworkUpgrade;
 
 pub(crate) const LOCALHOST_IPV4: &str = "http://127.0.0.1";
-
-use zebra_chain::parameters::NetworkKind;
 
 /// Activation heights for local network upgrades
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -37,6 +35,11 @@ impl ActivationHeights {
         Self { inner }
     }
 
+    /// Returns wrapped [`zcash_protocol::local_consensus::LocalNetwork`].
+    pub fn inner(&self) -> zcash_protocol::local_consensus::LocalNetwork {
+        self.inner
+    }
+
     /// Creates activation heights with sequential block heights (1, 2, 3, 4, 5, 6, 7, 8)
     pub fn sequential_heights() -> Self {
         Self {
@@ -51,11 +54,6 @@ impl ActivationHeights {
                 nu6_1: Some(BlockHeight::from(8)),
             },
         }
-    }
-    pub fn set_height(&self, upgrade: zcash_protocol::consensus::NetworkUpgrade) -> u32 {
-        self.activation_height(upgrade)
-            .unwrap_or(BlockHeight::from(1))
-            .into()
     }
 }
 
