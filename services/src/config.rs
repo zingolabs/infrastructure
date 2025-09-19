@@ -10,6 +10,15 @@ use zcash_protocol::consensus::{BlockHeight, Parameters};
 use zcash_protocol::local_consensus::LocalNetwork;
 use zebra_chain::parameters::NetworkKind;
 
+/// Convert NetworkKind to its config string representation
+fn network_kind_to_string(network: NetworkKind) -> &'static str {
+    match network {
+        NetworkKind::Mainnet => "Mainnet",
+        NetworkKind::Testnet => "Testnet",
+        NetworkKind::Regtest => "Regtest",
+    }
+}
+
 /// Used in subtree roots tests in zaino_testutils.  Fix later.
 pub const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
@@ -137,7 +146,7 @@ pub(crate) fn zebrad(
 
     let chain_cache = cache_dir.to_str().unwrap();
 
-    let network_string = network.to_string();
+    let network_string = network_kind_to_string(network);
 
     config_file.write_all(
         format!(
@@ -239,7 +248,7 @@ pub(crate) fn zainod(
     let zaino_cache_dir = validator_cache_dir.join("zaino");
     let chain_cache = zaino_cache_dir.to_str().unwrap();
 
-    let network_string = network.to_string();
+    let network_string = network_kind_to_string(network);
 
     config_file.write_all(
         format!(
@@ -565,7 +574,7 @@ db_path = \"{zaino_test_path}\"
 # NetworkKind:
 
 # Network chain type (Mainnet, Testnet, Regtest).
-network = \"RegtestKind\"
+network = \"Regtest\"
 
 
 
