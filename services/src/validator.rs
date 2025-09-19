@@ -21,13 +21,36 @@ use zebra_rpc::{
 };
 
 use crate::{
-    config,
-    error::LaunchError,
-    launch, logs,
-    network::{self, ActivationHeights},
-    utils::ExecutableLocation,
-    Process,
+    config, error::LaunchError, launch, logs, network, utils::ExecutableLocation, Process,
 };
+
+/// Returns a LocalNetwork with all upgrades activated at height 1
+pub fn default_regtest_heights() -> zcash_protocol::local_consensus::LocalNetwork {
+    zcash_protocol::local_consensus::LocalNetwork {
+        overwinter: Some(BlockHeight::from(1)),
+        sapling: Some(BlockHeight::from(1)),
+        blossom: Some(BlockHeight::from(1)),
+        heartwood: Some(BlockHeight::from(1)),
+        canopy: Some(BlockHeight::from(1)),
+        nu5: Some(BlockHeight::from(1)),
+        nu6: Some(BlockHeight::from(1)),
+        nu6_1: Some(BlockHeight::from(1)),
+    }
+}
+
+/// Returns a LocalNetwork with sequential activation heights (1, 2, 3, 4, 5, 6, 7, 8)
+pub fn sequential_regtest_heights() -> zcash_protocol::local_consensus::LocalNetwork {
+    zcash_protocol::local_consensus::LocalNetwork {
+        overwinter: Some(BlockHeight::from(1)),
+        sapling: Some(BlockHeight::from(2)),
+        blossom: Some(BlockHeight::from(3)),
+        heartwood: Some(BlockHeight::from(4)),
+        canopy: Some(BlockHeight::from(5)),
+        nu5: Some(BlockHeight::from(6)),
+        nu6: Some(BlockHeight::from(7)),
+        nu6_1: Some(BlockHeight::from(8)),
+    }
+}
 
 /// faucet addresses
 /// this should be in a test-vectors crate. However, in order to distangle this knot, a cut and paste in merited here -fv
@@ -61,7 +84,7 @@ pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub activation_heights: network::ActivationHeights,
+    pub activation_heights: zcash_protocol::local_consensus::LocalNetwork,
     /// Miner address
     pub miner_address: Option<&'static str>,
     /// Chain cache path
@@ -85,7 +108,7 @@ impl ZcashdConfig {
             zcashd_bin: Self::default_location(),
             zcash_cli_bin: Self::default_cli_location(),
             rpc_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
+            activation_heights: default_regtest_heights(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }
@@ -117,7 +140,7 @@ pub struct ZebradConfig {
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub activation_heights: network::ActivationHeights,
+    pub activation_heights: zcash_protocol::local_consensus::LocalNetwork,
     /// Miner address
     pub miner_address: &'static str,
     /// Chain cache path
@@ -139,7 +162,7 @@ impl ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
+            activation_heights: default_regtest_heights(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -159,7 +182,7 @@ pub trait Validator: Sized {
     type Config;
 
     /// Return activation heights
-    fn activation_heights(&self) -> ActivationHeights;
+    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork;
 
     /// Launch the process.
     fn launch(
@@ -268,7 +291,7 @@ pub struct Zcashd {
     zcash_cli_bin: ExecutableLocation,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: network::ActivationHeights,
+    activation_heights: zcash_protocol::local_consensus::LocalNetwork,
 }
 
 impl Zcashd {
@@ -292,7 +315,7 @@ impl Validator for Zcashd {
 
     type Config = ZcashdConfig;
 
-    fn activation_heights(&self) -> ActivationHeights {
+    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
         self.activation_heights
     }
 
@@ -491,7 +514,7 @@ pub struct Zebrad {
     data_dir: TempDir,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: network::ActivationHeights,
+    activation_heights: zcash_protocol::local_consensus::LocalNetwork,
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
@@ -504,7 +527,7 @@ impl Validator for Zebrad {
 
     type Config = ZebradConfig;
 
-    fn activation_heights(&self) -> ActivationHeights {
+    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
         self.activation_heights
     }
 

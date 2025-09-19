@@ -27,9 +27,10 @@ use std::path::PathBuf;
 use zebra_chain::parameters::NetworkKind;
 use zingo_infra_services::{
     indexer::{Lightwalletd, LightwalletdConfig},
-    network,
     utils::{self, ExecutableLocation},
-    validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    validator::{
+        default_regtest_heights, Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER,
+    },
     LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
@@ -49,7 +50,7 @@ pub async fn generate_zebrad_large_chain_cache(
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: network::ActivationHeights::default(),
+            activation_heights: default_regtest_heights(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -87,7 +88,7 @@ pub async fn generate_zcashd_chain_cache(
     //         zcashd_bin,
     //         zcash_cli_bin,
     //         rpc_listen_port: None,
-    //         activation_heights: network::ActivationHeights::default(),
+    //         activation_heights: default_regtest_heights(),
     //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
     //         chain_cache: None,
     //     },
@@ -227,7 +228,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -336,7 +337,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -407,7 +408,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -477,7 +478,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -543,7 +544,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -621,7 +622,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -713,7 +714,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -805,7 +806,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -897,7 +898,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -988,7 +989,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1080,7 +1081,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1197,7 +1198,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1294,7 +1295,7 @@ pub async fn generate_zcashd_chain_cache(
 //             zcashd_bin: zcashd_bin.clone(),
 //             zcash_cli_bin: zcash_cli_bin.clone(),
 //             rpc_listen_port: None,
-//             activation_heights: network::ActivationHeights::default(),
+//             activation_heights: default_regtest_heights(),
 //             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //         },
@@ -1356,7 +1357,7 @@ pub async fn generate_zcashd_chain_cache(
 //             zcashd_bin,
 //             zcash_cli_bin,
 //             rpc_listen_port: None,
-//             activation_heights: network::ActivationHeights::default(),
+//             activation_heights: default_regtest_heights(),
 //             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //         },
@@ -1438,7 +1439,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1555,7 +1556,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1672,7 +1673,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1789,7 +1790,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1865,7 +1866,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -1943,7 +1944,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2092,7 +2093,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2290,7 +2291,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2646,7 +2647,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2719,7 +2720,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2802,7 +2803,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2875,7 +2876,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -2963,7 +2964,7 @@ pub async fn generate_zcashd_chain_cache(
 //         network_listen_port: None,
 //         rpc_listen_port: None,
 //         indexer_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: ZEBRAD_DEFAULT_MINER,
 //         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
 //         network,
@@ -3068,7 +3069,7 @@ pub async fn generate_zcashd_chain_cache(
 //         network_listen_port: None,
 //         rpc_listen_port: None,
 //         indexer_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: ZEBRAD_DEFAULT_MINER,
 //         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
 //         network,
@@ -3152,7 +3153,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3230,7 +3231,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3309,7 +3310,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3388,7 +3389,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3466,7 +3467,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3552,7 +3553,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3639,7 +3640,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
@@ -3726,7 +3727,7 @@ pub async fn generate_zcashd_chain_cache(
 //         zcashd_bin,
 //         zcash_cli_bin,
 //         rpc_listen_port: None,
-//         activation_heights: network::ActivationHeights::default(),
+//         activation_heights: default_regtest_heights(),
 //         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
 //         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
 //     })
