@@ -562,10 +562,10 @@ db_path = \"{zaino_test_path}\"
 
 
 
-# Network:
+# NetworkKind:
 
 # Network chain type (Mainnet, Testnet, Regtest).
-network = \"Regtest\"
+network = \"RegtestKind\"
 
 
 
