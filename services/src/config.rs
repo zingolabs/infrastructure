@@ -331,7 +331,7 @@ db_path = \"{chain_cache}\"
 
 
 
-# NetworkKind:
+# Network:
 
 # Network chain type (Mainnet, Testnet, Regtest).
 network = \"{network_string}\"
@@ -571,7 +571,7 @@ db_path = \"{zaino_test_path}\"
 
 
 
-# NetworkKind:
+# Network:
 
 # Network chain type (Mainnet, Testnet, Regtest).
 network = \"Regtest\"
