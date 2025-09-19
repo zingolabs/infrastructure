@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use portpicker::Port;
 use zcash_protocol::consensus::{BlockHeight, Parameters};
 
-use crate::network::ActivationHeights;
+use zcash_protocol::local_consensus::LocalNetwork;
 use zebra_chain::parameters::NetworkKind;
 
 /// Used in subtree roots tests in zaino_testutils.  Fix later.
@@ -22,7 +22,7 @@ use zcash_protocol::consensus::NetworkUpgrade;
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpc_port: Port,
-    activation_heights: &ActivationHeights,
+    activation_heights: &LocalNetwork,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
@@ -114,7 +114,7 @@ pub(crate) fn zebrad(
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    activation_heights: &ActivationHeights,
+    activation_heights: &LocalNetwork,
     miner_address: &str,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
@@ -389,7 +389,7 @@ mod tests {
 
     use zebra_chain::parameters::NetworkKind;
 
-    use crate::{logs, network};
+    use crate::{logs, validator::sequential_regtest_heights};
 
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
@@ -429,7 +429,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = network::ActivationHeights::sequential_heights();
+        let activation_heights = sequential_regtest_heights();
 
         super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
 
@@ -442,7 +442,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = network::ActivationHeights::sequential_heights();
+        let activation_heights = sequential_regtest_heights();
 
         super::zcashd(
             config_dir.path(),
