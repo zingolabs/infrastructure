@@ -107,7 +107,7 @@ pub trait Indexer: Sized {
     /// Indexer config struct
     type Config;
 
-    /// generate a default test config
+    /// Generate a default test config
     fn default_test_config() -> Self::Config;
 
     /// Indexer listen port
@@ -174,7 +174,7 @@ impl Indexer for Zainod {
         self.port
     }
 
-    /// generate a default test config
+    /// Generate a default test config
     fn default_test_config() -> Self::Config {
         ZainodConfig::default_test()
     }
@@ -417,7 +417,8 @@ impl Indexer for Empty {
     fn listen_port(&self) -> Port {
         0
     }
-    /// generate a default test config
+
+    /// Generate a default test config
     fn default_test_config() -> Self::Config {
         EmptyConfig {}
     }
