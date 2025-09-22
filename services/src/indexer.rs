@@ -107,6 +107,9 @@ pub trait Indexer: Sized {
     /// Indexer config struct
     type Config;
 
+    /// Generate a default test config
+    fn default_test_config() -> Self::Config;
+
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 
@@ -169,6 +172,11 @@ impl Indexer for Zainod {
 
     fn listen_port(&self) -> Port {
         self.port
+    }
+
+    /// Generate a default test config
+    fn default_test_config() -> Self::Config {
+        ZainodConfig::default_test()
     }
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
@@ -291,6 +299,11 @@ impl Indexer for Lightwalletd {
         self.port
     }
 
+    /// generate a default test config
+    fn default_test_config() -> Self::Config {
+        LightwalletdConfig::default_test()
+    }
+
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
@@ -403,6 +416,11 @@ impl Indexer for Empty {
 
     fn listen_port(&self) -> Port {
         0
+    }
+
+    /// Generate a default test config
+    fn default_test_config() -> Self::Config {
+        EmptyConfig {}
     }
 
     fn launch(_config: Self::Config) -> Result<Self, LaunchError> {

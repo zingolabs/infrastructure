@@ -184,6 +184,9 @@ pub trait Validator: Sized {
     /// Return activation heights
     fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork;
 
+    /// generate a default test config
+    fn default_test_config() -> Self::Config;
+
     /// Launch the process.
     fn launch(
         config: Self::Config,
@@ -317,6 +320,11 @@ impl Validator for Zcashd {
 
     fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
         self.activation_heights
+    }
+
+    /// generate a default test config
+    fn default_test_config() -> Self::Config {
+        ZcashdConfig::default_test()
     }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
@@ -529,6 +537,11 @@ impl Validator for Zebrad {
 
     fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
         self.activation_heights
+    }
+
+    /// generate a default test config
+    fn default_test_config() -> Self::Config {
+        ZebradConfig::default_test()
     }
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
