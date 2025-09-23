@@ -13,9 +13,7 @@ hyper = { version = "1", features = ["full"] }
 hyper-rustls = { version = "0.27", features = ["http2"] }
 prost = "0.13"
 tokio-rustls = "0.26"
-tonic = { version = "0.12", features = [
-    "tls",
-    "tls-roots",
+tonic = { version = "0.13", features = [
     "tls-webpki-roots",
 ] }
 tower = { version = "0.5" }

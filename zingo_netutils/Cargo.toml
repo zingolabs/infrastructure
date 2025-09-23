@@ -22,7 +22,7 @@ thiserror.workspace = true
 
 time = "=0.3.37"
 time-core = "=0.1.2"
-zcash_client_backend = { version = "0.18", features = [
+zcash_client_backend = { version = "0.19", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
