@@ -1,0 +1,12 @@
+[package]
+name = "zingo-common-components"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+test = []
+
+[dependencies]
+thiserror.workspace = true
+zcash_protocol.workspace = true
+zebra-chain.workspace = true
