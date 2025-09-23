@@ -1,0 +1,39 @@
+[package]
+name = "zingo_netutils"
+description = "This crate provides the `GrpcConnector` struct used to communicate with a lightwalletd"
+version = "0.0.1"
+authors = ["<zingo@zingolabs.org>"]
+repository = "https://github.com/zingolabs/infrastructure"
+homepage = "https://github.com/zingolabs/infrastructure"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+http = "1"
+http-body-util = "0.1"
+http-body = "1"
+hyper-util = "0.1"
+hyper = { version = "1", features = ["full"] }
+hyper-rustls = { version = "0.27", features = ["http2"] }
+prost = "0.13"
+tokio-rustls = "0.26"
+tonic = { version = "0.13", features = ["tls-webpki-roots"] }
+tower = { version = "0.5" }
+webpki-roots = "0.25"
+
+thiserror.workspace = true
+
+time = "=0.3.37"
+time-core = "=0.1.2"
+zcash_client_backend = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
+    "lightwalletd-tonic",
+    "orchard",
+    "transparent-inputs",
+    "tor",
+] }
+
+[features]
+test-features = []
+
+[dev-dependencies]
+rustls-pemfile = "2"

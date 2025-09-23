@@ -1,5 +1,5 @@
 [workspace]
-members = ["services", "zingo_common_components"]
+members = ["services", "zingo_common_components", "zingo_netutils"]
 resolver = "2"
 
 [workspace.dependencies]
