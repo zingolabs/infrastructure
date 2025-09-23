@@ -1,6 +1,6 @@
 use zcash_protocol::{consensus::BlockHeight, local_consensus::LocalNetwork};
 use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
-pub fn default_regtest_heights() -> zebra_chain::parameters::Network {
+pub fn active_nus_regtest_network() -> zebra_chain::parameters::Network {
     zebra_chain::parameters::Network::new_regtest(
         zebra_chain::parameters::testnet::ConfiguredActivationHeights {
             before_overwinter: Some(1),
