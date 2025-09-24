@@ -2,7 +2,9 @@ mod testutils;
 
 use zcash_protocol::consensus::BlockHeight;
 use zingo_infra_services::{
-    indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
+    indexer::{
+        Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
+    },
     utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
     LocalNet,
@@ -64,6 +66,53 @@ async fn launch_zebrad_with_cache() {
     zebrad.print_stderr();
 
     assert_eq!(zebrad.get_chain_height().await, 52.into());
+}
+
+// #[ignore = "temporary during refactor into workspace"]
+/// Asserts that launching 2 `zebrad` instances with the same cache fails.
+/// The second instance cannot open the database, due to it already being in use by the first instance.
+#[tokio::test]
+async fn launch_multiple_zebrads_with_cache_fails() {
+    tracing_subscriber::fmt().init();
+    let mut config_1 = ZebradConfig::default_test();
+    config_1.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+
+    let zebrad_1 = Zebrad::launch(config_1).await.unwrap();
+    zebrad_1.print_stdout();
+    zebrad_1.print_stderr();
+
+    let mut config_2 = ZebradConfig::default_test();
+    config_2.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+
+    let zebrad_2 = Zebrad::launch(config_2).await;
+
+    assert_eq!(zebrad_2.is_err(), true);
+}
+
+/// Tests that 2 `zebrad` instances, each with a copy of the chain cache can be launched.
+#[tokio::test]
+async fn localnet_launch_multiple_zebrads_with_cache() {
+    tracing_subscriber::fmt().init();
+
+    let local_net_1 = LocalNet::<Empty, Zebrad>::launch_with_chain_cache(
+        EmptyConfig {},
+        ZebradConfig::default_test(),
+        utils::chain_cache_dir().join("client_rpc_tests_large"),
+    )
+    .await;
+
+    let local_net_2 = LocalNet::<Empty, Zebrad>::launch_with_chain_cache(
+        EmptyConfig {},
+        ZebradConfig::default_test(),
+        utils::chain_cache_dir().join("client_rpc_tests_large"),
+    )
+    .await;
+
+    let zebrad_1 = local_net_1.validator();
+    let zebrad_2 = local_net_2.validator();
+
+    assert_eq!(zebrad_1.get_chain_height().await, 52.into());
+    assert_eq!(zebrad_2.get_chain_height().await, 52.into());
 }
 
 #[tokio::test]

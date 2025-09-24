@@ -39,6 +39,8 @@ pub mod validator;
 mod launch;
 mod logs;
 
+use std::path::PathBuf;
+
 use indexer::{
     Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
 };
@@ -180,6 +182,20 @@ impl LocalNet<Empty, Zebrad> {
     /// Launch LocalNet.
     pub async fn launch(indexer_config: EmptyConfig, validator_config: ZebradConfig) -> Self {
         let validator = Zebrad::launch(validator_config).await.unwrap();
+        let indexer = Empty::launch(indexer_config).unwrap();
+
+        LocalNet { indexer, validator }
+    }
+
+    /// Launches a LocalNet with a given chain cache
+    pub async fn launch_with_chain_cache(
+        indexer_config: EmptyConfig,
+        validator_config: ZebradConfig,
+        cache_path: PathBuf,
+    ) -> Self {
+        let validator = Zebrad::launch_with_cache(validator_config, cache_path)
+            .await
+            .unwrap();
         let indexer = Empty::launch(indexer_config).unwrap();
 
         LocalNet { indexer, validator }
