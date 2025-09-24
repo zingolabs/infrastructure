@@ -113,6 +113,11 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
 
     assert_eq!(zebrad_1.get_chain_height().await, 52.into());
     assert_eq!(zebrad_2.get_chain_height().await, 52.into());
+
+    zebrad_1.print_stdout();
+    zebrad_1.print_stderr();
+    zebrad_2.print_stdout();
+    zebrad_2.print_stderr();
 }
 
 #[tokio::test]
