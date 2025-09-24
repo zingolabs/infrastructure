@@ -530,6 +530,7 @@ pub struct Zebrad {
 }
 
 impl Zebrad {
+    // TODO: don't rely on `cp`
     /// Launches a Zebrad instance with an exclusive chain cache.
     pub async fn launch_with_cache(
         config: <Zebrad as Validator>::Config,
