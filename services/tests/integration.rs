@@ -89,7 +89,7 @@ async fn launch_multiple_zebrads_with_cache_fails() {
     assert_eq!(zebrad_2.is_err(), true);
 }
 
-/// Tests that 2 `zebrad` instances, each with a copy of the chain cache can be launched.
+/// Tests that 2 `zebrad` instances, each with a copy of the chain cache, can be launched.
 #[tokio::test]
 async fn localnet_launch_multiple_zebrads_with_cache() {
     tracing_subscriber::fmt().init();
