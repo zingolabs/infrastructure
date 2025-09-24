@@ -68,7 +68,7 @@ async fn launch_zebrad_with_cache() {
     assert_eq!(zebrad.get_chain_height().await, 52.into());
 }
 
-// #[ignore = "temporary during refactor into workspace"]
+#[ignore = "requires chain cache to be generated"]
 /// Asserts that launching 2 `zebrad` instances with the same cache fails.
 /// The second instance cannot open the database, due to it already being in use by the first instance.
 #[tokio::test]
@@ -89,6 +89,7 @@ async fn launch_multiple_zebrads_with_cache_fails() {
     assert_eq!(zebrad_2.is_err(), true);
 }
 
+#[ignore = "requires chain cache to be generated"]
 /// Tests that 2 `zebrad` instances, each with a copy of the chain cache, can be launched.
 #[tokio::test]
 async fn localnet_launch_multiple_zebrads_with_cache() {
