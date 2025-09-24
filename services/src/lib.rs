@@ -187,7 +187,7 @@ impl LocalNet<Empty, Zebrad> {
         LocalNet { indexer, validator }
     }
 
-    /// Launches a LocalNet with a given chain cache
+    /// Launches a LocalNet with only a `zebrad` instance, using a given chain cache
     pub async fn launch_with_chain_cache(
         indexer_config: EmptyConfig,
         validator_config: ZebradConfig,
