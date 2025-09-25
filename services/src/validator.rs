@@ -10,7 +10,7 @@ use zcash_protocol::consensus::{BlockHeight, Parameters};
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::NetworkKind;
+use zebra_chain::parameters::{self, NetworkKind};
 use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
@@ -647,45 +647,19 @@ Error: {err}",
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
-            use zcash_protocol::consensus::NetworkUpgrade;
 
-            let network =
-                zebra_chain::parameters::Network::new_regtest(ConfiguredActivationHeights {
-                    before_overwinter: Some(1),
-                    overwinter: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Overwinter)
-                        .map(u32::from),
-                    sapling: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Sapling)
-                        .map(u32::from),
-                    blossom: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Blossom)
-                        .map(u32::from),
-                    heartwood: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Heartwood)
-                        .map(u32::from),
-                    canopy: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Canopy)
-                        .map(u32::from),
-                    nu5: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Nu5)
-                        .map(u32::from),
-                    nu6: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Nu6)
-                        .map(u32::from),
-                    nu6_1: self
-                        .activation_heights
-                        .activation_height(NetworkUpgrade::Nu6_1)
-                        .map(u32::from),
-                    nu7: None,
-                });
+            let network = parameters::Network::new_regtest(testnet::ConfiguredActivationHeights {
+                before_overwinter: self.activation_heights.before_overwinter,
+                overwinter: self.activation_heights.overwinter,
+                sapling: self.activation_heights.sapling,
+                blossom: self.activation_heights.blossom,
+                heartwood: self.activation_heights.heartwood,
+                canopy: self.activation_heights.canopy,
+                nu5: self.activation_heights.nu5,
+                nu6: self.activation_heights.nu6,
+                nu6_1: self.activation_heights.nu6_1,
+                nu7: self.activation_heights.nu7,
+            });
 
             let block_data = hex::encode(
                 proposal_block_from_template(
