@@ -26,7 +26,7 @@ use std::path::PathBuf;
 
 use zebra_chain::parameters::NetworkKind;
 use zingo_common_components::protocol::activation_heights::for_test;
-use zingo_infra_services::{
+use zingo_full_stack_tests::{
     indexer::{Lightwalletd, LightwalletdConfig},
     utils::{self, ExecutableLocation},
     validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},

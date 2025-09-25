@@ -1,6 +1,6 @@
 mod testutils;
 
-use zingo_infra_services::{
+use zingo_full_stack_tests::{
     indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
