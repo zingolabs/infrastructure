@@ -33,7 +33,7 @@ async fn launch_zcashd_custom_activation_heights() {
         nu6_1: Some(BlockHeight::from(9)),
     };
     let mut config = ZcashdConfig::default_test();
-    config.activation_heights = activation_heights;
+    config.configured_activation_heights = activation_heights;
     let zcashd = Zcashd::launch(config).await.unwrap();
 
     zcashd.generate_blocks(8).await.unwrap();

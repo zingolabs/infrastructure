@@ -8,6 +8,7 @@ use portpicker::Port;
 use zcash_protocol::consensus::{BlockHeight, Parameters};
 
 use zcash_protocol::local_consensus::LocalNetwork;
+use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::NetworkKind;
 
 /// Convert NetworkKind to its config string representation
@@ -37,7 +38,7 @@ pub(crate) fn zcashd(
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    let ConfiguredActivationHeights {
+    let testnet::ConfiguredActivationHeights {
         before_overwinter: _,  // Skip pre-overwinter as noted
         overwinter,
         sapling,
@@ -122,7 +123,7 @@ pub(crate) fn zebrad(
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    activation_heights: &LocalNetwork,
+    activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: &str,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {

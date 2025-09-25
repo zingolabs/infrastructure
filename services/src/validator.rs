@@ -11,9 +11,7 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 use zebra_chain::parameters::NetworkKind;
-use zebra_chain::{
-    parameters::testnet::ConfiguredActivationHeights, serialization::ZcashSerialize as _,
-};
+use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
     client::{BlockTemplateResponse, BlockTemplateTimeSource},
@@ -23,34 +21,7 @@ use zebra_rpc::{
 use crate::{
     config, error::LaunchError, launch, logs, network, utils::ExecutableLocation, Process,
 };
-
-/// Returns a LocalNetwork with all upgrades activated at height 1
-pub fn default_regtest_heights() -> zcash_protocol::local_consensus::LocalNetwork {
-    zcash_protocol::local_consensus::LocalNetwork {
-        overwinter: Some(BlockHeight::from(1)),
-        sapling: Some(BlockHeight::from(1)),
-        blossom: Some(BlockHeight::from(1)),
-        heartwood: Some(BlockHeight::from(1)),
-        canopy: Some(BlockHeight::from(1)),
-        nu5: Some(BlockHeight::from(1)),
-        nu6: Some(BlockHeight::from(1)),
-        nu6_1: Some(BlockHeight::from(1)),
-    }
-}
-
-/// Returns a LocalNetwork with sequential activation heights (1, 2, 3, 4, 5, 6, 7, 8)
-pub fn sequential_regtest_heights() -> zcash_protocol::local_consensus::LocalNetwork {
-    zcash_protocol::local_consensus::LocalNetwork {
-        overwinter: Some(BlockHeight::from(1)),
-        sapling: Some(BlockHeight::from(2)),
-        blossom: Some(BlockHeight::from(3)),
-        heartwood: Some(BlockHeight::from(4)),
-        canopy: Some(BlockHeight::from(5)),
-        nu5: Some(BlockHeight::from(6)),
-        nu6: Some(BlockHeight::from(7)),
-        nu6_1: Some(BlockHeight::from(8)),
-    }
-}
+use zingo_common_components::protocol::activation_heights::for_test;
 
 /// faucet addresses
 /// this should be in a test-vectors crate. However, in order to distangle this knot, a cut and paste in merited here -fv
@@ -84,7 +55,7 @@ pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub activation_heights: zcash_protocol::local_consensus::LocalNetwork,
+    pub configured_activation_heights: testnet::ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
     /// Chain cache path
@@ -108,7 +79,7 @@ impl ZcashdConfig {
             zcashd_bin: Self::default_location(),
             zcash_cli_bin: Self::default_cli_location(),
             rpc_listen_port: None,
-            activation_heights: default_regtest_heights(),
+            configured_activation_heights: for_test::all_height_one_nus(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }
@@ -140,7 +111,7 @@ pub struct ZebradConfig {
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub activation_heights: zcash_protocol::local_consensus::LocalNetwork,
+    pub activation_heights: testnet::ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: &'static str,
     /// Chain cache path
@@ -162,7 +133,7 @@ impl ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: default_regtest_heights(),
+            activation_heights: for_test::all_height_one_nus(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -181,8 +152,7 @@ pub trait Validator: Sized {
     /// Validator config struct
     type Config;
 
-    /// Return activation heights
-    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork;
+    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;
 
     /// generate a default test config
     fn default_test_config() -> Self::Config;
@@ -294,7 +264,7 @@ pub struct Zcashd {
     zcash_cli_bin: ExecutableLocation,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: zcash_protocol::local_consensus::LocalNetwork,
+    activation_heights: testnet::ConfiguredActivationHeights,
 }
 
 impl Zcashd {
@@ -318,15 +288,14 @@ impl Validator for Zcashd {
 
     type Config = ZcashdConfig;
 
-    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
-        self.activation_heights
+    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+        self.activation_heights.clone()
     }
 
     /// generate a default test config
     fn default_test_config() -> Self::Config {
         ZcashdConfig::default_test()
     }
-
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
@@ -340,7 +309,7 @@ impl Validator for Zcashd {
         let config_file_path = config::zcashd(
             config_dir.path(),
             port,
-            &config.activation_heights,
+            &config.configured_activation_heights,
             config.miner_address,
         )
         .unwrap();
@@ -397,7 +366,7 @@ Error: {err}",
             logs_dir,
             data_dir,
             zcash_cli_bin: config.zcash_cli_bin,
-            activation_heights: config.activation_heights,
+            activation_heights: config.configured_activation_heights,
         };
 
         if config.chain_cache.is_none() {
@@ -522,7 +491,7 @@ pub struct Zebrad {
     data_dir: TempDir,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: zcash_protocol::local_consensus::LocalNetwork,
+    activation_heights: testnet::ConfiguredActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
@@ -535,8 +504,8 @@ impl Validator for Zebrad {
 
     type Config = ZebradConfig;
 
-    fn activation_heights(&self) -> zcash_protocol::local_consensus::LocalNetwork {
-        self.activation_heights
+    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+        self.activation_heights.clone()
     }
 
     /// generate a default test config
