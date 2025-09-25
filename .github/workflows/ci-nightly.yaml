@@ -26,6 +26,3 @@ jobs:
     #   hack-flags: "--workspace --all-features --all-targets --target-dir target/hack"
     #   rustflags: "-D warnings"
     #   toolchain: "stable"
-
-  cargo-nextest-run:
-    uses: ./.github/workflows/cargo-nextest.yaml
