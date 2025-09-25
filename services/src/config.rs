@@ -5,11 +5,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use portpicker::Port;
-use zcash_protocol::consensus::{BlockHeight, Parameters};
 
-use zcash_protocol::local_consensus::LocalNetwork;
 use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::activation_heights::for_test;
 
 /// Convert NetworkKind to its config string representation
 fn network_kind_to_string(network: NetworkKind) -> &'static str {
@@ -26,13 +25,12 @@ pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
-use zcash_protocol::consensus::NetworkUpgrade;
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpc_port: Port,
-    activation_heights: &testnet::ConfiguredActivationHeights,
+    test_activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
@@ -49,7 +47,7 @@ pub(crate) fn zcashd(
         nu6,
         nu6_1,
         ..  // Ignore any future fields like nu7
-    } = activation_heights;
+    } = test_activation_heights;
 
     let overwinter_activation_height =
         overwinter.expect("overwinter activation height must be specified");
@@ -123,26 +121,20 @@ pub(crate) fn zebrad(
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    activation_heights: &testnet::ConfiguredActivationHeights,
+    test_activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: &str,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    if !activation_heights.is_nu_active(NetworkUpgrade::Canopy, BlockHeight::from(1)) {
+    if !test_activation_heights.canopy.is_some() {
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
 
-    let nu5_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu5)
-        .expect("nu5 activation height must be specified");
-    let nu6_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu6)
-        .expect("nu6 activation height must be specified");
-    let nu6_1_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu6_1)
-        .expect("nu6_1 activation height must be specified");
+    let nu5_activation_height = test_activation_heights.nu5.expect("nu5 activated");
+    let nu6_activation_height = test_activation_heights.nu6.expect("nu6 activated");
+    let nu6_1_activation_height = test_activation_heights.nu6_1.expect("nu6.1 activated");
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -217,7 +209,7 @@ use_journald = false"
 [mining]
 miner_address = \"{miner_address}\"
 
-[network.testnet_parameters.activation_heights]
+[network.testnet_parameters.test_activation_heights]
 # Configured activation heights must be greater than or equal to 1,
 # block height 0 is reserved for the Genesis network upgrade in Zebra
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
@@ -397,8 +389,9 @@ mod tests {
     use std::path::PathBuf;
 
     use zebra_chain::parameters::NetworkKind;
+    use zingo_common_components::protocol::activation_heights::for_test;
 
-    use crate::{logs, validator::sequential_regtest_heights};
+    use crate::logs;
 
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
@@ -438,9 +431,9 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = sequential_regtest_heights();
+        let test_activation_heights = for_test::sequential_height_nus();
 
-        super::zcashd(config_dir.path(), 1234, &activation_heights, None).unwrap();
+        super::zcashd(config_dir.path(), 1234, &test_activation_heights, None).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
@@ -451,12 +444,12 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let activation_heights = sequential_regtest_heights();
+        let test_activation_heights = sequential_regtest_heights();
 
         super::zcashd(
             config_dir.path(),
             1234,
-            &activation_heights,
+            &test_activation_heights,
             Some("test_addr_1234"),
         )
         .unwrap();
