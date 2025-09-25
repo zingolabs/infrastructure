@@ -27,5 +27,5 @@ jobs:
     #   rustflags: "-D warnings"
     #   toolchain: "stable"
 
-  test:
-    uses: ./.github/workflows/test.yaml
+  cargo-nextest-run:
+    uses: ./.github/workflows/cargo-nextest.yaml

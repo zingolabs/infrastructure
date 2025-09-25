@@ -1,23 +1,23 @@
-name: Cargo checkmate
+name: Cargo nextest
 
 on: [workflow_call]
 
 jobs:
   cache-checkmate:
-    name: Cache checkmate
+    name: Cache nextest
     runs-on: ubuntu-24.04
     if: github.event.pull_request.draft == false
     steps:
       - uses: taiki-e/cache-cargo-install-action@v2
         with:
-          tool: cargo-checkmate
+          tool: cargo-nextest
 
   cargo-checkmate:
-    name: Cargo checkmate
+    name: Cargo nextest
     strategy:
       matrix:
         phase: [build, check, clippy, doc, format]
-    needs: cache-checkmate
+    needs: cache-nextest
     runs-on: ubuntu-24.04
     if: github.event.pull_request.draft == false
     env:
@@ -25,11 +25,11 @@ jobs:
     steps:
       - uses: taiki-e/cache-cargo-install-action@v2
         with:
-          tool: cargo-checkmate
+          tool: cargo-nextest
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run cargo checkmate
-        run: cargo-checkmate run ${{ matrix.phase }}
+      - name: Run cargo nextest
+        run: cargo-nextest run ${{ matrix.phase }}
 
