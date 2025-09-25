@@ -7,6 +7,4 @@ edition = "2024"
 for_test = []
 
 [dependencies]
-thiserror.workspace = true
-zcash_protocol.workspace = true
 zebra-chain = { workspace = true }
