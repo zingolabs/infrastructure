@@ -1,6 +1,6 @@
 mod testutils;
 
-use zingo_infra_services::{
+use crate::{
     indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     utils,
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
