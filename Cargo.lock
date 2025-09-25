@@ -8299,7 +8299,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo-infra-services"
+name = "zingo_common_components"
+version = "0.1.0"
+dependencies = [
+ "zebra-chain",
+]
+
+[[package]]
+name = "zingo_infra_services"
 version = "0.1.0"
 dependencies = [
  "getset",
@@ -8321,13 +8328,6 @@ dependencies = [
  "zebra-node-services",
  "zebra-rpc",
  "zingo_common_components",
-]
-
-[[package]]
-name = "zingo_common_components"
-version = "0.1.0"
-dependencies = [
- "zebra-chain",
 ]
 
 [[package]]
