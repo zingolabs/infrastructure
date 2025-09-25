@@ -210,7 +210,7 @@ use_journald = false"
 [mining]
 miner_address = \"{miner_address}\"
 
-[network.testnet_parameters.test_activation_heights]
+[network.testnet_parameters.activation_heights]
 # Configured activation heights must be greater than or equal to 1,
 # block height 0 is reserved for the Genesis network upgrade in Zebra
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
