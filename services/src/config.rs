@@ -127,7 +127,7 @@ pub(crate) fn zebrad(
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    if !test_activation_heights.canopy.is_some() {
+    if test_activation_heights.canopy.is_none() {
         panic!("canopy must be active for zebrad regtest mode. please set activation height to 1");
     }
 
