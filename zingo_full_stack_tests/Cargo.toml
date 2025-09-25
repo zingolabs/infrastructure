@@ -1,5 +1,5 @@
 [package]
-name = "zingo-infra-services"
+name = "zingo_full_stack_tests"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
@@ -27,6 +27,7 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
+zingo_common_components = { path = "../zingo_common_components", features = ["for_test"] }
 
 
 [build-dependencies]

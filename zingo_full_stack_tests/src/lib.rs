@@ -193,6 +193,7 @@ impl LocalNet<Empty, Zebrad> {
         validator_config: ZebradConfig,
         cache_path: PathBuf,
     ) -> Self {
+        dbg!(cache_path.clone());
         let validator = Zebrad::launch_with_cache(validator_config, cache_path)
             .await
             .unwrap();
