@@ -31,36 +31,35 @@ use zcash_protocol::consensus::NetworkUpgrade;
 pub(crate) fn zcashd(
     config_dir: &Path,
     rpc_port: Port,
-    activation_heights: &LocalNetwork,
+    activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    let overwinter_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Overwinter)
-        .expect("overwinter activation height must be specified");
-    let sapling_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Sapling)
-        .expect("sapling activation height must be specified");
-    let blossom_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Blossom)
-        .expect("blossom activation height must be specified");
-    let heartwood_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Heartwood)
-        .expect("heartwood activation height must be specified");
-    let canopy_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Canopy)
-        .expect("canopy activation height must be specified");
-    let nu5_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu5)
-        .expect("nu5 activation height must be specified");
-    let nu6_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu6)
-        .expect("nu6 activation height must be specified");
-    let nu6_1_activation_height = activation_heights
-        .activation_height(NetworkUpgrade::Nu6_1)
-        .expect("nu6_1 activation height must be specified");
+    let ConfiguredActivationHeights {
+        before_overwinter: _,  // Skip pre-overwinter as noted
+        overwinter,
+        sapling,
+        blossom,
+        heartwood,
+        canopy,
+        nu5,
+        nu6,
+        nu6_1,
+        ..  // Ignore any future fields like nu7
+    } = activation_heights;
+
+    let overwinter_activation_height =
+        overwinter.expect("overwinter activation height must be specified");
+    let sapling_activation_height = sapling.expect("sapling activation height must be specified");
+    let blossom_activation_height = blossom.expect("blossom activation height must be specified");
+    let heartwood_activation_height =
+        heartwood.expect("heartwood activation height must be specified");
+    let canopy_activation_height = canopy.expect("canopy activation height must be specified");
+    let nu5_activation_height = nu5.expect("nu5 activation height must be specified");
+    let nu6_activation_height = nu6.expect("nu6 activation height must be specified");
+    let nu6_1_activation_height = nu6_1.expect("nu6_1 activation height must be specified");
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
