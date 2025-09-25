@@ -27,6 +27,7 @@ serde_json = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
+zingo_common_components = { path = "../zingo_common_components", features = ["for_test"] }
 
 
 [build-dependencies]
