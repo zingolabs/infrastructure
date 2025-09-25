@@ -8,7 +8,6 @@ use portpicker::Port;
 
 use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::NetworkKind;
-use zingo_common_components::protocol::activation_heights::for_test;
 
 /// Convert NetworkKind to its config string representation
 fn network_kind_to_string(network: NetworkKind) -> &'static str {
@@ -444,7 +443,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let test_activation_heights = sequential_regtest_heights();
+        let test_activation_heights = for_test::sequential_height_nus();
 
         super::zcashd(
             config_dir.path(),
