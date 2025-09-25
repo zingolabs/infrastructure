@@ -8306,7 +8306,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo_infra_services"
+name = "zingo_full_stack_tests"
 version = "0.1.0"
 dependencies = [
  "getset",

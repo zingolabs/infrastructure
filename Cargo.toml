@@ -1,5 +1,5 @@
 [workspace]
-members = ["zingo_infra_services", "zingo_common_components", "zingo_netutils", "zingo_test_vectors"]
+members = ["zingo_full_stack_tests", "zingo_common_components", "zingo_netutils", "zingo_test_vectors"]
 resolver = "2"
 
 [workspace.dependencies]
