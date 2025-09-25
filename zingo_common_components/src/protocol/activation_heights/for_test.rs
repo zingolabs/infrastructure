@@ -1,26 +1,18 @@
-use zcash_protocol::{consensus::BlockHeight, local_consensus::LocalNetwork};
-
-pub fn block_one() -> LocalNetwork {
-    LocalNetwork {
-        overwinter: Some(BlockHeight::from_u32(1)),
-        sapling: Some(BlockHeight::from_u32(1)),
-        blossom: Some(BlockHeight::from_u32(1)),
-        heartwood: Some(BlockHeight::from_u32(1)),
-        canopy: Some(BlockHeight::from_u32(1)),
-        nu5: Some(BlockHeight::from_u32(1)),
-        nu6: Some(BlockHeight::from_u32(1)),
-        nu6_1: Some(BlockHeight::from_u32(1)),
-    }
-}
-pub fn sequential() -> LocalNetwork {
-    LocalNetwork {
-        overwinter: Some(BlockHeight::from_u32(1)),
-        sapling: Some(BlockHeight::from_u32(2)),
-        blossom: Some(BlockHeight::from_u32(3)),
-        heartwood: Some(BlockHeight::from_u32(4)),
-        canopy: Some(BlockHeight::from_u32(5)),
-        nu5: Some(BlockHeight::from_u32(6)),
-        nu6: Some(BlockHeight::from_u32(7)),
-        nu6_1: Some(BlockHeight::from_u32(8)),
-    }
+/// Get the default all nu activated at 1, Network
+pub fn active_nus_regtest_network() -> zebra_chain::parameters::Network {
+    zebra_chain::parameters::Network::new_regtest(
+        zebra_chain::parameters::testnet::ConfiguredActivationHeights {
+            before_overwinter: Some(1),
+            overwinter: Some(1),
+            sapling: Some(1),
+            blossom: Some(1),
+            heartwood: Some(1),
+            canopy: Some(1),
+            nu5: Some(1),
+            nu6: Some(1),
+            // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
+            nu6_1: None,
+            nu7: None,
+        },
+    )
 }
