@@ -24,14 +24,14 @@ use std::path::PathBuf;
 
 // use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
-use crate::{
+use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::activation_heights::for_test;
+use zingo_full_stack_tests::{
     indexer::{Lightwalletd, LightwalletdConfig},
     utils::{self, ExecutableLocation},
     validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
-use zebra_chain::parameters::NetworkKind;
-use zingo_common_components::protocol::activation_heights::for_test;
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache(
     zebrad_bin: ExecutableLocation,
