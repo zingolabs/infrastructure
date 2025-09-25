@@ -49,7 +49,7 @@ pub async fn generate_zebrad_large_chain_cache(
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: for_test::all_height_one_nus(),
+            configured_activation_heights: for_test::all_height_one_nus(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,

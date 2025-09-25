@@ -111,7 +111,7 @@ pub struct ZebradConfig {
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub activation_heights: testnet::ConfiguredActivationHeights,
+    pub configured_activation_heights: testnet::ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: &'static str,
     /// Chain cache path
@@ -133,7 +133,7 @@ impl ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: for_test::all_height_one_nus(),
+            configured_activation_heights: for_test::all_height_one_nus(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -493,7 +493,7 @@ pub struct Zebrad {
     data_dir: TempDir,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: testnet::ConfiguredActivationHeights,
+    configured_activation_heights: testnet::ConfiguredActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
@@ -507,7 +507,7 @@ impl Validator for Zebrad {
     type Config = ZebradConfig;
 
     fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
-        self.activation_heights.clone()
+        self.configured_activation_heights.clone()
     }
 
     /// generate a default test config
@@ -540,7 +540,7 @@ impl Validator for Zebrad {
             network_listen_port,
             rpc_listen_port,
             indexer_listen_port,
-            &config.activation_heights,
+            &config.configured_activation_heights,
             config.miner_address,
             config.network,
         )
@@ -549,7 +549,7 @@ impl Validator for Zebrad {
         config::zcashd(
             config_dir.path(),
             rpc_listen_port,
-            &config.activation_heights,
+            &config.configured_activation_heights,
             None,
         )
         .unwrap();
@@ -622,7 +622,7 @@ Error: {err}",
             config_dir,
             logs_dir,
             data_dir,
-            activation_heights: config.activation_heights,
+            configured_activation_heights: config.configured_activation_heights,
             client,
             network: config.network,
         };
@@ -651,16 +651,16 @@ Error: {err}",
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
             let network = parameters::Network::new_regtest(testnet::ConfiguredActivationHeights {
-                before_overwinter: self.activation_heights.before_overwinter,
-                overwinter: self.activation_heights.overwinter,
-                sapling: self.activation_heights.sapling,
-                blossom: self.activation_heights.blossom,
-                heartwood: self.activation_heights.heartwood,
-                canopy: self.activation_heights.canopy,
-                nu5: self.activation_heights.nu5,
-                nu6: self.activation_heights.nu6,
-                nu6_1: self.activation_heights.nu6_1,
-                nu7: self.activation_heights.nu7,
+                before_overwinter: self.configured_activation_heights.before_overwinter,
+                overwinter: self.configured_activation_heights.overwinter,
+                sapling: self.configured_activation_heights.sapling,
+                blossom: self.configured_activation_heights.blossom,
+                heartwood: self.configured_activation_heights.heartwood,
+                canopy: self.configured_activation_heights.canopy,
+                nu5: self.configured_activation_heights.nu5,
+                nu6: self.configured_activation_heights.nu6,
+                nu6_1: self.configured_activation_heights.nu6_1,
+                nu7: self.configured_activation_heights.nu7,
             });
 
             let block_data = hex::encode(
