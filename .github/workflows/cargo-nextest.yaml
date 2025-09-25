@@ -3,7 +3,7 @@ name: Cargo nextest
 on: [workflow_call]
 
 jobs:
-  cache-checkmate:
+  cache-nextest:
     name: Cache nextest
     runs-on: ubuntu-24.04
     if: github.event.pull_request.draft == false
@@ -12,7 +12,7 @@ jobs:
         with:
           tool: cargo-nextest
 
-  cargo-checkmate:
+  cargo-nextest:
     name: Cargo nextest
     strategy:
       matrix:
