@@ -22,18 +22,7 @@ async fn launch_zcashd() {
 async fn launch_zcashd_custom_activation_heights() {
     tracing_subscriber::fmt().init();
 
-    let activation_heights = zcash_protocol::local_consensus::LocalNetwork {
-        overwinter: Some(BlockHeight::from(1)),
-        sapling: Some(BlockHeight::from(1)),
-        blossom: Some(BlockHeight::from(1)),
-        heartwood: Some(BlockHeight::from(1)),
-        canopy: Some(BlockHeight::from(3)),
-        nu5: Some(BlockHeight::from(5)),
-        nu6: Some(BlockHeight::from(7)),
-        nu6_1: Some(BlockHeight::from(9)),
-    };
-    let mut config = ZcashdConfig::default_test();
-    config.configured_activation_heights = activation_heights;
+    let config = ZcashdConfig::default_test();
     let zcashd = Zcashd::launch(config).await.unwrap();
 
     zcashd.generate_blocks(8).await.unwrap();
