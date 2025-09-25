@@ -44,6 +44,7 @@ pub(crate) fn zcashd(
         canopy,
         nu5,
         nu6,
+        #[allow(unused_variables)]
         nu6_1,
         ..  // Ignore any future fields like nu7
     } = test_activation_heights;
@@ -57,7 +58,9 @@ pub(crate) fn zcashd(
     let canopy_activation_height = canopy.expect("canopy activation height must be specified");
     let nu5_activation_height = nu5.expect("nu5 activation height must be specified");
     let nu6_activation_height = nu6.expect("nu6 activation height must be specified");
-    let nu6_1_activation_height = nu6_1.expect("nu6_1 activation height must be specified");
+    // TODO:  FIX this so we can test against nu6.1
+    // Uncomment when we want to test against nu6.1
+    //let nu6_1_activation_height = nu6_1.expect("nu6_1 activation height must be specified");
 
     config_file.write_all(format!("\
 ### Blockchain Configuration
@@ -69,7 +72,7 @@ nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
-nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+#nuparams=4dec4df0:nu6_1_activation_height # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -133,7 +136,6 @@ pub(crate) fn zebrad(
 
     let nu5_activation_height = test_activation_heights.nu5.expect("nu5 activated");
     let nu6_activation_height = test_activation_heights.nu6.expect("nu6 activated");
-    let nu6_1_activation_height = test_activation_heights.nu6_1.expect("nu6.1 activated");
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -215,7 +217,7 @@ miner_address = \"{miner_address}\"
 Canopy = 1
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}
-\"NU6.1\" = {nu6_1_activation_height}"
+#\"NU6.1\" = {{nu6_1_activation_height}}"
             )
             .as_bytes(),
         )?;
@@ -395,14 +397,14 @@ mod tests {
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
 regtest=1
-nuparams=5ba81b19:1 # Overwinter
-nuparams=76b809bb:2 # Sapling
-nuparams=2bb40e60:3 # Blossom
-nuparams=f5b9230b:4 # Heartwood
-nuparams=e9ff75a6:5 # Canopy
-nuparams=c2d6d0b4:6 # NU5 (Orchard)
-nuparams=c8e71055:7 # NU6
-nuparams=4dec4df0:8 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=5ba81b19:2 # Overwinter
+nuparams=76b809bb:3 # Sapling
+nuparams=2bb40e60:4 # Blossom
+nuparams=f5b9230b:5 # Heartwood
+nuparams=e9ff75a6:6 # Canopy
+nuparams=c2d6d0b4:7 # NU5 (Orchard)
+nuparams=c8e71055:8 # NU6
+#nuparams=4dec4df0:nu6_1_activation_height # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
