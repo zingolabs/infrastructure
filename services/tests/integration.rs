@@ -1,6 +1,5 @@
 mod testutils;
 
-use zcash_protocol::consensus::BlockHeight;
 use zingo_infra_services::{
     indexer::{Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig},
     utils,

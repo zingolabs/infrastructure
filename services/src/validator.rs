@@ -5,7 +5,7 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::{BlockHeight, Parameters};
+use zcash_protocol::consensus::BlockHeight;
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
@@ -152,6 +152,8 @@ pub trait Validator: Sized {
     /// Validator config struct
     type Config;
 
+    /// A representation of the Network Upgrade Activation heights applied for this
+    /// Validator's test configuration.
     fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;
 
     /// generate a default test config
