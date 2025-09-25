@@ -25,12 +25,11 @@ use std::path::PathBuf;
 // use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
 use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::activation_heights::for_test;
 use zingo_infra_services::{
     indexer::{Lightwalletd, LightwalletdConfig},
     utils::{self, ExecutableLocation},
-    validator::{
-        default_regtest_heights, Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER,
-    },
+    validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
@@ -50,7 +49,7 @@ pub async fn generate_zebrad_large_chain_cache(
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            activation_heights: default_regtest_heights(),
+            activation_heights: for_test::all_height_one_nus(),
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
