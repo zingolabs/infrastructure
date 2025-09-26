@@ -5,7 +5,7 @@ pub fn current_nus_configured_in_block_one_regtest_net() -> parameters::Network 
     parameters::Network::new_regtest(all_height_one_nus())
 }
 
-/// Get sequentially activated (1,2,3,4,5,6,7,8 nus network
+/// Get sequentially activated (1,2,3,4,5,6,7,8) nus network
 pub fn nus_configured_in_sequence_regtest_net() -> parameters::Network {
     parameters::Network::new_regtest(sequential_height_nus())
 }
@@ -21,7 +21,7 @@ pub fn sequential_height_nus() -> parameters::testnet::ConfiguredActivationHeigh
         nu5: Some(7),
         nu6: Some(8),
         // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
-        nu6_1: None,
+        nu6_1: Some(9),
         nu7: None,
     }
 }

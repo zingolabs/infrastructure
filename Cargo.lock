@@ -7673,6 +7673,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "zcash_local_net"
+version = "0.1.0"
+dependencies = [
+ "getset",
+ "hex",
+ "http",
+ "json",
+ "portpicker",
+ "reqwest",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "zcash_primitives 0.24.0",
+ "zcash_protocol 0.6.1 (git+https://github.com/zcash/librustzcash?rev=d387aed7e04e881dbe30c6ff8b26a96c834c094b)",
+ "zebra-chain",
+ "zebra-node-services",
+ "zebra-rpc",
+ "zingo_common_components",
+]
+
+[[package]]
 name = "zcash_note_encryption"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8303,31 +8328,6 @@ name = "zingo_common_components"
 version = "0.1.0"
 dependencies = [
  "zebra-chain",
-]
-
-[[package]]
-name = "zingo_full_stack_tests"
-version = "0.1.0"
-dependencies = [
- "getset",
- "hex",
- "http",
- "json",
- "portpicker",
- "reqwest",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "zcash_primitives 0.24.0",
- "zcash_protocol 0.6.1 (git+https://github.com/zcash/librustzcash?rev=d387aed7e04e881dbe30c6ff8b26a96c834c094b)",
- "zebra-chain",
- "zebra-node-services",
- "zebra-rpc",
- "zingo_common_components",
 ]
 
 [[package]]

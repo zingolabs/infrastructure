@@ -216,7 +216,7 @@ miner_address = \"{miner_address}\"
 Canopy = 1
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}
-NU6.1 = {nu6_1_activation_height}"
+\"NU6.1\" = {nu6_1_activation_height}"
             )
             .as_bytes(),
         )?;
@@ -403,7 +403,7 @@ nuparams=f5b9230b:5 # Heartwood
 nuparams=e9ff75a6:6 # Canopy
 nuparams=c2d6d0b4:7 # NU5 (Orchard)
 nuparams=c8e71055:8 # NU6
-#nuparams=4dec4df0:nu6_1_activation_height # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=4dec4df0:9 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:

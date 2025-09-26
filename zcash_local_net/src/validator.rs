@@ -101,6 +101,7 @@ impl ZcashdConfig {
 ///
 /// `network` can be used for testing against cached testnet / mainnet chains where large chains are needed.
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
+#[derive(Clone)]
 pub struct ZebradConfig {
     /// Zebrad binary location
     pub zebrad_bin: ExecutableLocation,
@@ -523,12 +524,11 @@ impl Validator for Zebrad {
             panic!("chain cache must be specified when not using a regtest network!")
         }
 
-        let cache_dir = if let Some(cache) = config.chain_cache.clone() {
-            Self::load_chain(cache.clone(), data_dir.path().to_path_buf(), config.network);
-            cache
-        } else {
-            data_dir.path().to_path_buf()
-        };
+        let working_cache_dir = data_dir.path().to_path_buf();
+
+        if let Some(src) = config.chain_cache.as_ref() {
+            Self::load_chain(src.clone(), working_cache_dir.clone(), config.network);
+        }
 
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
@@ -536,7 +536,7 @@ impl Validator for Zebrad {
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zebrad(
             config_dir.path().to_path_buf(),
-            cache_dir,
+            working_cache_dir,
             network_listen_port,
             rpc_listen_port,
             indexer_listen_port,
