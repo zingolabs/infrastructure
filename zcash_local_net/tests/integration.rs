@@ -5,11 +5,9 @@ use zcash_local_net::{
         Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
     },
     utils,
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
     LocalNet,
 };
-use zebra_chain::parameters::NetworkKind;
-use zingo_common_components::protocol::activation_heights::for_test;
 
 #[tokio::test]
 async fn launch_zcashd() {
