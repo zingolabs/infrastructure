@@ -87,16 +87,8 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
 
     let chain_cache_source = utils::chain_cache_dir().join("client_rpc_tests_large");
 
-    let zebrad_config = ZebradConfig {
-        zebrad_bin: ZebradConfig::default_location(),
-        network_listen_port: None,
-        rpc_listen_port: None,
-        indexer_listen_port: None,
-        configured_activation_heights: for_test::all_height_one_nus(),
-        miner_address: ZEBRAD_DEFAULT_MINER,
-        chain_cache: Some(chain_cache_source),
-        network: NetworkKind::Regtest,
-    };
+    let mut zebrad_config = ZebradConfig::default_test();
+    zebrad_config.chain_cache = Some(chain_cache_source);
 
     let local_net_1 =
         LocalNet::<Empty, Zebrad>::launch(EmptyConfig {}, zebrad_config.clone()).await;
