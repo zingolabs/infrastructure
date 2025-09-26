@@ -1,8 +1,6 @@
 mod testutils;
 
-use zebra_chain::parameters::NetworkKind;
-use zingo_common_components::protocol::activation_heights::for_test;
-use zingo_full_stack_tests::{
+use zcash_local_net::{
     indexer::{
         Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
     },
@@ -10,6 +8,8 @@ use zingo_full_stack_tests::{
     validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
+use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::activation_heights::for_test;
 
 #[tokio::test]
 async fn launch_zcashd() {

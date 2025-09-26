@@ -1,5 +1,5 @@
 [package]
-name = "zingo_full_stack_tests"
+name = "zcash_local_net"
 version = "0.1.0"
 edition = "2021"
 license = "MIT License"
