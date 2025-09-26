@@ -7,17 +7,17 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-package_NAME="$1"
+PACKAGE_NAME="$1"
 
 # Run all cargo commands for the specified package
 set -e  # Exit on first error
 
-echo "Running checks for package: $package_NAME"
+echo "Running checks for package: $PACKAGE_NAME"
 
-cargo check -p "$package_NAME" && \
-cargo check --all-features -p "$package_NAME" && \
-cargo check --tests -p "$package_NAME" && \
-cargo check --tests --all-features -p "$package_NAME" && \
-cargo fmt -p "$package_NAME" && \
-cargo clippy -p "$package_NAME" #&& \
-cargo nextest run -p "$package_NAME"
+cargo check -p "$PACKAGE_NAME" && \
+cargo check --all-features -p "$PACKAGE_NAME" && \
+cargo check --tests -p "$PACKAGE_NAME" && \
+cargo check --tests --all-features -p "$PACKAGE_NAME" && \
+cargo fmt -p "$PACKAGE_NAME" && \
+cargo clippy -p "$PACKAGE_NAME" #&& \
+cargo nextest run -p "$PACKAGE_NAME"
