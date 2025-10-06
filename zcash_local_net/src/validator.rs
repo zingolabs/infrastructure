@@ -319,20 +319,20 @@ impl Validator for Zcashd {
 
         let mut command = config.zcashd_bin.command();
         command
-            .args([
-                "--printtoconsole",
-                format!(
-                    "--conf={}",
-                    config_file_path.to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                format!(
-                    "--datadir={}",
-                    data_dir.path().to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                "-debug=1",
-            ])
+            // .args([
+            //     "--printtoconsole",
+            //     format!(
+            //         "--conf={}",
+            //         config_file_path.to_str().expect("should be valid UTF-8")
+            //     )
+            //     .as_str(),
+            //     format!(
+            //         "--datadir={}",
+            //         data_dir.path().to_str().expect("should be valid UTF-8")
+            //     )
+            //     .as_str(),
+            //     "-debug=1",
+            // ])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
