@@ -1,6 +1,6 @@
 //! Utilities module
 
-use std::{env, path::PathBuf, process::Command};
+use std::{env, path::PathBuf};
 
 /// Functions for picking executables from env variables in the global runtime.
 pub mod executable_finder;

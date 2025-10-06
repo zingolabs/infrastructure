@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf, process::Command};
+use std::{path::PathBuf, process::Command};
 
 /// -Looks for an executable in TEST_BINARIES_DIR environment variable-
 /// or launches directly, hoping it is in path.
