@@ -302,13 +302,13 @@ impl Validator for Zcashd {
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
+        let config_dir = tempfile::tempdir().unwrap();
 
         if let Some(cache) = config.chain_cache.clone() {
             Self::load_chain(cache, data_dir.path().to_path_buf(), NetworkKind::Regtest);
         }
 
         let port = network::pick_unused_port(config.rpc_listen_port);
-        let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zcashd(
             config_dir.path(),
             port,
