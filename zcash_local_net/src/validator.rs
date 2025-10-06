@@ -338,25 +338,20 @@ impl Validator for Zcashd {
 
         let mut handle = command.spawn().unwrap_or_else(|err| {
             let executable_location = config.zcashd_bin;
+            dbg!(logs_dir.path().exists());
+            dbg!(data_dir.path().exists());
+            dbg!(config_dir.path().exists());
+            dbg!(config_file_path.exists());
             panic!(
                 "Running {executable_location:?}
 {} {}
-Error: {err}
-and also
-{}
-{}
-{}
-{}",
+Error: {err}",
                 command.get_program().to_string_lossy(),
                 command
                     .get_args()
                     .map(|arg| arg.to_string_lossy())
                     .collect::<Vec<_>>()
-                    .join(" "),
-                logs_dir.path().exists(),
-                data_dir.path().exists(),
-                config_dir.path().exists(),
-                config_file_path.exists(),
+                    .join(" ")
             )
         });
 
