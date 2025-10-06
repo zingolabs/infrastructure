@@ -342,6 +342,10 @@ impl Validator for Zcashd {
             dbg!(data_dir.path().exists());
             dbg!(config_dir.path().exists());
             dbg!(config_file_path.exists());
+            dbg!(logs_dir.path());
+            dbg!(data_dir.path());
+            dbg!(config_dir.path());
+            dbg!(config_file_path);
             panic!(
                 "Running {executable_location:?}
 {} {}
