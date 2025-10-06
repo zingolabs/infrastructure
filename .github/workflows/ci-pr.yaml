@@ -1,9 +1,11 @@
-name: CI (Nightly)
+name: CI checks
 
 on:
-  schedule:
-    - cron: '30 3 * * *'
   workflow_dispatch:
+  push:
+    tags:
+      - '**'
+  pull_request:
 
 jobs:
   reject-trailing-whitespace:
@@ -22,7 +24,3 @@ jobs:
 
   cargo-checkmate:
     uses: ./.github/workflows/cargo-checkmate.yaml
-
-  cargo-hack-build:
-    uses: ./.github/workflows/cargo-hack.yaml
-    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
