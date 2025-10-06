@@ -8,8 +8,6 @@ license = "MIT License"
 github = { repository = "zingolabs/infrastructure/services" }
 
 [dependencies]
-# Zcash
-zcash_primitives = { workspace = true }
 zcash_protocol = { workspace = true }
 # Zebra
 zebra-node-services = { workspace = true }
@@ -32,6 +30,4 @@ zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git
 
 [build-dependencies]
 hex = { workspace = true }
-reqwest = { workspace = true, features = ["zstd", "rustls-tls-manual-roots"] }
-sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
