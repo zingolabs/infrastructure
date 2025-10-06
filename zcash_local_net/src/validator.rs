@@ -338,6 +338,10 @@ impl Validator for Zcashd {
 
         let mut handle = command.spawn().unwrap_or_else(|err| {
             let executable_location = config.zcashd_bin;
+            dbg!(logs_dir.path().exists());
+            dbg!(data_dir.path().exists());
+            dbg!(config_dir.path().exists());
+            dbg!(config_file_path.exists());
             panic!(
                 "Running {executable_location:?}
 {} {}
