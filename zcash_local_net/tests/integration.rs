@@ -176,11 +176,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
 async fn generate_zebrad_large_chain_cache() {
     tracing_subscriber::fmt().init();
 
-    crate::testutils::generate_zebrad_large_chain_cache(
-        ZebradConfig::default_location(),
-        LightwalletdConfig::default_location(),
-    )
-    .await;
+    crate::testutils::generate_zebrad_large_chain_cache().await;
 }
 
 // FIXME: This is not a test, so it shouldn't be marked as one.
@@ -190,10 +186,5 @@ async fn generate_zebrad_large_chain_cache() {
 async fn generate_zcashd_chain_cache() {
     tracing_subscriber::fmt().init();
 
-    crate::testutils::generate_zcashd_chain_cache(
-        ZcashdConfig::default_location(),
-        ZcashdConfig::default_cli_location(),
-        LightwalletdConfig::default_location(),
-    )
-    .await;
+    crate::testutils::generate_zcashd_chain_cache().await;
 }
