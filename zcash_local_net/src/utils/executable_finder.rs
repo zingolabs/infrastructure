@@ -10,7 +10,7 @@ pub fn pick_command(executable_name: &str) -> Command {
 
 /// -Checks to see if an executable is in a directory determined by the TEST_BINARIES_DIR environment variable.
 fn pick_path(executable_name: &str) -> Option<PathBuf> {
-    let environment_variable_path: &str = "TEST_BINARIES";
+    let environment_variable_path: &str = "TEST_BINARIES_DIR";
 
     match std::env::var(environment_variable_path) {
         Ok(directory) => {
