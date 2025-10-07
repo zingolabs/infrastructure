@@ -16,6 +16,7 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
         Ok(directory) => {
             let path = PathBuf::from(directory).join(executable_name);
             if path.exists() {
+                println!("running {executable_name} at {path:?}");
                 Some(path)
             } else {
                 None
