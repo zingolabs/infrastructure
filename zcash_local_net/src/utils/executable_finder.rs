@@ -19,7 +19,7 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
                 println!("running {executable_name} at {path:?}");
                 Some(path)
             } else {
-                println!("could not find {executable_name} in {directory} set by {environment_variable_path}");
+                println!("could not find {executable_name} at {path:?} set by {environment_variable_path}");
                 None
             }
         }
