@@ -19,11 +19,12 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
                 println!("running {executable_name} at {path:?}");
                 Some(path)
             } else {
+                println!("could not find {executable_name} in {environment_variable_path}");
                 None
             }
         }
         Err(_err) => {
-            // tracing::warn!(format!("{environment_variable_path} environment variable is not set. It should contain the necessary executables for a test run.").as_str());
+            println!("{environment_variable_path} environment variable is not set. It should contain the necessary executables for a test run.");
             None
         }
     }
