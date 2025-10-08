@@ -34,6 +34,8 @@ pub trait ItsAProcess: Sized {
         self.config_dir().path().join(Self::CONFIG_FILENAME)
     }
 
+    // default implementations
+    //
     /// Prints the stdout log.
     fn print_stdout(&self) {
         let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);
@@ -46,8 +48,19 @@ pub trait ItsAProcess: Sized {
         logs::print_log(stdout_log_path);
     }
 
+    /// To print all the things.
+    fn print_all(&self) {
+        self.print_stdout();
+        self.print_stderr();
+    }
+
     /// Returns the indexer process.
     fn process(&self) -> Process {
         Self::PROCESS
+    }
+
+    /// To launch with untouched default config.
+    fn launch_default() -> impl Future<Output = Result<Self, LaunchError>> + Send {
+        Self::launch(Self::Config::default())
     }
 }

@@ -315,6 +315,13 @@ impl ItsAProcess for Lightwalletd {
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
     }
+
+    /// To print ALLL the things.
+    fn print_all(&self) {
+        self.print_stdout();
+        self.print_lwd_log();
+        self.print_stderr();
+    }
 }
 
 impl Indexer for Lightwalletd {

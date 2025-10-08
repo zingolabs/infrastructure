@@ -120,4 +120,17 @@ where
 
         LocalNet { indexer, validator }
     }
+
+    pub async fn launch_default() -> Self {
+        Self::launch(
+            <I as ItsAProcess>::Config::default(),
+            <V as ItsAProcess>::Config::default(),
+        )
+        .await
+    }
+
+    fn print_all(&self) {
+        self.indexer.print_all();
+        self.validator.print_all();
+    }
 }
