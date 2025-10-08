@@ -5,8 +5,6 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::BlockHeight;
-
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
@@ -156,13 +154,11 @@ pub trait Validator: Sized {
     ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
     /// Get chain height
-    fn get_chain_height(&self) -> impl std::future::Future<Output = BlockHeight> + Send;
+    fn get_chain_height(&self) -> impl std::future::Future<Output = u32> + Send;
 
     /// Polls chain until it reaches target height
-    fn poll_chain_height(
-        &self,
-        target_height: BlockHeight,
-    ) -> impl std::future::Future<Output = ()> + Send;
+    fn poll_chain_height(&self, target_height: u32)
+        -> impl std::future::Future<Output = ()> + Send;
 
     /// Get temporary config directory.
     fn config_dir(&self) -> &TempDir;
@@ -373,15 +369,15 @@ impl Validator for Zcashd {
         Ok(())
     }
 
-    async fn get_chain_height(&self) -> BlockHeight {
+    async fn get_chain_height(&self) -> u32 {
         let output = self
             .zcash_cli_command(&["getchaintips"])
             .expect(EXPECT_SPAWN);
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
-        BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
+        stdout_json[0]["height"].as_u32().unwrap()
     }
 
-    async fn poll_chain_height(&self, target_height: BlockHeight) {
+    async fn poll_chain_height(&self, target_height: u32) {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
@@ -634,23 +630,21 @@ impl Validator for Zebrad {
         Ok(())
     }
 
-    async fn get_chain_height(&self) -> BlockHeight {
+    async fn get_chain_height(&self) -> u32 {
         let response: serde_json::Value = self
             .client
             .json_result_from_call("getblockchaininfo", "[]".to_string())
             .await
             .unwrap();
 
-        let chain_height: u32 = response
+        response
             .get("blocks")
             .and_then(|h| h.as_u64())
             .and_then(|h| u32::try_from(h).ok())
-            .unwrap();
-
-        BlockHeight::from_u32(chain_height)
+            .unwrap()
     }
 
-    async fn poll_chain_height(&self, target_height: BlockHeight) {
+    async fn poll_chain_height(&self, target_height: u32) {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
