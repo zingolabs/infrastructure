@@ -8,7 +8,6 @@ license = "MIT License"
 github = { repository = "zingolabs/infrastructure/services" }
 
 [dependencies]
-zcash_protocol = { workspace = true }
 # Zebra
 zebra-node-services = { workspace = true }
 zebra-rpc = { workspace = true }
