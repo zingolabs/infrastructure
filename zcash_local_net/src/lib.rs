@@ -33,6 +33,7 @@ pub mod config;
 pub mod error;
 pub mod indexer;
 pub mod network;
+pub mod process;
 pub mod utils;
 pub mod validator;
 

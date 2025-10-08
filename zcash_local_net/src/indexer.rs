@@ -16,6 +16,7 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self},
+    process::ItsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
@@ -38,9 +39,8 @@ pub struct ZainodConfig {
     pub network: NetworkKind,
 }
 
-impl ZainodConfig {
-    /// A convenience configuration suitable for tests.
-    pub fn default_test() -> Self {
+impl Default for ZainodConfig {
+    fn default() -> Self {
         ZainodConfig {
             listen_port: None,
             validator_port: 0,
@@ -65,9 +65,8 @@ pub struct LightwalletdConfig {
     pub darkside: bool,
 }
 
-impl LightwalletdConfig {
-    /// A convenience configuration suitable for tests.
-    pub fn default_test() -> Self {
+impl Default for LightwalletdConfig {
+    fn default() -> Self {
         LightwalletdConfig {
             listen_port: None,
             zcashd_conf: PathBuf::new(),
@@ -81,55 +80,9 @@ impl LightwalletdConfig {
 pub struct EmptyConfig {}
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer: Sized {
-    /// Config filename
-    const CONFIG_FILENAME: &str;
-
-    /// Process
-    const PROCESS: Process;
-
-    /// Indexer config struct
-    type Config;
-
-    /// Generate a default test config
-    fn default_test_config() -> Self::Config;
-
+pub trait Indexer: ItsAProcess {
     /// Indexer listen port
     fn listen_port(&self) -> Port;
-
-    /// Launch the process.
-    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
-
-    /// Stop the process.
-    fn stop(&mut self);
-
-    /// Get temporary config directory.
-    fn config_dir(&self) -> &TempDir;
-
-    /// Get temporary logs directory.
-    fn logs_dir(&self) -> &TempDir;
-
-    /// Returns path to config file.
-    fn config_path(&self) -> PathBuf {
-        self.config_dir().path().join(Self::CONFIG_FILENAME)
-    }
-
-    /// Prints the stdout log.
-    fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
-    /// Prints the stdout log.
-    fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
-    /// Returns the indexer process.
-    fn process(&self) -> Process {
-        Self::PROCESS
-    }
 }
 
 /// This struct is used to represent and manage the Zainod process.
@@ -148,20 +101,11 @@ pub struct Zainod {
     config_dir: TempDir,
 }
 
-impl Indexer for Zainod {
+impl ItsAProcess for Zainod {
     const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
     const PROCESS: Process = Process::Zainod;
 
     type Config = ZainodConfig;
-
-    fn listen_port(&self) -> Port {
-        self.port
-    }
-
-    /// Generate a default test config
-    fn default_test_config() -> Self::Config {
-        ZainodConfig::default_test()
-    }
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
@@ -227,6 +171,12 @@ impl Indexer for Zainod {
     }
 }
 
+impl Indexer for Zainod {
+    fn listen_port(&self) -> Port {
+        self.port
+    }
+}
+
 impl Drop for Zainod {
     fn drop(&mut self) {
         self.stop();
@@ -259,20 +209,11 @@ impl Lightwalletd {
     }
 }
 
-impl Indexer for Lightwalletd {
+impl ItsAProcess for Lightwalletd {
     const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
     const PROCESS: Process = Process::Lightwalletd;
 
     type Config = LightwalletdConfig;
-
-    fn listen_port(&self) -> Port {
-        self.port
-    }
-
-    /// generate a default test config
-    fn default_test_config() -> Self::Config {
-        LightwalletdConfig::default_test()
-    }
 
     fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
@@ -346,6 +287,12 @@ impl Indexer for Lightwalletd {
     }
 }
 
+impl Indexer for Lightwalletd {
+    fn listen_port(&self) -> Port {
+        self.port
+    }
+}
+
 impl Drop for Lightwalletd {
     fn drop(&mut self) {
         self.stop();
@@ -364,7 +311,7 @@ pub struct Empty {
     config_dir: TempDir,
 }
 
-impl Indexer for Empty {
+impl ItsAProcess for Empty {
     const CONFIG_FILENAME: &str = "";
     const PROCESS: Process = Process::Empty;
 
@@ -403,5 +350,11 @@ impl Indexer for Empty {
 impl Drop for Empty {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+impl Indexer for Empty {
+    fn listen_port(&self) -> Port {
+        0
     }
 }
