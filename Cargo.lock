@@ -4678,7 +4678,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "zcash_protocol 0.6.1",
+ "zcash_protocol 0.7.0",
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
@@ -4765,8 +4765,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_protocol"
-version = "0.6.1"
-source = "git+https://github.com/zcash/librustzcash?rev=d387aed7e04e881dbe30c6ff8b26a96c834c094b#d387aed7e04e881dbe30c6ff8b26a96c834c094b"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12cc76dd1f77be473e5829dbd34890bcd36d08b1e8dde2da0aea355c812a8f28"
 dependencies = [
  "core2",
  "document-features",
@@ -4776,9 +4777,8 @@ dependencies = [
 
 [[package]]
 name = "zcash_protocol"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cc76dd1f77be473e5829dbd34890bcd36d08b1e8dde2da0aea355c812a8f28"
+version = "0.7.0"
+source = "git+https://github.com/zcash/librustzcash?tag=zcash_protocol-0.7.0#6f87ae09f362fde09ab1e73815220941295c292f"
 dependencies = [
  "core2",
  "document-features",
