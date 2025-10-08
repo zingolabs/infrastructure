@@ -22,6 +22,7 @@ use crate::{
     config,
     error::LaunchError,
     launch, logs, network,
+    process::ItsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
@@ -62,9 +63,8 @@ pub struct ZcashdConfig {
     pub chain_cache: Option<PathBuf>,
 }
 
-impl ZcashdConfig {
-    /// Regtest-friendly defaults for testing.
-    pub fn default_test() -> Self {
+impl Default for ZcashdConfig {
+    fn default() -> Self {
         Self {
             rpc_listen_port: None,
             configured_activation_heights: for_test::all_height_one_nus(),
@@ -107,9 +107,8 @@ pub struct ZebradConfig {
     pub network: NetworkKind,
 }
 
-impl ZebradConfig {
-    /// Zebrad defaults for testing
-    pub fn default_test() -> Self {
+impl Default for ZebradConfig {
+    fn default() -> Self {
         Self {
             network_listen_port: None,
             rpc_listen_port: None,
@@ -123,30 +122,10 @@ impl ZebradConfig {
 }
 
 /// Functionality for validator/full-node processes.
-pub trait Validator: Sized {
-    /// Config filename
-    const CONFIG_FILENAME: &str;
-
-    /// Process
-    const PROCESS: Process;
-
-    /// Validator config struct
-    type Config;
-
+pub trait Validator: ItsAProcess {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;
-
-    /// generate a default test config
-    fn default_test_config() -> Self::Config;
-
-    /// Launch the process.
-    fn launch(
-        config: Self::Config,
-    ) -> impl std::future::Future<Output = Result<Self, LaunchError>> + Send;
-
-    /// Stop the process.
-    fn stop(&mut self);
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
@@ -164,19 +143,8 @@ pub trait Validator: Sized {
         target_height: BlockHeight,
     ) -> impl std::future::Future<Output = ()> + Send;
 
-    /// Get temporary config directory.
-    fn config_dir(&self) -> &TempDir;
-
-    /// Get temporary logs directory.
-    fn logs_dir(&self) -> &TempDir;
-
     /// Get temporary data directory.
     fn data_dir(&self) -> &TempDir;
-
-    /// Returns path to config file.
-    fn config_path(&self) -> PathBuf {
-        self.config_dir().path().join(Self::CONFIG_FILENAME)
-    }
 
     /// Network type
     fn network(&self) -> NetworkKind;
@@ -208,23 +176,6 @@ pub trait Validator: Sized {
         validator_data_dir: PathBuf,
         validator_network: NetworkKind,
     ) -> PathBuf;
-
-    /// Prints the stdout log.
-    fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
-    /// Prints the stdout log.
-    fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
-    /// Returns the validator process.
-    fn process(&self) -> Process {
-        Self::PROCESS
-    }
 }
 
 /// This struct is used to represent and manage the Zcashd process.
@@ -262,21 +213,12 @@ impl Zcashd {
         command.args(args).output()
     }
 }
-
-impl Validator for Zcashd {
+impl ItsAProcess for Zcashd {
     const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
     const PROCESS: Process = Process::Zcashd;
 
     type Config = ZcashdConfig;
 
-    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
-        self.activation_heights.clone()
-    }
-
-    /// generate a default test config
-    fn default_test_config() -> Self::Config {
-        ZcashdConfig::default_test()
-    }
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
@@ -365,6 +307,18 @@ impl Validator for Zcashd {
         }
     }
 
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+}
+impl Validator for Zcashd {
+    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+        self.activation_heights.clone()
+    }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
         self.zcash_cli_command(&["generate", &n.to_string()])?;
@@ -385,14 +339,6 @@ impl Validator for Zcashd {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
-    }
-
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-
-    fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
     }
 
     fn data_dir(&self) -> &TempDir {
@@ -458,21 +404,11 @@ pub struct Zebrad {
     network: NetworkKind,
 }
 
-impl Validator for Zebrad {
+impl ItsAProcess for Zebrad {
     const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
     const PROCESS: Process = Process::Zebrad;
 
     type Config = ZebradConfig;
-
-    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
-        self.configured_activation_heights.clone()
-    }
-
-    /// generate a default test config
-    fn default_test_config() -> Self::Config {
-        ZebradConfig::default_test()
-    }
-
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
@@ -584,6 +520,19 @@ impl Validator for Zebrad {
         self.handle.kill().expect("zebrad couldn't be killed")
     }
 
+    fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+}
+impl Validator for Zebrad {
+    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+        self.configured_activation_heights.clone()
+    }
+
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
 
@@ -654,14 +603,6 @@ impl Validator for Zebrad {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
-    }
-
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-
-    fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
     }
 
     fn data_dir(&self) -> &TempDir {

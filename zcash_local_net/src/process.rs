@@ -1,6 +1,6 @@
 //! common behavior to processes
 
-use std::path::PathBuf;
+use std::{future::Future, path::PathBuf};
 
 use tempfile::TempDir;
 
@@ -18,7 +18,7 @@ pub trait ItsAProcess: Sized {
     type Config: Default;
 
     /// Launch the process.
-    fn launch(config: Self::Config) -> Result<Self, LaunchError>;
+    fn launch(config: Self::Config) -> impl Future<Output = Result<Self, LaunchError>> + Send;
 
     /// Stop the process.
     fn stop(&mut self);

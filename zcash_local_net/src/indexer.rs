@@ -113,7 +113,7 @@ impl ItsAProcess for Zainod {
 
     type Config = ZainodConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -221,7 +221,7 @@ impl ItsAProcess for Lightwalletd {
 
     type Config = LightwalletdConfig;
 
-    fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
         let _lwd_log_file = File::create(&lwd_log_file_path).unwrap();
@@ -323,7 +323,7 @@ impl ItsAProcess for Empty {
 
     type Config = EmptyConfig;
 
-    fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
+    async fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let config_dir = tempfile::tempdir().unwrap();
 
