@@ -79,6 +79,12 @@ impl Default for LightwalletdConfig {
 /// For use when not launching an Indexer with [`crate::LocalNet::launch`].
 pub struct EmptyConfig {}
 
+impl Default for EmptyConfig {
+    fn default() -> Self {
+        EmptyConfig {}
+    }
+}
+
 /// Functionality for indexer/light-node processes.
 pub trait Indexer: ItsAProcess {
     /// Indexer listen port
@@ -316,15 +322,6 @@ impl ItsAProcess for Empty {
     const PROCESS: Process = Process::Empty;
 
     type Config = EmptyConfig;
-
-    fn listen_port(&self) -> Port {
-        0
-    }
-
-    /// Generate a default test config
-    fn default_test_config() -> Self::Config {
-        EmptyConfig {}
-    }
 
     fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
