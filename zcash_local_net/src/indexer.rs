@@ -21,6 +21,10 @@ use crate::{
     Process,
 };
 
+trait IndexerConfig {
+    fn set_validator_port(&mut self, listen_port: Port);
+}
+
 /// Zainod configuration
 ///
 /// If `listen_port` is `None`, a port is picked at random between 15000-25000.
@@ -49,6 +53,12 @@ impl Default for ZainodConfig {
         }
     }
 }
+impl IndexerConfig for ZainodConfig {
+    fn set_validator_port(&mut self, listen_port: Port) {
+        self.listen_port = Some(listen_port);
+    }
+}
+
 /// Lightwalletd configuration
 ///
 /// If `listen_port` is `None`, a port is picked at random between 15000-25000.
@@ -74,6 +84,12 @@ impl Default for LightwalletdConfig {
         }
     }
 }
+impl IndexerConfig for LightwalletdConfig {
+    fn set_validator_port(&mut self, listen_port: Port) {
+        self.listen_port = Some(listen_port);
+    }
+}
+
 /// Empty configuration
 ///
 /// For use when not launching an Indexer with [`crate::LocalNet::launch`].
@@ -84,9 +100,17 @@ impl Default for EmptyConfig {
         EmptyConfig {}
     }
 }
+impl IndexerConfig for EmptyConfig {
+    fn set_validator_port(&mut self, _listen_port: Port) {
+        tracing::info!("Empty Validator cannot accept a port!");
+    }
+}
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer: ItsAProcess {
+pub trait Indexer: ItsAProcess<Config: IndexerConfig> {
+    fn set_config_port(config: &mut Self::Config, port: Port) {
+        config.set_validator_port(port);
+    }
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 }

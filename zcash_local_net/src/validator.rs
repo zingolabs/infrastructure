@@ -176,6 +176,8 @@ pub trait Validator: ItsAProcess {
         validator_data_dir: PathBuf,
         validator_network: NetworkKind,
     ) -> PathBuf;
+
+    fn get_port(&self) -> Port;
 }
 
 /// This struct is used to represent and manage the Zcashd process.
@@ -366,6 +368,10 @@ impl Validator for Zcashd {
             .output()
             .unwrap();
         chain_cache
+    }
+
+    fn get_port(&self) -> Port {
+        self.port()
     }
 }
 
@@ -634,6 +640,10 @@ impl Validator for Zebrad {
         } else {
             chain_cache
         }
+    }
+
+    fn get_port(&self) -> Port {
+        self.rpc_listen_port()
     }
 }
 
