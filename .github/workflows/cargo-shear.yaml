@@ -1,4 +1,4 @@
-name: Cargo Checkmate
+name: Cargo Shear
 
 on:
   workflow_call:
@@ -13,12 +13,9 @@ on:
         default: "-D warnings"
 
 jobs:
-  cargo-checkmate:
-    name: Cargo checkmate
+  cargo-shear:
+    name: cargo-shear
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        phase: [build, check, clippy, doc, format]
     env:
       RUSTFLAGS: ${{ inputs.rustflags }}
     steps:
@@ -33,10 +30,10 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-checkmate
+      - name: Install cargo-shear
         uses: taiki-e/cache-cargo-install-action@v2
         with:
-          tool: cargo-checkmate
+          tool: cargo-shear
 
-      - name: Run cargo checkmate
-        run: cargo-checkmate run ${{ matrix.phase }}
+      - name: Run cargo-shear
+        run: cargo shear

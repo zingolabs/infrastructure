@@ -19,7 +19,11 @@ use zebra_rpc::{
 };
 
 use crate::{
-    config, error::LaunchError, launch, logs, network, utils::ExecutableLocation, Process,
+    config,
+    error::LaunchError,
+    launch, logs, network,
+    utils::executable_finder::{pick_command, EXPECT_SPAWN},
+    Process,
 };
 use zingo_common_components::protocol::activation_heights::for_test;
 
@@ -48,10 +52,6 @@ pub const ZEBRAD_DEFAULT_MINER: &str = "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd";
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
 pub struct ZcashdConfig {
-    /// Zcashd binary location
-    pub zcashd_bin: ExecutableLocation,
-    /// Zcash-cli binary location
-    pub zcash_cli_bin: ExecutableLocation,
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
@@ -63,21 +63,9 @@ pub struct ZcashdConfig {
 }
 
 impl ZcashdConfig {
-    /// Default location for `zcashd` resolved via `PATH`.
-    pub fn default_location() -> ExecutableLocation {
-        ExecutableLocation::by_name("zcashd")
-    }
-
-    /// Default location for `zcash-cli` resolved via `PATH`.
-    pub fn default_cli_location() -> ExecutableLocation {
-        ExecutableLocation::by_name("zcash-cli")
-    }
-
     /// Regtest-friendly defaults for testing.
     pub fn default_test() -> Self {
         Self {
-            zcashd_bin: Self::default_location(),
-            zcash_cli_bin: Self::default_cli_location(),
             rpc_listen_port: None,
             configured_activation_heights: for_test::all_height_one_nus(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
@@ -103,8 +91,6 @@ impl ZcashdConfig {
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
 #[derive(Clone)]
 pub struct ZebradConfig {
-    /// Zebrad binary location
-    pub zebrad_bin: ExecutableLocation,
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
     /// Zebrad JSON-RPC listen port
@@ -122,15 +108,9 @@ pub struct ZebradConfig {
 }
 
 impl ZebradConfig {
-    /// Default location for `zebrad` resolved via `PATH`.
-    pub fn default_location() -> ExecutableLocation {
-        ExecutableLocation::by_name("zebrad")
-    }
-
     /// Zebrad defaults for testing
     pub fn default_test() -> Self {
         Self {
-            zebrad_bin: Self::default_location(),
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
@@ -263,8 +243,6 @@ pub struct Zcashd {
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
-    /// Zcash cli binary location
-    zcash_cli_bin: ExecutableLocation,
     /// Network upgrade activation heights
     #[getset(skip)]
     activation_heights: testnet::ConfiguredActivationHeights,
@@ -278,7 +256,7 @@ impl Zcashd {
     /// self.zcash_cli_command(&["generate", "1"]);
     /// ```
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        let mut command = self.zcash_cli_bin.command();
+        let mut command = pick_command("zcash-cli");
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
         command.args(args).output()
@@ -317,7 +295,7 @@ impl Validator for Zcashd {
         )
         .unwrap();
 
-        let mut command = config.zcashd_bin.command();
+        let mut command = pick_command("zcashd");
         command
             .args([
                 "--printtoconsole",
@@ -336,20 +314,7 @@ impl Validator for Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|err| {
-            let executable_location = config.zcashd_bin;
-            panic!(
-                "Running {executable_location:?}
-{} {}
-Error: {err}",
-                command.get_program().to_string_lossy(),
-                command
-                    .get_args()
-                    .map(|arg| arg.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            )
-        });
+        let mut handle = command.spawn().expect(EXPECT_SPAWN);
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
@@ -368,7 +333,6 @@ Error: {err}",
             config_dir,
             logs_dir,
             data_dir,
-            zcash_cli_bin: config.zcash_cli_bin,
             activation_heights: config.configured_activation_heights,
         };
 
@@ -412,14 +376,7 @@ Error: {err}",
     async fn get_chain_height(&self) -> BlockHeight {
         let output = self
             .zcash_cli_command(&["getchaintips"])
-            .unwrap_or_else(|err| {
-                let executable_location = &self.zcash_cli_bin;
-                panic!(
-                    "Running {executable_location:?}
-getchaintips
-Error: {err}",
-                )
-            });
+            .expect(EXPECT_SPAWN);
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
         BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
     }
@@ -554,7 +511,7 @@ impl Validator for Zebrad {
         )
         .unwrap();
 
-        let mut command = config.zebrad_bin.command();
+        let mut command = pick_command("zebrad");
         command
             .args([
                 "--config",
@@ -568,20 +525,7 @@ impl Validator for Zebrad {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|err| {
-            let executable_location = config.zebrad_bin;
-            panic!(
-                "Running {executable_location:?}
-{} {}
-Error: {err}",
-                command.get_program().to_string_lossy(),
-                command
-                    .get_args()
-                    .map(|arg| arg.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            )
-        });
+        let mut handle = command.spawn().expect(EXPECT_SPAWN);
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(

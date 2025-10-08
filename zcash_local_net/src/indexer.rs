@@ -16,7 +16,7 @@ use crate::{
     error::LaunchError,
     launch, logs,
     network::{self},
-    utils::ExecutableLocation,
+    utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
 
@@ -28,8 +28,6 @@ use crate::{
 ///
 /// `network` must match the configured network of the validator.
 pub struct ZainodConfig {
-    /// Zainod binary location
-    pub zainod_bin: ExecutableLocation,
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Validator RPC port
@@ -41,15 +39,9 @@ pub struct ZainodConfig {
 }
 
 impl ZainodConfig {
-    /// The default way to locate the `zainod` binary.
-    pub fn default_location() -> ExecutableLocation {
-        ExecutableLocation::by_name("zainod")
-    }
-
     /// A convenience configuration suitable for tests.
     pub fn default_test() -> Self {
         ZainodConfig {
-            zainod_bin: Self::default_location(),
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
@@ -65,8 +57,6 @@ impl ZainodConfig {
 /// When running a validator that is not Zcashd (i.e. Zebrad), a zcash config file must still be created to specify the
 /// validator port. This is automatically handled by [`crate::LocalNet::launch`] when using [`crate::LocalNet`].
 pub struct LightwalletdConfig {
-    /// Lightwalletd binary location
-    pub lightwalletd_bin: ExecutableLocation,
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Zcashd configuration file location. Required even when running non-Zcashd validators.
@@ -76,15 +66,9 @@ pub struct LightwalletdConfig {
 }
 
 impl LightwalletdConfig {
-    /// The default way to locate the `lightwalletd` binary.
-    pub fn default_location() -> ExecutableLocation {
-        ExecutableLocation::by_name("lightwalletd")
-    }
-
     /// A convenience configuration suitable for tests.
     pub fn default_test() -> Self {
         LightwalletdConfig {
-            lightwalletd_bin: Self::default_location(),
             listen_port: None,
             zcashd_conf: PathBuf::new(),
             darkside: false,
@@ -201,7 +185,7 @@ impl Indexer for Zainod {
         )
         .unwrap();
 
-        let mut command = config.zainod_bin.command();
+        let mut command = pick_command("zainod");
         command
             .args([
                 "--config",
@@ -210,21 +194,7 @@ impl Indexer for Zainod {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|err| {
-            let executable_location = config.zainod_bin;
-            panic!(
-                "Running {executable_location:?}
-{} {}
-Error: {err}",
-                command.get_program().to_string_lossy(),
-                command
-                    .get_args()
-                    .map(|arg| arg.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            )
-        });
-
+        let mut handle = command.spawn().expect(EXPECT_SPAWN);
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
             Process::Zainod,
@@ -321,7 +291,7 @@ impl Indexer for Lightwalletd {
         )
         .unwrap();
 
-        let mut command = config.lightwalletd_bin.command();
+        let mut command = pick_command("lightwalletd");
         let mut args = vec![
             "--no-tls-very-insecure",
             "--data-dir",
@@ -342,21 +312,7 @@ impl Indexer for Lightwalletd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().unwrap_or_else(|err| {
-            let executable_location = config.lightwalletd_bin;
-            panic!(
-                "Running {executable_location:?}
-{} {}
-Error: {err}",
-                command.get_program().to_string_lossy(),
-                command
-                    .get_args()
-                    .map(|arg| arg.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            )
-        });
-
+        let mut handle = command.spawn().expect(EXPECT_SPAWN);
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
             Process::Lightwalletd,

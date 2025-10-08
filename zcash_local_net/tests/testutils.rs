@@ -26,26 +26,21 @@ use std::path::PathBuf;
 
 use zcash_local_net::{
     indexer::{Lightwalletd, LightwalletdConfig},
-    utils::{self, ExecutableLocation},
+    utils,
     validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
     LocalNet,
 };
 use zebra_chain::parameters::NetworkKind;
 use zingo_common_components::protocol::activation_heights::for_test;
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
-pub async fn generate_zebrad_large_chain_cache(
-    zebrad_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn generate_zebrad_large_chain_cache() {
     let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
         LightwalletdConfig {
-            lightwalletd_bin,
             listen_port: None,
             zcashd_conf: PathBuf::new(),
             darkside: false,
         },
         ZebradConfig {
-            zebrad_bin,
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
@@ -71,11 +66,7 @@ pub async fn generate_zebrad_large_chain_cache(
 // FIXME: could've not been ignored, but relies on zingolib.
 /// Generates zcashd chain cache for client RPC test fixtures
 #[ignore = "FIXME: could've not been ignored, but relies on zingolib"]
-pub async fn generate_zcashd_chain_cache(
-    _zcashd_bin: ExecutableLocation,
-    _zcash_cli_bin: ExecutableLocation,
-    _lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn generate_zcashd_chain_cache() {
     // let mut local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
     //     LightwalletdConfig {
     //         lightwalletd_bin,
