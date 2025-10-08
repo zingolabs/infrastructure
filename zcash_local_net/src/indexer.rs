@@ -93,13 +93,9 @@ impl IndexerConfig for LightwalletdConfig {
 /// Empty configuration
 ///
 /// For use when not launching an Indexer with [`crate::LocalNet::launch`].
+#[derive(Default)]
 pub struct EmptyConfig {}
 
-impl Default for EmptyConfig {
-    fn default() -> Self {
-        EmptyConfig {}
-    }
-}
 impl IndexerConfig for EmptyConfig {
     fn set_validator_port(&mut self, _listen_port: Port) {
         tracing::info!("Empty Validator cannot accept a port!");

@@ -2,11 +2,11 @@ mod testutils;
 
 use zcash_local_net::{
     indexer::{
-        Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
+        Empty, EmptyConfig, Lightwalletd, Zainod,
     },
     process::ItsAProcess as _,
     utils,
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
+    validator::{Validator, Zcashd, Zebrad, ZebradConfig},
     LocalNet,
 };
 

@@ -40,10 +40,8 @@ pub mod validator;
 mod launch;
 mod logs;
 
-use indexer::{
-    Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
-};
-use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
+use indexer::Indexer;
+use validator::Validator;
 
 use crate::process::ItsAProcess;
 
@@ -112,7 +110,7 @@ where
 
     pub async fn launch(
         mut indexer_config: <I as ItsAProcess>::Config,
-        mut validator_config: <V as ItsAProcess>::Config,
+        validator_config: <V as ItsAProcess>::Config,
     ) -> Self {
         let validator = <V as ItsAProcess>::launch(validator_config).await.unwrap();
         I::set_config_port(&mut indexer_config, validator.get_port());
