@@ -18,9 +18,7 @@ thiserror = "1.0.64"
 tokio = "1.42.0"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
-zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
-  "local-consensus",
-] }
+zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
 
 zebra-chain = "2.0"
 zebra-node-services = "1.0"
