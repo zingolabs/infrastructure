@@ -1,9 +1,7 @@
 mod testutils;
 
 use zcash_local_net::{
-    indexer::{
-        Empty, EmptyConfig, Lightwalletd, Zainod,
-    },
+    indexer::{Empty, EmptyConfig, Lightwalletd, Zainod},
     process::ItsAProcess as _,
     utils,
     validator::{Validator, Zcashd, Zebrad, ZebradConfig},
