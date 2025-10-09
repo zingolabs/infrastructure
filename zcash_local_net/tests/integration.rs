@@ -49,8 +49,10 @@ async fn launch_zebrad() {
 async fn launch_zebrad_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let mut config = ZebradConfig::default();
-    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
     let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_all();
@@ -64,8 +66,10 @@ async fn launch_zebrad_with_cache() {
 #[tokio::test]
 async fn launch_multiple_individual_zebrads_with_cache() {
     tracing_subscriber::fmt().init();
-    let mut config = ZebradConfig::default();
-    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
     let zebrad_1 = Zebrad::launch(config.clone()).await.unwrap();
     zebrad_1.print_all();
@@ -83,21 +87,21 @@ async fn launch_multiple_individual_zebrads_with_cache() {
 async fn localnet_launch_multiple_zebrads_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let chain_cache_source = utils::chain_cache_dir().join("client_rpc_tests_large");
-
-    let mut zebrad_config = ZebradConfig::default();
-    zebrad_config.chain_cache = Some(chain_cache_source);
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
     let local_net_1 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
         indexer_config: EmptyConfig {},
-        validator_config: zebrad_config.clone(),
+        validator_config: config.clone(),
     })
     .await
     .unwrap();
 
     let local_net_2 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
         indexer_config: EmptyConfig {},
-        validator_config: zebrad_config.clone(),
+        validator_config: config.clone(),
     })
     .await
     .unwrap();
