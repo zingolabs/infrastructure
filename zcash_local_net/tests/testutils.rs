@@ -26,6 +26,7 @@ use std::path::PathBuf;
 
 use zcash_local_net::{
     indexer::lightwalletd::{Lightwalletd, LightwalletdConfig},
+    process::ItsAProcess,
     utils,
     validator::{
         zebrad::{Zebrad, ZebradConfig},
@@ -38,23 +39,9 @@ use zingo_common_components::protocol::activation_heights::for_test;
 use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
-    let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig {
-            listen_port: None,
-            zcashd_conf: PathBuf::new(),
-            darkside: false,
-        },
-        ZebradConfig {
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            configured_activation_heights: for_test::all_height_one_nus(),
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: NetworkKind::Regtest,
-        },
-    )
-    .await;
+    let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch_default()
+        .await
+        .unwrap();
 
     local_net.validator().generate_blocks(150).await.unwrap();
 

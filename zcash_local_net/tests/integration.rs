@@ -3,6 +3,7 @@ mod testutils;
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
 use zcash_local_net::process::ItsAProcess;
 use zcash_local_net::validator::Validator as _;
+use zcash_local_net::LocalNetConfig;
 use zcash_local_net::{
     indexer::{
         empty::{Empty, EmptyConfig},
@@ -88,10 +89,19 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     let mut zebrad_config = ZebradConfig::default();
     zebrad_config.chain_cache = Some(chain_cache_source);
 
-    let local_net_1 =
-        LocalNet::<Empty, Zebrad>::launch(EmptyConfig {}, zebrad_config.clone()).await;
+    let local_net_1 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
+        indexer_config: EmptyConfig {},
+        validator_config: zebrad_config.clone(),
+    })
+    .await
+    .unwrap();
 
-    let local_net_2 = LocalNet::<Empty, Zebrad>::launch(EmptyConfig {}, zebrad_config).await;
+    let local_net_2 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
+        indexer_config: EmptyConfig {},
+        validator_config: zebrad_config.clone(),
+    })
+    .await
+    .unwrap();
 
     let zebrad_1 = local_net_1.validator();
     let zebrad_2 = local_net_2.validator();
