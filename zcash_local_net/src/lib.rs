@@ -175,7 +175,7 @@ where
             validator_config,
         } = config;
         let validator = <V as ItsAProcess>::launch(validator_config).await.unwrap();
-        I::setup_validator_connection(&mut indexer_config, validator.get_port());
+        I::setup_validator_connection(&mut indexer_config, &validator);
         let indexer = <I as ItsAProcess>::launch(indexer_config).await.unwrap();
 
         Ok(LocalNet { indexer, validator })
