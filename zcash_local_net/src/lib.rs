@@ -54,6 +54,7 @@ pub enum Process {
     Zainod,
     Lightwalletd,
     Empty, // TODO: to be revised
+    LocalNet,
 }
 
 impl std::fmt::Display for Process {
@@ -64,6 +65,7 @@ impl std::fmt::Display for Process {
             Self::Zainod => "zainod",
             Self::Lightwalletd => "lightwalletd",
             Self::Empty => "empty",
+            Self::LocalNet => "LocalNet",
         };
         write!(f, "{}", process)
     }
@@ -146,5 +148,55 @@ impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> L
     fn print_stderr(&self) {
         self.indexer.print_stderr();
         self.validator.print_stderr();
+    }
+}
+
+pub struct LocalNetConfig<I, V>
+where
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr,
+{
+    pub indexer_config: <I as ItsAProcess>::Config,
+    pub validator_config: <V as ItsAProcess>::Config,
+}
+
+impl<I, V> Default for LocalNetConfig<I, V>
+where
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr,
+{
+    fn default() -> Self {
+        Self {
+            indexer_config: <I as ItsAProcess>::Config::default(),
+            validator_config: <V as ItsAProcess>::Config::default(),
+        }
+    }
+}
+
+impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> ItsAProcess
+    for LocalNet<I, V>
+{
+    const PROCESS: Process = Process::LocalNet;
+
+    type Config = LocalNetConfig<I, V>;
+
+    async fn launch(config: Self::Config) -> Result<Self, error::LaunchError> {
+        let LocalNetConfig {
+            mut indexer_config,
+            validator_config,
+        } = config;
+        let validator = <V as ItsAProcess>::launch(validator_config).await.unwrap();
+        I::set_config_port(&mut indexer_config, validator.get_port());
+        let indexer = <I as ItsAProcess>::launch(indexer_config).await.unwrap();
+
+        Ok(LocalNet { indexer, validator })
+    }
+
+    fn stop(&mut self) {
+        todo!()
+    }
+
+    fn print_all(&self) {
+        todo!()
     }
 }
