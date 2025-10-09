@@ -120,9 +120,7 @@ impl IsAProcess for Zebrad {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        if !matches!(config.network, NetworkKind::Regtest) && config.chain_cache.is_none() {
-            panic!("chain cache must be specified when not using a regtest network!")
-        }
+        assert!(!(!matches!(config.network, NetworkKind::Regtest) && config.chain_cache.is_none()), "chain cache must be specified when not using a regtest network!");
 
         let working_cache_dir = data_dir.path().to_path_buf();
 
@@ -199,7 +197,7 @@ impl IsAProcess for Zebrad {
     )?;
         std::thread::sleep(std::time::Duration::from_secs(5));
 
-        let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), rpc_listen_port);
+        let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
         let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
 
         let zebrad = Zebrad {
@@ -224,7 +222,7 @@ impl IsAProcess for Zebrad {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zebrad couldn't be killed")
+        self.handle.kill().expect("zebrad couldn't be killed");
     }
 
     fn print_all(&self) {
@@ -297,7 +295,7 @@ impl Validator for Zebrad {
 
         response
             .get("blocks")
-            .and_then(|h| h.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .and_then(|h| u32::try_from(h).ok())
             .unwrap()
     }
@@ -326,9 +324,7 @@ impl Validator for Zebrad {
         validator_network: NetworkKind,
     ) -> PathBuf {
         let state_dir = chain_cache.clone().join("state");
-        if !state_dir.exists() {
-            panic!("state directory not found!");
-        }
+        assert!(state_dir.exists(), "state directory not found!");
 
         if matches!(validator_network, NetworkKind::Regtest) {
             std::process::Command::new("cp")

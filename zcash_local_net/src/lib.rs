@@ -67,7 +67,7 @@ impl std::fmt::Display for Process {
             Self::Empty => "empty",
             Self::LocalNet => "LocalNet",
         };
-        write!(f, "{}", process)
+        write!(f, "{process}")
     }
 }
 
@@ -146,7 +146,7 @@ where
     }
 }
 
-/// A combined config for LocalNet
+/// A combined config for `LocalNet`
 pub struct LocalNetConfig<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,

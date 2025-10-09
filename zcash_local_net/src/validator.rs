@@ -42,9 +42,7 @@ pub trait Validator: IsAProcess {
 
     /// Caches chain. This stops the zcashd process.
     fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
-        if chain_cache.exists() {
-            panic!("chain cache already exists!");
-        }
+        assert!(!chain_cache.exists(), "chain cache already exists!");
 
         self.stop();
         std::thread::sleep(std::time::Duration::from_secs(3));

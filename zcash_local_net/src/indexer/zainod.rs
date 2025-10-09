@@ -136,7 +136,7 @@ impl IsAProcess for Zainod {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zainod couldn't be killed")
+        self.handle.kill().expect("zainod couldn't be killed");
     }
 
     fn print_all(&self) {

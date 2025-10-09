@@ -180,10 +180,10 @@ impl IsAProcess for Zcashd {
         match self.zcash_cli_command(&["stop"]) {
             Ok(_) => {
                 if let Err(e) = self.handle.wait() {
-                    tracing::error!("zcashd cannot be awaited: {e}")
+                    tracing::error!("zcashd cannot be awaited: {e}");
                 } else {
-                    tracing::info!("zcashd successfully shut down")
-                };
+                    tracing::info!("zcashd successfully shut down");
+                }
             }
             Err(e) => {
                 tracing::error!(
@@ -191,8 +191,8 @@ impl IsAProcess for Zcashd {
                     Sending SIGKILL to zcashd process."
                 );
                 if let Err(e) = self.handle.kill() {
-                    tracing::warn!("zcashd has already terminated: {e}")
-                };
+                    tracing::warn!("zcashd has already terminated: {e}");
+                }
             }
         }
     }
@@ -247,9 +247,7 @@ impl Validator for Zcashd {
         _validator_network: NetworkKind,
     ) -> PathBuf {
         let regtest_dir = chain_cache.clone().join("regtest");
-        if !regtest_dir.exists() {
-            panic!("regtest directory not found!");
-        }
+        assert!(regtest_dir.exists(), "regtest directory not found!");
 
         std::process::Command::new("cp")
             .arg("-r")
