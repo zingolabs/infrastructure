@@ -5,6 +5,7 @@ use tempfile::TempDir;
 use crate::{
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
+    logs::LogsToStdoutAndStderr,
     process::ItsAProcess,
     Process,
 };
@@ -31,6 +32,17 @@ pub struct Empty {
     logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
+}
+
+impl LogsToStdoutAndStderr for Empty {
+    fn print_stdout(&self) {
+        println!("Empty indexer stdout.");
+        todo!()
+    }
+
+    fn print_stderr(&self) {
+        println!("Empty indexer stderr.");
+    }
 }
 
 impl ItsAProcess for Empty {
