@@ -21,7 +21,9 @@ use crate::{
     Process,
 };
 
-trait IndexerConfig {
+/// Can offer specific functionality shared across configuration for all indexers.
+pub trait IndexerConfig {
+    /// To receive a port to instruct an indexer to listen at.
     fn set_validator_port(&mut self, listen_port: Port);
 }
 
@@ -104,6 +106,7 @@ impl IndexerConfig for EmptyConfig {
 
 /// Functionality for indexer/light-node processes.
 pub trait Indexer: ItsAProcess<Config: IndexerConfig> {
+    /// Helps set up its config to listen at a port.
     fn set_config_port(config: &mut Self::Config, port: Port) {
         config.set_validator_port(port);
     }

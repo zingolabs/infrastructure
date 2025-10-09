@@ -177,6 +177,7 @@ pub trait Validator: ItsAProcess {
         validator_network: NetworkKind,
     ) -> PathBuf;
 
+    /// To reveal a port.
     fn get_port(&self) -> Port;
 }
 

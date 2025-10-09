@@ -108,6 +108,7 @@ where
         &mut self.validator
     }
 
+    /// Launch with specific configs.
     pub async fn launch(
         mut indexer_config: <I as ItsAProcess>::Config,
         validator_config: <V as ItsAProcess>::Config,
@@ -119,6 +120,7 @@ where
         LocalNet { indexer, validator }
     }
 
+    /// Launch with default configs
     pub async fn launch_default() -> Self {
         Self::launch(
             <I as ItsAProcess>::Config::default(),
@@ -127,8 +129,8 @@ where
         .await
     }
 
-    fn print_all(&self) {
-        self.indexer.print_all();
-        self.validator.print_all();
-    }
+    // fn print_all(&self) {
+    //     self.indexer.print_all();
+    //     self.validator.print_all();
+    // }
 }
