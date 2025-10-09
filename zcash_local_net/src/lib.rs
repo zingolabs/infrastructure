@@ -43,7 +43,7 @@ mod launch;
 use indexer::Indexer;
 use validator::Validator;
 
-use crate::process::ItsAProcess;
+use crate::{logs::LogsToStdoutAndStderr, process::ItsAProcess};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
@@ -76,8 +76,8 @@ impl std::fmt::Display for Process {
 /// [`crate::validator::Validator`] or [`crate::indexer::Indexer`] trait.
 pub struct LocalNet<I, V>
 where
-    I: Indexer,
-    V: Validator,
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr,
 {
     indexer: I,
     validator: V,
@@ -85,8 +85,8 @@ where
 
 impl<I, V> LocalNet<I, V>
 where
-    I: Indexer,
-    V: Validator,
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr,
 {
     /// Gets indexer.
     pub fn indexer(&self) -> &I {
@@ -133,4 +133,18 @@ where
     //     self.indexer.print_all();
     //     self.validator.print_all();
     // }
+}
+
+impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> LogsToStdoutAndStderr
+    for LocalNet<I, V>
+{
+    fn print_stdout(&self) {
+        self.indexer.print_stdout();
+        self.validator.print_stdout();
+    }
+
+    fn print_stderr(&self) {
+        self.indexer.print_stderr();
+        self.validator.print_stderr();
+    }
 }
