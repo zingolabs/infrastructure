@@ -7,13 +7,7 @@ resolver = "2"
 # workspace
 zingo_test_vectors = { path = "zingo_test_vectors" }
 
-# zcash
-zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
-  "local-consensus",
-] }
-
 # zebra
-
 zebra-chain = "2.0"
 zebra-node-services = "1.0"
 zebra-rpc = "2.0"

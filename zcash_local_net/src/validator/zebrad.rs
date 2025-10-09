@@ -18,8 +18,6 @@ use std::{
     process::Child,
 };
 
-use zcash_protocol::consensus::BlockHeight;
-
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
@@ -288,23 +286,21 @@ impl Validator for Zebrad {
         Ok(())
     }
 
-    async fn get_chain_height(&self) -> BlockHeight {
+    async fn get_chain_height(&self) -> u32 {
         let response: serde_json::Value = self
             .client
             .json_result_from_call("getblockchaininfo", "[]".to_string())
             .await
             .unwrap();
 
-        let chain_height: u32 = response
+        response
             .get("blocks")
             .and_then(|h| h.as_u64())
             .and_then(|h| u32::try_from(h).ok())
-            .unwrap();
-
-        BlockHeight::from_u32(chain_height)
+            .unwrap()
     }
 
-    async fn poll_chain_height(&self, target_height: BlockHeight) {
+    async fn poll_chain_height(&self, target_height: u32) {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }

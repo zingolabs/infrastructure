@@ -1,8 +1,6 @@
 //! Module for the structs that represent and manage the validator/full-node processes i.e. Zebrad.
 use std::path::PathBuf;
 
-use zcash_protocol::consensus::BlockHeight;
-
 use portpicker::Port;
 use tempfile::TempDir;
 use zebra_chain::parameters::testnet;

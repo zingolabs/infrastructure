@@ -1,7 +1,5 @@
 use std::{path::PathBuf, process::Child};
 
-use zcash_protocol::consensus::BlockHeight;
-
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
@@ -215,15 +213,15 @@ impl Validator for Zcashd {
         Ok(())
     }
 
-    async fn get_chain_height(&self) -> BlockHeight {
+    async fn get_chain_height(&self) -> u32 {
         let output = self
             .zcash_cli_command(&["getchaintips"])
             .expect(EXPECT_SPAWN);
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
-        BlockHeight::from_u32(stdout_json[0]["height"].as_u32().unwrap())
+        stdout_json[0]["height"].as_u32().unwrap()
     }
 
-    async fn poll_chain_height(&self, target_height: BlockHeight) {
+    async fn poll_chain_height(&self, target_height: u32) {
         while self.get_chain_height().await < target_height {
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
