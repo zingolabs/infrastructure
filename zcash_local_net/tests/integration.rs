@@ -9,7 +9,6 @@ use zcash_local_net::{
         empty::{Empty, EmptyConfig},
         zainod::Zainod,
     },
-    process::ItsAProcess as _,
     utils,
     validator::{
         zcashd::Zcashd,
