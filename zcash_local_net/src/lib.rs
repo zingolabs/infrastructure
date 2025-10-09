@@ -173,8 +173,12 @@ where
     }
 }
 
-impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> ItsAProcess
-    for LocalNet<I, V>
+impl<I, V> ItsAProcess for LocalNet<I, V>
+where
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as ItsAProcess>::Config: Send,
+    <V as ItsAProcess>::Config: Send,
 {
     const PROCESS: Process = Process::LocalNet;
 
