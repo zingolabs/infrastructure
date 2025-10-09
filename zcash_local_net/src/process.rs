@@ -1,6 +1,6 @@
 //! common behavior to processes
 
-use std::{future::Future, path::PathBuf};
+use std::future::Future;
 
 use tempfile::TempDir;
 
