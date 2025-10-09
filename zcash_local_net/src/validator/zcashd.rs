@@ -1,15 +1,12 @@
-use std::{
-    path::PathBuf,
-    process::Child,
-};
+use std::{path::PathBuf, process::Child};
 
 use zcash_protocol::consensus::BlockHeight;
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::NetworkKind;
 use zebra_chain::parameters::testnet;
+use zebra_chain::parameters::NetworkKind;
 use zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART;
 
 use crate::logs::LogsToStdoutAndStderr;

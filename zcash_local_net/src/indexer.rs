@@ -3,9 +3,7 @@
 //! Processes which are not strictly indexers but have a similar role in serving light-clients/light-wallets
 //! (i.e. Lightwalletd) are also included in this category and are referred to as "light-nodes".
 
-
 use portpicker::Port;
-
 
 use crate::process::ItsAProcess;
 

@@ -5,8 +5,8 @@ use zcash_protocol::consensus::BlockHeight;
 
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::NetworkKind;
 use zebra_chain::parameters::testnet;
+use zebra_chain::parameters::NetworkKind;
 
 use crate::process::ItsAProcess;
 pub mod zebrad;
