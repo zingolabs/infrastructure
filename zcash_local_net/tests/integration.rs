@@ -1,7 +1,7 @@
 mod testutils;
 
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
-use zcash_local_net::process::ItsAProcess;
+use zcash_local_net::process::IsAProcess;
 use zcash_local_net::validator::Validator as _;
 use zcash_local_net::LocalNetConfig;
 use zcash_local_net::{
@@ -17,7 +17,7 @@ use zcash_local_net::{
     LocalNet,
 };
 
-async fn launch_default_and_print_all<P: ItsAProcess>() {
+async fn launch_default_and_print_all<P: IsAProcess>() {
     tracing_subscriber::fmt().init();
 
     let p = P::launch_default().await.expect("Process launching!");

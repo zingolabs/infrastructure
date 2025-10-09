@@ -16,7 +16,7 @@ use crate::{
     launch,
     logs::{self, LogsToDir},
     network,
-    process::ItsAProcess,
+    process::IsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     validator::Validator,
     Process,
@@ -104,7 +104,7 @@ impl LogsToDir for Zcashd {
     }
 }
 
-impl ItsAProcess for Zcashd {
+impl IsAProcess for Zcashd {
     const PROCESS: Process = Process::Zcashd;
 
     type Config = ZcashdConfig;

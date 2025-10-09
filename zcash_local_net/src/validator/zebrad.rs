@@ -6,7 +6,7 @@ use crate::{
     launch,
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network,
-    process::ItsAProcess,
+    process::IsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     validator::Validator,
     Process,
@@ -112,7 +112,7 @@ impl LogsToDir for Zebrad {
     }
 }
 
-impl ItsAProcess for Zebrad {
+impl IsAProcess for Zebrad {
     const PROCESS: Process = Process::Zebrad;
 
     type Config = ZebradConfig;

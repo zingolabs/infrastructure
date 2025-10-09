@@ -17,7 +17,7 @@ use crate::{
     launch,
     logs::{self},
     network::{self},
-    process::ItsAProcess,
+    process::IsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
@@ -79,7 +79,7 @@ impl LogsToDir for Zainod {
     }
 }
 
-impl ItsAProcess for Zainod {
+impl IsAProcess for Zainod {
     const PROCESS: Process = Process::Zainod;
 
     type Config = ZainodConfig;

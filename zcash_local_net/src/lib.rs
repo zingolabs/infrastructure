@@ -43,7 +43,7 @@ mod launch;
 use indexer::Indexer;
 use validator::Validator;
 
-use crate::{logs::LogsToStdoutAndStderr, process::ItsAProcess};
+use crate::{error::LaunchError, logs::LogsToStdoutAndStderr, process::IsAProcess};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
@@ -80,8 +80,8 @@ pub struct LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as ItsAProcess>::Config: Send,
-    <V as ItsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     indexer: I,
     validator: V,
@@ -91,8 +91,8 @@ impl<I, V> LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as ItsAProcess>::Config: Send,
-    <V as ItsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     /// Gets indexer.
     pub fn indexer(&self) -> &I {
@@ -113,14 +113,28 @@ where
     pub fn validator_mut(&mut self) -> &mut V {
         &mut self.validator
     }
+
+    /// Briskly create a local net from configs.
+    /// Here the first parameter is associated with a validator, with the reasoning that an indexer is supported by a validator.
+    pub async fn launch_from_two_configs(
+        &mut self,
+        validator_config: <V as IsAProcess>::Config,
+        indexer_config: <I as IsAProcess>::Config,
+    ) -> Result<LocalNet<I, V>, LaunchError> {
+        <Self as IsAProcess>::launch(LocalNetConfig {
+            indexer_config,
+            validator_config,
+        })
+        .await
+    }
 }
 
 impl<I, V> LogsToStdoutAndStderr for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as ItsAProcess>::Config: Send,
-    <V as ItsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     fn print_stdout(&self) {
         self.indexer.print_stdout();
@@ -140,9 +154,9 @@ where
     V: Validator + LogsToStdoutAndStderr,
 {
     /// An indexer configuration.
-    pub indexer_config: <I as ItsAProcess>::Config,
+    pub indexer_config: <I as IsAProcess>::Config,
     /// A validator configuration.
-    pub validator_config: <V as ItsAProcess>::Config,
+    pub validator_config: <V as IsAProcess>::Config,
 }
 
 impl<I, V> Default for LocalNetConfig<I, V>
@@ -152,31 +166,31 @@ where
 {
     fn default() -> Self {
         Self {
-            indexer_config: <I as ItsAProcess>::Config::default(),
-            validator_config: <V as ItsAProcess>::Config::default(),
+            indexer_config: <I as IsAProcess>::Config::default(),
+            validator_config: <V as IsAProcess>::Config::default(),
         }
     }
 }
 
-impl<I, V> ItsAProcess for LocalNet<I, V>
+impl<I, V> IsAProcess for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as ItsAProcess>::Config: Send,
-    <V as ItsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     const PROCESS: Process = Process::LocalNet;
 
     type Config = LocalNetConfig<I, V>;
 
-    async fn launch(config: Self::Config) -> Result<Self, error::LaunchError> {
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let LocalNetConfig {
             mut indexer_config,
             validator_config,
         } = config;
-        let validator = <V as ItsAProcess>::launch(validator_config).await.unwrap();
+        let validator = <V as IsAProcess>::launch(validator_config).await?;
         I::setup_validator_connection(&mut indexer_config, &validator);
-        let indexer = <I as ItsAProcess>::launch(indexer_config).await.unwrap();
+        let indexer = <I as IsAProcess>::launch(indexer_config).await?;
 
         Ok(LocalNet { indexer, validator })
     }
@@ -196,8 +210,8 @@ impl<I, V> Drop for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as ItsAProcess>::Config: Send,
-    <V as ItsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     fn drop(&mut self) {
         self.stop();

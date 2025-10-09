@@ -11,7 +11,7 @@ use crate::{
     launch,
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
-    process::ItsAProcess,
+    process::IsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
@@ -79,7 +79,7 @@ impl LogsToDir for Lightwalletd {
     }
 }
 
-impl ItsAProcess for Lightwalletd {
+impl IsAProcess for Lightwalletd {
     const PROCESS: Process = Process::Lightwalletd;
 
     type Config = LightwalletdConfig;
