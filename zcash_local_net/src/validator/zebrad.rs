@@ -1,3 +1,5 @@
+//! The Zebrad executable support struct and associated.
+
 use crate::{
     config,
     error::LaunchError,

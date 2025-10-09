@@ -7,9 +7,10 @@ use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::NetworkKind;
 
 use crate::process::ItsAProcess;
-pub mod zebrad;
 
 pub mod zcashd;
+pub mod zebrad;
+
 /// Functionality for validator/full-node processes.
 pub trait Validator: ItsAProcess {
     /// A representation of the Network Upgrade Activation heights applied for this

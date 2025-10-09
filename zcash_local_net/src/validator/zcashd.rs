@@ -1,3 +1,5 @@
+//! The Zebrad executable support struct and associated.
+
 use std::{path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};

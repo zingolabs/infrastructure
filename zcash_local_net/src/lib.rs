@@ -109,32 +109,6 @@ where
     pub fn validator_mut(&mut self) -> &mut V {
         &mut self.validator
     }
-
-    /// Launch with specific configs.
-    pub async fn launch(
-        mut indexer_config: <I as ItsAProcess>::Config,
-        validator_config: <V as ItsAProcess>::Config,
-    ) -> Self {
-        let validator = <V as ItsAProcess>::launch(validator_config).await.unwrap();
-        I::set_config_port(&mut indexer_config, validator.get_port());
-        let indexer = <I as ItsAProcess>::launch(indexer_config).await.unwrap();
-
-        LocalNet { indexer, validator }
-    }
-
-    /// Launch with default configs
-    pub async fn launch_default() -> Self {
-        Self::launch(
-            <I as ItsAProcess>::Config::default(),
-            <V as ItsAProcess>::Config::default(),
-        )
-        .await
-    }
-
-    // fn print_all(&self) {
-    //     self.indexer.print_all();
-    //     self.validator.print_all();
-    // }
 }
 
 impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> LogsToStdoutAndStderr
@@ -151,12 +125,15 @@ impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> L
     }
 }
 
+/// A combined config for LocalNet
 pub struct LocalNetConfig<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr,
 {
+    /// An indexer configuration.
     pub indexer_config: <I as ItsAProcess>::Config,
+    /// A validator configuration.
     pub validator_config: <V as ItsAProcess>::Config,
 }
 

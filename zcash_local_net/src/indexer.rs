@@ -23,8 +23,11 @@ pub trait Indexer: ItsAProcess<Config: IndexerConfig> {
     fn listen_port(&self) -> Port;
 }
 
+/// The Zainod executable support struct.
 pub mod zainod;
 
+/// The Lightwalletd executable support struct.
 pub mod lightwalletd;
 
+/// Empty
 pub mod empty;

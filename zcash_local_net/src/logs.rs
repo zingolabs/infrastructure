@@ -1,3 +1,5 @@
+//! Common strategies for logging.
+
 use std::{fs::File, io::Read, path::PathBuf, process::Child};
 
 use tempfile::TempDir;
@@ -33,6 +35,7 @@ pub trait LogsToDir {
     fn logs_dir(&self) -> &TempDir;
 }
 
+/// Uses a common pattern for logging.
 pub trait LogsToStdoutAndStderr {
     /// Prints the stdout log.
     fn print_stdout(&self);
