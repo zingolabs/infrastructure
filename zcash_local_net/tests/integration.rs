@@ -55,7 +55,7 @@ async fn launch_zebrad_with_cache() {
     let zebrad = Zebrad::launch(config).await.unwrap();
     zebrad.print_all();
 
-    assert_eq!(zebrad.get_chain_height().await, 52.into());
+    assert_eq!(zebrad.get_chain_height().await, 52u32);
 }
 
 #[ignore = "requires chain cache to be generated"]
@@ -73,8 +73,8 @@ async fn launch_multiple_individual_zebrads_with_cache() {
     let zebrad_2 = Zebrad::launch(config).await.unwrap();
     zebrad_2.print_all();
 
-    assert_eq!(zebrad_1.get_chain_height().await, 52.into());
-    assert_eq!(zebrad_2.get_chain_height().await, 52.into());
+    assert_eq!(zebrad_1.get_chain_height().await, 52u32);
+    assert_eq!(zebrad_2.get_chain_height().await, 52u32);
 }
 
 #[ignore = "requires chain cache to be generated"]
@@ -96,8 +96,8 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     let zebrad_1 = local_net_1.validator();
     let zebrad_2 = local_net_2.validator();
 
-    assert_eq!(zebrad_1.get_chain_height().await, 52.into());
-    assert_eq!(zebrad_2.get_chain_height().await, 52.into());
+    assert_eq!(zebrad_1.get_chain_height().await, 52u32);
+    assert_eq!(zebrad_2.get_chain_height().await, 52u32);
 
     zebrad_1.print_all();
     zebrad_2.print_all();

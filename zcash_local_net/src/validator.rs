@@ -26,13 +26,11 @@ pub trait Validator: ItsAProcess {
     ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
     /// Get chain height
-    fn get_chain_height(&self) -> impl std::future::Future<Output = BlockHeight> + Send;
+    fn get_chain_height(&self) -> impl std::future::Future<Output = u32> + Send;
 
     /// Polls chain until it reaches target height
-    fn poll_chain_height(
-        &self,
-        target_height: BlockHeight,
-    ) -> impl std::future::Future<Output = ()> + Send;
+    fn poll_chain_height(&self, target_height: u32)
+        -> impl std::future::Future<Output = ()> + Send;
 
     /// Get temporary data directory.
     fn data_dir(&self) -> &TempDir;
