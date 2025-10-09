@@ -8,9 +8,6 @@ use crate::{error::LaunchError, logs, Process};
 
 /// yaeh
 pub trait ItsAProcess: Sized {
-    /// Config filename
-    const CONFIG_FILENAME: &str;
-
     /// Process
     const PROCESS: Process;
 
@@ -23,19 +20,9 @@ pub trait ItsAProcess: Sized {
     /// Stop the process.
     fn stop(&mut self);
 
-    /// Get temporary config directory.
-    fn config_dir(&self) -> &TempDir;
-
     /// Get temporary logs directory.
     fn logs_dir(&self) -> &TempDir;
 
-    /// Returns path to config file.
-    fn config_path(&self) -> PathBuf {
-        self.config_dir().path().join(Self::CONFIG_FILENAME)
-    }
-
-    // default implementations
-    //
     /// Prints the stdout log.
     fn print_stdout(&self) {
         let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);

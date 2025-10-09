@@ -131,7 +131,6 @@ pub struct Zainod {
 }
 
 impl ItsAProcess for Zainod {
-    const CONFIG_FILENAME: &str = config::ZAINOD_FILENAME;
     const PROCESS: Process = Process::Zainod;
 
     type Config = ZainodConfig;
@@ -191,10 +190,6 @@ impl ItsAProcess for Zainod {
         self.handle.kill().expect("zainod couldn't be killed")
     }
 
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
     }
@@ -239,7 +234,6 @@ impl Lightwalletd {
 }
 
 impl ItsAProcess for Lightwalletd {
-    const CONFIG_FILENAME: &str = config::LIGHTWALLETD_FILENAME;
     const PROCESS: Process = Process::Lightwalletd;
 
     type Config = LightwalletdConfig;
@@ -307,10 +301,6 @@ impl ItsAProcess for Lightwalletd {
         self.handle.kill().expect("lightwalletd couldn't be killed")
     }
 
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
     }
@@ -348,7 +338,6 @@ pub struct Empty {
 }
 
 impl ItsAProcess for Empty {
-    const CONFIG_FILENAME: &str = "";
     const PROCESS: Process = Process::Empty;
 
     type Config = EmptyConfig;
@@ -364,10 +353,6 @@ impl ItsAProcess for Empty {
     }
 
     fn stop(&mut self) {}
-
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
 
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir

@@ -203,6 +203,11 @@ pub struct Zcashd {
 }
 
 impl Zcashd {
+    /// Returns path to config file.
+    fn config_path(&self) -> PathBuf {
+        self.config_dir().path().join(config::ZCASHD_FILENAME)
+    }
+
     /// Runs a Zcash-cli command with the given `args`.
     ///
     /// Example usage for generating blocks in Zcashd local net:
@@ -217,7 +222,6 @@ impl Zcashd {
     }
 }
 impl ItsAProcess for Zcashd {
-    const CONFIG_FILENAME: &str = config::ZCASHD_FILENAME;
     const PROCESS: Process = Process::Zcashd;
 
     type Config = ZcashdConfig;
@@ -308,10 +312,6 @@ impl ItsAProcess for Zcashd {
                 };
             }
         }
-    }
-
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
     }
 
     fn logs_dir(&self) -> &TempDir {
@@ -412,7 +412,6 @@ pub struct Zebrad {
 }
 
 impl ItsAProcess for Zebrad {
-    const CONFIG_FILENAME: &str = config::ZEBRAD_FILENAME;
     const PROCESS: Process = Process::Zebrad;
 
     type Config = ZebradConfig;
@@ -525,10 +524,6 @@ impl ItsAProcess for Zebrad {
 
     fn stop(&mut self) {
         self.handle.kill().expect("zebrad couldn't be killed")
-    }
-
-    fn config_dir(&self) -> &TempDir {
-        &self.config_dir
     }
 
     fn logs_dir(&self) -> &TempDir {
