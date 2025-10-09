@@ -1,6 +1,6 @@
 //! common behavior to processes
 
-use std::future::Future;
+use std::{future::Future, path::PathBuf};
 
 use tempfile::TempDir;
 
@@ -20,26 +20,8 @@ pub trait ItsAProcess: Sized {
     /// Stop the process.
     fn stop(&mut self);
 
-    /// Get temporary logs directory.
-    fn logs_dir(&self) -> &TempDir;
-
-    /// Prints the stdout log.
-    fn print_stdout(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDOUT_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
-    /// Prints the stdout log.
-    fn print_stderr(&self) {
-        let stdout_log_path = self.logs_dir().path().join(logs::STDERR_LOG);
-        logs::print_log(stdout_log_path);
-    }
-
     /// To print all the things.
-    fn print_all(&self) {
-        self.print_stdout();
-        self.print_stderr();
-    }
+    fn print_all(&self);
 
     /// Returns the indexer process.
     fn process(&self) -> Process {

@@ -26,3 +26,30 @@ pub(crate) fn write_logs(handle: &mut Child, logs_dir: &TempDir) {
     let mut stderr = handle.stderr.take().unwrap();
     std::thread::spawn(move || std::io::copy(&mut stderr, &mut stderr_log).unwrap());
 }
+
+/// Uses log files in a log dir to log.
+pub trait LogsToDir {
+    /// Get temporary logs directory.
+    fn logs_dir(&self) -> &TempDir;
+}
+
+pub trait LogsToStdoutAndStderr {
+    /// Prints the stdout log.
+    fn print_stdout(&self);
+    /// Prints the stdout log.
+    fn print_stderr(&self);
+}
+
+impl LogsToStdoutAndStderr for dyn LogsToDir {
+    /// Prints the stdout log.
+    fn print_stdout(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDOUT_LOG);
+        print_log(stdout_log_path);
+    }
+
+    /// Prints the stdout log.
+    fn print_stderr(&self) {
+        let stdout_log_path = self.logs_dir().path().join(STDERR_LOG);
+        print_log(stdout_log_path);
+    }
+}
