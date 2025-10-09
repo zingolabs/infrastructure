@@ -120,7 +120,10 @@ impl IsAProcess for Zebrad {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        assert!(!(!matches!(config.network, NetworkKind::Regtest) && config.chain_cache.is_none()), "chain cache must be specified when not using a regtest network!");
+        assert!(
+            !(!matches!(config.network, NetworkKind::Regtest) && config.chain_cache.is_none()),
+            "chain cache must be specified when not using a regtest network!"
+        );
 
         let working_cache_dir = data_dir.path().to_path_buf();
 

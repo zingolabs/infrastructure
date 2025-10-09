@@ -128,7 +128,10 @@ pub(crate) fn zebrad(
     let config_file_path = config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
-    assert!(test_activation_heights.canopy.is_some(), "canopy must be active for zebrad regtest mode. please set activation height to 1");
+    assert!(
+        test_activation_heights.canopy.is_some(),
+        "canopy must be active for zebrad regtest mode. please set activation height to 1"
+    );
 
     let nu5_activation_height = test_activation_heights.nu5.expect("nu5 activated");
     let nu6_activation_height = test_activation_heights.nu6.expect("nu6 activated");

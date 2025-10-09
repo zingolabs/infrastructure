@@ -27,7 +27,8 @@ pub trait IsAProcess: Sized {
     }
 
     /// To launch with untouched default config.
-    #[must_use] fn launch_default() -> impl Future<Output = Result<Self, LaunchError>> + Send {
+    #[must_use]
+    fn launch_default() -> impl Future<Output = Result<Self, LaunchError>> + Send {
         Self::launch(Self::Config::default())
     }
 }
