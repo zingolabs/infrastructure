@@ -52,8 +52,8 @@ impl Default for ZainodConfig {
 }
 
 impl IndexerConfig for ZainodConfig {
-    fn set_validator_port(&mut self, listen_port: Port) {
-        self.listen_port = Some(listen_port);
+    fn set_validator_port(&mut self, validator_port: Port) {
+        self.validator_port = validator_port;
     }
 }
 

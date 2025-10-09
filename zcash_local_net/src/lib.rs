@@ -79,7 +79,9 @@ impl std::fmt::Display for Process {
 pub struct LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
-    V: Validator + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as ItsAProcess>::Config: Send,
+    <V as ItsAProcess>::Config: Send,
 {
     indexer: I,
     validator: V,
@@ -88,7 +90,9 @@ where
 impl<I, V> LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
-    V: Validator + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as ItsAProcess>::Config: Send,
+    <V as ItsAProcess>::Config: Send,
 {
     /// Gets indexer.
     pub fn indexer(&self) -> &I {
@@ -111,8 +115,12 @@ where
     }
 }
 
-impl<I: Indexer + LogsToStdoutAndStderr, V: Validator + LogsToStdoutAndStderr> LogsToStdoutAndStderr
-    for LocalNet<I, V>
+impl<I, V> LogsToStdoutAndStderr for LocalNet<I, V>
+where
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as ItsAProcess>::Config: Send,
+    <V as ItsAProcess>::Config: Send,
 {
     fn print_stdout(&self) {
         self.indexer.print_stdout();
@@ -174,10 +182,24 @@ where
     }
 
     fn stop(&mut self) {
-        todo!()
+        self.indexer.stop();
+        self.validator.stop();
     }
 
     fn print_all(&self) {
-        todo!()
+        self.indexer.print_all();
+        self.validator.print_all();
+    }
+}
+
+impl<I, V> Drop for LocalNet<I, V>
+where
+    I: Indexer + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as ItsAProcess>::Config: Send,
+    <V as ItsAProcess>::Config: Send,
+{
+    fn drop(&mut self) {
+        self.stop();
     }
 }
