@@ -117,7 +117,6 @@ where
     /// Briskly create a local net from configs.
     /// Here the first parameter is associated with a validator, with the reasoning that an indexer is supported by a validator.
     pub async fn launch_from_two_configs(
-        &mut self,
         validator_config: <V as IsAProcess>::Config,
         indexer_config: <I as IsAProcess>::Config,
     ) -> Result<LocalNet<I, V>, LaunchError> {
