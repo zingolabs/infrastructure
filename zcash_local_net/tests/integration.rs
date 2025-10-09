@@ -1,7 +1,6 @@
 mod testutils;
 
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
-use zcash_local_net::logs::LogsToStdoutAndStderr as _;
 use zcash_local_net::process::ItsAProcess;
 use zcash_local_net::validator::Validator as _;
 use zcash_local_net::{

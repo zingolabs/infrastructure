@@ -1,10 +1,9 @@
 //! common behavior to processes
 
-use std::{future::Future, path::PathBuf};
+use std::future::Future;
 
-use tempfile::TempDir;
 
-use crate::{error::LaunchError, logs, Process};
+use crate::{error::LaunchError, Process};
 
 /// yaeh
 pub trait ItsAProcess: Sized {
