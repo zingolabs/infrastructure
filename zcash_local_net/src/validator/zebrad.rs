@@ -312,6 +312,10 @@ impl Validator for Zebrad {
         &self.data_dir
     }
 
+    fn get_zcashd_like_config_path(&self) -> PathBuf {
+        self.config_dir.path().join(config::ZCASHD_FILENAME);
+    }
+
     fn network(&self) -> NetworkKind {
         self.network
     }

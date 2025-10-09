@@ -34,6 +34,9 @@ pub trait Validator: ItsAProcess {
     /// Get temporary data directory.
     fn data_dir(&self) -> &TempDir;
 
+    /// Returns path to config file.
+    fn get_zcashd_like_config_path(&self) -> PathBuf;
+
     /// Network type
     fn network(&self) -> NetworkKind;
 

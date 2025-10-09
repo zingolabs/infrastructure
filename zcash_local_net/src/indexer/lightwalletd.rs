@@ -43,8 +43,8 @@ impl Default for LightwalletdConfig {
 }
 
 impl IndexerConfig for LightwalletdConfig {
-    fn set_validator_port(&mut self, listen_port: Port) {
-        self.listen_port = Some(listen_port);
+    fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
+        self.zcashd_conf = validator.get_zcashd_like_config_path();
     }
 }
 /// This struct is used to represent and manage the Lightwalletd process.

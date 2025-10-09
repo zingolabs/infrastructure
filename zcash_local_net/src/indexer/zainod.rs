@@ -52,8 +52,8 @@ impl Default for ZainodConfig {
 }
 
 impl IndexerConfig for ZainodConfig {
-    fn set_validator_port(&mut self, validator_port: Port) {
-        self.validator_port = validator_port;
+    fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
+        self.validator_port = validator.get_port();
     }
 }
 

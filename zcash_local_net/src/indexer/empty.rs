@@ -17,7 +17,7 @@ use crate::{
 pub struct EmptyConfig {}
 
 impl IndexerConfig for EmptyConfig {
-    fn set_validator_port(&mut self, _listen_port: Port) {
+    fn setup_validator_connection<V: crate::validator::Validator>(&mut self, _validator: &V) {
         tracing::info!("Empty Validator cannot accept a port!");
     }
 }
