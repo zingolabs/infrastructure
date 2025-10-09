@@ -32,13 +32,13 @@
 pub mod config;
 pub mod error;
 pub mod indexer;
+pub mod logs;
 pub mod network;
 pub mod process;
 pub mod utils;
 pub mod validator;
 
 mod launch;
-mod logs;
 
 use indexer::Indexer;
 use validator::Validator;

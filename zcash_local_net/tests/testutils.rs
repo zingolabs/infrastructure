@@ -25,13 +25,17 @@ use std::path::PathBuf;
 // use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
 use zcash_local_net::{
-    indexer::{Lightwalletd, LightwalletdConfig},
+    indexer::lightwalletd::{Lightwalletd, LightwalletdConfig},
     utils,
-    validator::{Validator as _, Zebrad, ZebradConfig, ZEBRAD_DEFAULT_MINER},
+    validator::{
+        zebrad::{Zebrad, ZebradConfig},
+        Validator as _,
+    },
     LocalNet,
 };
 use zebra_chain::parameters::NetworkKind;
 use zingo_common_components::protocol::activation_heights::for_test;
+use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
     let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
