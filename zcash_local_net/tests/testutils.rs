@@ -20,17 +20,13 @@
 //! }
 //! ```
 
-
 // use testvectors::REG_O_ADDR_FROM_ABANDONART;
 
 use zcash_local_net::{
     indexer::lightwalletd::Lightwalletd,
     process::ItsAProcess,
     utils,
-    validator::{
-        zebrad::Zebrad,
-        Validator as _,
-    },
+    validator::{zebrad::Zebrad, Validator as _},
     LocalNet,
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
