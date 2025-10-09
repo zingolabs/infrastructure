@@ -24,7 +24,7 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
             }
         }
         Err(_err) => {
-            println!("{environment_variable_path} environment variable is not set. It should contain the {executable_name} executable necessary for the test run.");
+            println!("{environment_variable_path} environment variable is not set. Will attempt to use {executable_name} from PATH.");
             None
         }
     }
