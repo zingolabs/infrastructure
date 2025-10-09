@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf, process::Child};
+use std::{path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;

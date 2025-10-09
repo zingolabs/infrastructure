@@ -3,23 +3,11 @@
 //! Processes which are not strictly indexers but have a similar role in serving light-clients/light-wallets
 //! (i.e. Lightwalletd) are also included in this category and are referred to as "light-nodes".
 
-use std::{fs::File, path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use portpicker::Port;
-use tempfile::TempDir;
 
-use zebra_chain::parameters::NetworkKind;
 
-use crate::{
-    config,
-    error::LaunchError,
-    launch, logs,
-    network::{self},
-    process::ItsAProcess,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
-    Process,
-};
+use crate::process::ItsAProcess;
 
 /// Can offer specific functionality shared across configuration for all indexers.
 pub trait IndexerConfig {

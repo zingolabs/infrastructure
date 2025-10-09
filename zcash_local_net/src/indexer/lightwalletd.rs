@@ -4,7 +4,6 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
-use zebra_chain::parameters::NetworkKind;
 
 use crate::{
     config,

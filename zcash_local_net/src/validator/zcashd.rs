@@ -1,5 +1,4 @@
 use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
     process::Child,
 };
@@ -9,13 +8,8 @@ use zcash_protocol::consensus::BlockHeight;
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::{self, NetworkKind};
-use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource},
-    proposal_block_from_template,
-};
+use zebra_chain::parameters::NetworkKind;
+use zebra_chain::parameters::testnet;
 use zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART;
 
 use crate::logs::LogsToStdoutAndStderr;

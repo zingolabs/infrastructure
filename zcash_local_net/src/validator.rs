@@ -1,22 +1,12 @@
 //! Module for the structs that represent and manage the validator/full-node processes i.e. Zebrad.
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-    process::Child,
-};
+use std::path::PathBuf;
 
 use zcash_protocol::consensus::BlockHeight;
 
-use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::{self, NetworkKind};
-use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource},
-    proposal_block_from_template,
-};
+use zebra_chain::parameters::NetworkKind;
+use zebra_chain::parameters::testnet;
 
 use crate::process::ItsAProcess;
 pub mod zebrad;

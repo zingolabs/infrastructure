@@ -1,19 +1,13 @@
-use std::{fs::File, path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
-use zebra_chain::parameters::NetworkKind;
 
 use crate::{
-    config,
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
-    launch, logs,
-    network::{self},
     process::ItsAProcess,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
     Process,
 };
 
