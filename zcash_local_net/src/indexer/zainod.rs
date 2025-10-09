@@ -6,12 +6,14 @@ use tempfile::TempDir;
 
 use zebra_chain::parameters::NetworkKind;
 
+use crate::logs::LogsToDir;
+use crate::logs::LogsToStdoutAndStderr as _;
 use crate::{
     config,
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     launch,
-    logs::{self, LogsToDir},
+    logs::{self},
     network::{self},
     process::ItsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},

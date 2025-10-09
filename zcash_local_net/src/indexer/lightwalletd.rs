@@ -11,7 +11,7 @@ use crate::{
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     launch,
-    logs::{self, LogsToDir},
+    logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
     process::ItsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},

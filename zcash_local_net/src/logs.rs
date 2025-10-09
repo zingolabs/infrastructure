@@ -40,7 +40,7 @@ pub trait LogsToStdoutAndStderr {
     fn print_stderr(&self);
 }
 
-impl LogsToStdoutAndStderr for dyn LogsToDir {
+impl<T: LogsToDir> LogsToStdoutAndStderr for T {
     /// Prints the stdout log.
     fn print_stdout(&self) {
         let stdout_log_path = self.logs_dir().path().join(STDOUT_LOG);

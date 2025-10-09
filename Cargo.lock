@@ -4683,6 +4683,7 @@ dependencies = [
  "zebra-node-services",
  "zebra-rpc",
  "zingo_common_components",
+ "zingo_test_vectors",
 ]
 
 [[package]]
