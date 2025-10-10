@@ -55,6 +55,10 @@ impl IndexerConfig for ZainodConfig {
     fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
         self.validator_port = validator.get_port();
     }
+
+    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
+        self.listen_port = indexer_listen_port;
+    }
 }
 
 /// This struct is used to represent and manage the Zainod process.

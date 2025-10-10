@@ -20,6 +20,10 @@ impl IndexerConfig for EmptyConfig {
     fn setup_validator_connection<V: crate::validator::Validator>(&mut self, _validator: &V) {
         tracing::info!("Empty Validator cannot accept a port!");
     }
+
+    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
+        panic!("Empty validator cannot listen on port! {indexer_listen_port:?}");
+    }
 }
 
 /// This struct is used to represent and manage an empty Indexer process.

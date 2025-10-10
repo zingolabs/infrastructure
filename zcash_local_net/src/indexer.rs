@@ -3,12 +3,16 @@
 //! Processes which are not strictly indexers but have a similar role in serving light-clients/light-wallets
 //! (i.e. Lightwalletd) are also included in this category and are referred to as "light-nodes".
 
+use std::path::PathBuf;
+
 use portpicker::Port;
 
 use crate::{process::IsAProcess, validator::Validator};
 
 /// Can offer specific functionality shared across configuration for all indexers.
-pub trait IndexerConfig {
+pub trait IndexerConfig: Default {
+    /// To receive a port to instruct an indexer to listen at.
+    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>);
     /// To receive a port to instruct an indexer to listen at.
     fn setup_validator_connection<V: Validator>(&mut self, validator: &V);
 }
