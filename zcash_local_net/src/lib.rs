@@ -116,11 +116,9 @@ where
         &mut self.validator
     }
 
-    /// Briskly create a local net from configs.
-    /// Here the first parameter is associated with a validator, with the reasoning that an indexer is supported by a validator.
-    ///
+    /// Briskly create a local net from validator config and indexer config.
     /// # Errors
-    /// `LaunchError` during launch of a compontent network piece.
+    /// Returns `LaunchError` if a sub process fails to launch.
     pub async fn launch_from_two_configs(
         validator_config: <V as IsAProcess>::Config,
         indexer_config: <I as IsAProcess>::Config,
