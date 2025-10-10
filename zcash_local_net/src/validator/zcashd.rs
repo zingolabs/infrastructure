@@ -254,7 +254,7 @@ impl Validator for Zcashd {
         &self.data_dir
     }
 
-    fn get_zcashd_like_config_path(&self) -> PathBuf {
+    fn get_zcashd_conf_path(&self) -> PathBuf {
         self.config_dir.path().join(config::ZCASHD_FILENAME)
     }
 

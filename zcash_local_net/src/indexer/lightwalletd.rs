@@ -44,7 +44,7 @@ impl Default for LightwalletdConfig {
 
 impl IndexerConfig for LightwalletdConfig {
     fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
-        self.zcashd_conf = validator.get_zcashd_like_config_path();
+        self.zcashd_conf = validator.get_zcashd_conf_path();
     }
 
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {

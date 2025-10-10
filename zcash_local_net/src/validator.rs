@@ -47,8 +47,9 @@ pub trait Validator: IsAProcess<Config: ValidatorConfig> {
     /// Get temporary data directory.
     fn data_dir(&self) -> &TempDir;
 
-    /// Returns path to config file.
-    fn get_zcashd_like_config_path(&self) -> PathBuf;
+    /// Returns path to zcashd-like config file.
+    /// Lightwalletd pulls some information from the config file that zcashd builds. When running zebra-lightwalletd, we create compatibility zcash.conf. This is the path to that.
+    fn get_zcashd_conf_path(&self) -> PathBuf;
 
     /// Network type
     fn network(&self) -> NetworkKind;
