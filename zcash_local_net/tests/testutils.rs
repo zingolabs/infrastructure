@@ -31,7 +31,7 @@ use zcash_local_net::{
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
-    let mut local_net = LocalNet::<Lightwalletd, Zebrad>::launch_default()
+    let mut local_net = LocalNet::<Zebrad, Lightwalletd>::launch_default()
         .await
         .unwrap();
 

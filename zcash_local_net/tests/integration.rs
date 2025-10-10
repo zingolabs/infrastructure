@@ -92,14 +92,14 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
         ..Default::default()
     };
 
-    let local_net_1 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
+    let local_net_1 = LocalNet::<Zebrad, Empty>::launch(LocalNetConfig {
         indexer_config: EmptyConfig {},
         validator_config: config.clone(),
     })
     .await
     .unwrap();
 
-    let local_net_2 = LocalNet::<Empty, Zebrad>::launch(LocalNetConfig {
+    let local_net_2 = LocalNet::<Zebrad, Empty>::launch(LocalNetConfig {
         indexer_config: EmptyConfig {},
         validator_config: config.clone(),
     })
@@ -118,22 +118,22 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
 
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
-    launch_default_and_print_all::<LocalNet<Zainod, Zcashd>>().await;
+    launch_default_and_print_all::<LocalNet<Zcashd, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_zainod_zebrad() {
-    launch_default_and_print_all::<LocalNet<Zainod, Zebrad>>().await;
+    launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
-    launch_default_and_print_all::<LocalNet<Lightwalletd, Zcashd>>().await;
+    launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zebrad() {
-    launch_default_and_print_all::<LocalNet<Lightwalletd, Zebrad>>().await;
+    launch_default_and_print_all::<LocalNet<Zebrad, Lightwalletd>>().await;
 }
 
 #[ignore = "not a test. generates chain cache for client_rpc tests."]
