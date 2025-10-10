@@ -9,7 +9,7 @@ pub trait IsAProcess: Sized {
     /// Process
     const PROCESS: Process;
 
-    /// Indexer config struct
+    /// A config struct for the process.
     type Config: Default;
 
     /// Launch the process.
@@ -18,7 +18,7 @@ pub trait IsAProcess: Sized {
     /// Stop the process.
     fn stop(&mut self);
 
-    /// To print all the things.
+    /// To print outputs from the process.
     fn print_all(&self);
 
     /// Returns the indexer process.
