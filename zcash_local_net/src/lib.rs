@@ -170,8 +170,8 @@ impl<I, V> Default for LocalNetConfig<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as IsAProcess>::Config: Send + IndexerConfig,
-    <V as IsAProcess>::Config: Send + ValidatorConfig,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     fn default() -> Self {
         Self {
@@ -186,7 +186,7 @@ where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
     <I as IsAProcess>::Config: Send + IndexerConfig,
-    <V as IsAProcess>::Config: Send + ValidatorConfig,
+    <V as IsAProcess>::Config: Send,
 {
     const PROCESS: Process = Process::LocalNet;
 
@@ -219,8 +219,8 @@ impl<I, V> Drop for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as IsAProcess>::Config: Send + IndexerConfig,
-    <V as IsAProcess>::Config: Send + ValidatorConfig,
+    <I as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send,
 {
     fn drop(&mut self) {
         self.stop();
