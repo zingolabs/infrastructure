@@ -4,7 +4,7 @@ use std::future::Future;
 
 use crate::{error::LaunchError, Process};
 
-/// yaeh
+/// Processes share some behavior.
 pub trait IsAProcess: Sized {
     /// Process
     const PROCESS: Process;
