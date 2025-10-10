@@ -45,6 +45,7 @@ use validator::Validator;
 
 use crate::{
     error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::IsAProcess,
+    validator::ValidatorConfig,
 };
 
 /// All processes currently supported
@@ -155,7 +156,9 @@ where
 pub struct LocalNetConfig<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
-    V: Validator + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as IsAProcess>::Config: Send + IndexerConfig,
+    <V as IsAProcess>::Config: Send + ValidatorConfig,
 {
     /// An indexer configuration.
     pub indexer_config: <I as IsAProcess>::Config,
@@ -166,7 +169,9 @@ where
 impl<I, V> Default for LocalNetConfig<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
-    V: Validator + LogsToStdoutAndStderr,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <I as IsAProcess>::Config: Send + IndexerConfig,
+    <V as IsAProcess>::Config: Send + ValidatorConfig,
 {
     fn default() -> Self {
         Self {
@@ -181,7 +186,7 @@ where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
     <I as IsAProcess>::Config: Send + IndexerConfig,
-    <V as IsAProcess>::Config: Send,
+    <V as IsAProcess>::Config: Send + ValidatorConfig,
 {
     const PROCESS: Process = Process::LocalNet;
 
@@ -214,8 +219,8 @@ impl<I, V> Drop for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as IsAProcess>::Config: Send,
-    <V as IsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send + IndexerConfig,
+    <V as IsAProcess>::Config: Send + ValidatorConfig,
 {
     fn drop(&mut self) {
         self.stop();
