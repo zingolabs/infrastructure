@@ -6,10 +6,10 @@ use crate::{
     launch,
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network,
-    process::IsAProcess,
+    process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     validator::{Validator, ValidatorConfig},
-    Process,
+    ProcessId,
 };
 use zcash_protocol::PoolType;
 use zingo_common_components::protocol::activation_heights::for_test;
@@ -126,8 +126,8 @@ impl LogsToDir for Zebrad {
     }
 }
 
-impl IsAProcess for Zebrad {
-    const PROCESS: Process = Process::Zebrad;
+impl Process for Zebrad {
+    const PROCESS: ProcessId = ProcessId::Zebrad;
 
     type Config = ZebradConfig;
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
@@ -187,7 +187,7 @@ impl IsAProcess for Zebrad {
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
-        Process::Zebrad,
+        ProcessId::Zebrad,
         &mut handle,
         &logs_dir,
         None,

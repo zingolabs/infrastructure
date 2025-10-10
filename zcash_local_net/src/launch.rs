@@ -2,11 +2,11 @@ use std::{fs::File, io::Read as _, path::PathBuf, process::Child};
 
 use tempfile::TempDir;
 
-use crate::{error::LaunchError, logs, Process};
+use crate::{error::LaunchError, logs, ProcessId};
 
 /// Wait until the process logs indicate the launch has succeeded or failed.
 pub(crate) fn wait(
-    process: Process,
+    process: ProcessId,
     handle: &mut Child,
     logs_dir: &TempDir,
     additional_log_path: Option<PathBuf>,

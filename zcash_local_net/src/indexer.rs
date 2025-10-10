@@ -5,7 +5,7 @@
 
 use portpicker::Port;
 
-use crate::{process::IsAProcess, validator::Validator};
+use crate::{process::Process, validator::Validator};
 
 /// Can offer specific functionality shared across configuration for all indexers.
 pub trait IndexerConfig: Default {
@@ -16,7 +16,7 @@ pub trait IndexerConfig: Default {
 }
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer: IsAProcess<Config: IndexerConfig> {
+pub trait Indexer: Process<Config: IndexerConfig> {
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 }

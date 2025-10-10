@@ -2,12 +2,12 @@
 
 use std::future::Future;
 
-use crate::{error::LaunchError, Process};
+use crate::{error::LaunchError, ProcessId};
 
 /// Processes share some behavior.
-pub trait IsAProcess: Sized {
+pub trait Process: Sized {
     /// Process
-    const PROCESS: Process;
+    const PROCESS: ProcessId;
 
     /// A config struct for the process.
     type Config: Default;
@@ -22,7 +22,7 @@ pub trait IsAProcess: Sized {
     fn print_all(&self);
 
     /// Returns the indexer process id.
-    fn process(&self) -> Process {
+    fn process(&self) -> ProcessId {
         Self::PROCESS
     }
 

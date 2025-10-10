@@ -20,10 +20,10 @@ use crate::{
     launch,
     logs::{self, LogsToDir},
     network,
-    process::IsAProcess,
+    process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
     validator::Validator,
-    Process,
+    ProcessId,
 };
 use zingo_common_components::protocol::activation_heights::for_test;
 
@@ -125,8 +125,8 @@ impl LogsToDir for Zcashd {
     }
 }
 
-impl IsAProcess for Zcashd {
-    const PROCESS: Process = Process::Zcashd;
+impl Process for Zcashd {
+    const PROCESS: ProcessId = ProcessId::Zcashd;
 
     type Config = ZcashdConfig;
 
@@ -171,7 +171,7 @@ impl IsAProcess for Zcashd {
 
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
-            Process::Zcashd,
+            ProcessId::Zcashd,
             &mut handle,
             &logs_dir,
             None,

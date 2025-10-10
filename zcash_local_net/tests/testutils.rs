@@ -24,7 +24,7 @@
 
 use zcash_local_net::{
     indexer::lightwalletd::Lightwalletd,
-    process::IsAProcess,
+    process::Process,
     utils,
     validator::{zebrad::Zebrad, Validator as _},
     LocalNet,

@@ -8,7 +8,7 @@ use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zebra_chain::parameters::NetworkKind;
 
-use crate::process::IsAProcess;
+use crate::process::Process;
 
 pub mod zcashd;
 pub mod zebrad;
@@ -25,7 +25,7 @@ pub trait ValidatorConfig: Default {
 }
 
 /// Functionality for validator/full-node processes.
-pub trait Validator: IsAProcess<Config: ValidatorConfig> {
+pub trait Validator: Process<Config: ValidatorConfig> {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;

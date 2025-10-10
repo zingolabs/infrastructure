@@ -11,9 +11,9 @@ use crate::{
     launch,
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
-    process::IsAProcess,
+    process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
-    Process,
+    ProcessId,
 };
 
 /// Lightwalletd configuration
@@ -83,8 +83,8 @@ impl LogsToDir for Lightwalletd {
     }
 }
 
-impl IsAProcess for Lightwalletd {
-    const PROCESS: Process = Process::Lightwalletd;
+impl Process for Lightwalletd {
+    const PROCESS: ProcessId = ProcessId::Lightwalletd;
 
     type Config = LightwalletdConfig;
 
@@ -129,7 +129,7 @@ impl IsAProcess for Lightwalletd {
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
-            Process::Lightwalletd,
+            ProcessId::Lightwalletd,
             &mut handle,
             &logs_dir,
             Some(lwd_log_file_path),

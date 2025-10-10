@@ -6,8 +6,8 @@ use crate::{
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     logs::LogsToStdoutAndStderr,
-    process::IsAProcess,
-    Process,
+    process::Process,
+    ProcessId,
 };
 
 /// Empty configuration
@@ -49,8 +49,8 @@ impl LogsToStdoutAndStderr for Empty {
     }
 }
 
-impl IsAProcess for Empty {
-    const PROCESS: Process = Process::Empty;
+impl Process for Empty {
+    const PROCESS: ProcessId = ProcessId::Empty;
 
     type Config = EmptyConfig;
 

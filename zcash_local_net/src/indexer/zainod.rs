@@ -17,9 +17,9 @@ use crate::{
     launch,
     logs::{self},
     network::{self},
-    process::IsAProcess,
+    process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
-    Process,
+    ProcessId,
 };
 
 /// Zainod configuration
@@ -83,8 +83,8 @@ impl LogsToDir for Zainod {
     }
 }
 
-impl IsAProcess for Zainod {
-    const PROCESS: Process = Process::Zainod;
+impl Process for Zainod {
+    const PROCESS: ProcessId = ProcessId::Zainod;
 
     type Config = ZainodConfig;
 
@@ -122,7 +122,7 @@ impl IsAProcess for Zainod {
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
         logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
-            Process::Zainod,
+            ProcessId::Zainod,
             &mut handle,
             &logs_dir,
             None,
