@@ -18,14 +18,14 @@ use zcash_local_net::{
 };
 
 async fn launch_default_and_print_all<P: IsAProcess>() {
-    tracing_subscriber::fmt().init();
-
     let p = P::launch_default().await.expect("Process launching!");
     p.print_all();
 }
 
 #[tokio::test]
 async fn launch_zcashd() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<Zcashd>().await;
 }
 
@@ -41,6 +41,8 @@ async fn launch_zcashd_custom_activation_heights() {
 
 #[tokio::test]
 async fn launch_zebrad() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<Zebrad>().await;
 }
 
@@ -118,21 +120,29 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
 
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<LocalNet<Zcashd, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_zainod_zebrad() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zebrad() {
+    tracing_subscriber::fmt().init();
+
     launch_default_and_print_all::<LocalNet<Zebrad, Lightwalletd>>().await;
 }
 
