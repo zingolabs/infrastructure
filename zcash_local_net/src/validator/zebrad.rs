@@ -25,7 +25,7 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 use zebra_chain::parameters::{self, testnet::ConfiguredActivationHeights, NetworkKind};
-use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
+use zebra_chain::serialization::ZcashSerialize as _;
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
     client::{BlockTemplateResponse, BlockTemplateTimeSource},
