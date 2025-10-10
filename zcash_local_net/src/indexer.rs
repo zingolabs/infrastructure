@@ -17,10 +17,6 @@ pub trait IndexerConfig: Default {
 
 /// Functionality for indexer/light-node processes.
 pub trait Indexer: IsAProcess<Config: IndexerConfig> {
-    /// Helps set up its config to listen at a port.
-    fn setup_validator_connection<V: Validator>(config: &mut Self::Config, validator: &V) {
-        config.setup_validator_connection(validator);
-    }
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 }

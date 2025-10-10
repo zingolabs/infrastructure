@@ -43,7 +43,9 @@ mod launch;
 use indexer::Indexer;
 use validator::Validator;
 
-use crate::{error::LaunchError, logs::LogsToStdoutAndStderr, process::IsAProcess};
+use crate::{
+    error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::IsAProcess,
+};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
@@ -178,7 +180,7 @@ impl<I, V> IsAProcess for LocalNet<I, V>
 where
     I: Indexer + LogsToStdoutAndStderr,
     V: Validator + LogsToStdoutAndStderr + Send,
-    <I as IsAProcess>::Config: Send,
+    <I as IsAProcess>::Config: Send + IndexerConfig,
     <V as IsAProcess>::Config: Send,
 {
     const PROCESS: Process = Process::LocalNet;
@@ -191,7 +193,7 @@ where
             validator_config,
         } = config;
         let validator = <V as IsAProcess>::launch(validator_config).await?;
-        I::setup_validator_connection(&mut indexer_config, &validator);
+        indexer_config.setup_validator_connection(&validator);
         let indexer = <I as IsAProcess>::launch(indexer_config).await?;
 
         Ok(LocalNet { indexer, validator })
