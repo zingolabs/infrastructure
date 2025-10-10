@@ -15,7 +15,7 @@ pub mod zebrad;
 
 /// Can offer specific functionality shared across configuration for all validators.
 pub trait ValidatorConfig: Default {
-    /// To set up some stuff for Regtest.
+    /// To set the config for common Regtest parameters.
     fn set_test_parameters(
         &mut self,
         mine_to_pool: PoolType,
