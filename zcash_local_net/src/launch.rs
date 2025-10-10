@@ -2,11 +2,11 @@ use std::{fs::File, io::Read as _, path::PathBuf, process::Child};
 
 use tempfile::TempDir;
 
-use crate::{error::LaunchError, logs, Process};
+use crate::{error::LaunchError, logs, ProcessId};
 
 /// Wait until the process logs indicate the launch has succeeded or failed.
 pub(crate) fn wait(
-    process: Process,
+    process: ProcessId,
     handle: &mut Child,
     logs_dir: &TempDir,
     additional_log_path: Option<PathBuf>,
@@ -51,7 +51,7 @@ pub(crate) fn wait(
             Err(e) => {
                 panic!("Unexpected Error: {e}")
             }
-        };
+        }
 
         stdout_log.read_to_string(&mut stdout).unwrap();
         stderr_log.read_to_string(&mut stderr).unwrap();
@@ -79,7 +79,7 @@ pub(crate) fn wait(
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
             }
             tracing::error!("\nSTDERR:\n{}", stderr);
-            panic!("\n{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
+            panic!("\n{process} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
         }
 
         if additional_log_file.is_some() {
@@ -102,7 +102,7 @@ pub(crate) fn wait(
                 tracing::info!("\nSTDOUT:\n{}", stdout);
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
                 tracing::error!("\nSTDERR:\n{}", stderr);
-                panic!("{} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.", process);
+                panic!("{process} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
             } else {
                 additional_log_file = Some(log_file);
                 additional_log = Some(log);

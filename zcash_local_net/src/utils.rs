@@ -11,6 +11,7 @@ pub(crate) fn cargo_manifest_dir() -> PathBuf {
 }
 
 /// Returns a path to the chain cache directory
+#[must_use]
 pub fn chain_cache_dir() -> PathBuf {
     cargo_manifest_dir().join("chain_cache")
 }

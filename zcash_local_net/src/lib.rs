@@ -32,30 +32,34 @@
 pub mod config;
 pub mod error;
 pub mod indexer;
+pub mod logs;
 pub mod network;
+pub mod process;
 pub mod utils;
 pub mod validator;
 
 mod launch;
-mod logs;
 
-use indexer::{
-    Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
+use indexer::Indexer;
+use validator::Validator;
+
+use crate::{
+    error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::Process,
 };
-use validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig};
 
 /// All processes currently supported
 #[derive(Clone, Copy)]
 #[allow(missing_docs)]
-pub enum Process {
+pub enum ProcessId {
     Zcashd,
     Zebrad,
     Zainod,
     Lightwalletd,
     Empty, // TODO: to be revised
+    LocalNet,
 }
 
-impl std::fmt::Display for Process {
+impl std::fmt::Display for ProcessId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let process = match self {
             Self::Zcashd => "zcashd",
@@ -63,8 +67,9 @@ impl std::fmt::Display for Process {
             Self::Zainod => "zainod",
             Self::Lightwalletd => "lightwalletd",
             Self::Empty => "empty",
+            Self::LocalNet => "LocalNet",
         };
-        write!(f, "{}", process)
+        write!(f, "{process}")
     }
 }
 
@@ -73,19 +78,23 @@ impl std::fmt::Display for Process {
 /// May be used to launch an indexer and validator together. This simplifies launching a Zcash test environment and
 /// managing multiple processes as well as allowing generic test framework of processes that implement the
 /// [`crate::validator::Validator`] or [`crate::indexer::Indexer`] trait.
-pub struct LocalNet<I, V>
+pub struct LocalNet<V, I>
 where
-    I: Indexer,
-    V: Validator,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
 {
     indexer: I,
     validator: V,
 }
 
-impl<I, V> LocalNet<I, V>
+impl<V, I> LocalNet<V, I>
 where
-    I: Indexer,
-    V: Validator,
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
 {
     /// Gets indexer.
     pub fn indexer(&self) -> &I {
@@ -106,82 +115,111 @@ where
     pub fn validator_mut(&mut self) -> &mut V {
         &mut self.validator
     }
-}
 
-impl LocalNet<Zainod, Zcashd> {
-    /// Launch LocalNet.
-    ///
-    /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
-    pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZcashdConfig) -> Self {
-        let validator = Zcashd::launch(validator_config).await.unwrap();
-        indexer_config.validator_port = validator.port();
-        let indexer = Zainod::launch(indexer_config).unwrap();
-
-        LocalNet { indexer, validator }
+    /// Briskly create a local net from validator config and indexer config.
+    /// # Errors
+    /// Returns `LaunchError` if a sub process fails to launch.
+    pub async fn launch_from_two_configs(
+        validator_config: <V as Process>::Config,
+        indexer_config: <I as Process>::Config,
+    ) -> Result<LocalNet<V, I>, LaunchError> {
+        <Self as Process>::launch(LocalNetConfig {
+            indexer_config,
+            validator_config,
+        })
+        .await
     }
 }
 
-impl LocalNet<Zainod, Zebrad> {
-    /// Launch LocalNet.
-    ///
-    /// The `validator_port` field of [`crate::indexer::ZainodConfig`] will be overwritten to match the validator's RPC port.
-    pub async fn launch(mut indexer_config: ZainodConfig, validator_config: ZebradConfig) -> Self {
-        let validator = Zebrad::launch(validator_config).await.unwrap();
-        indexer_config.validator_port = validator.rpc_listen_port();
-        let indexer = Zainod::launch(indexer_config).unwrap();
+impl<V, I> LogsToStdoutAndStderr for LocalNet<V, I>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
+{
+    fn print_stdout(&self) {
+        self.indexer.print_stdout();
+        self.validator.print_stdout();
+    }
 
-        LocalNet { indexer, validator }
+    fn print_stderr(&self) {
+        self.indexer.print_stderr();
+        self.validator.print_stderr();
     }
 }
 
-impl LocalNet<Lightwalletd, Zcashd> {
-    /// Launch LocalNet.
-    ///
-    /// The `validator_conf` field of [`crate::indexer::LightwalletdConfig`] will be overwritten to match the validator's config path.
-    pub async fn launch(
-        mut indexer_config: LightwalletdConfig,
-        validator_config: ZcashdConfig,
-    ) -> Self {
-        let validator = Zcashd::launch(validator_config).await.unwrap();
-        indexer_config.zcashd_conf = validator.config_path();
-        let indexer = Lightwalletd::launch(indexer_config).unwrap();
+/// A combined config for `LocalNet`
+pub struct LocalNetConfig<V, I>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
+{
+    /// An indexer configuration.
+    pub indexer_config: <I as Process>::Config,
+    /// A validator configuration.
+    pub validator_config: <V as Process>::Config,
+}
 
-        LocalNet { indexer, validator }
+impl<V, I> Default for LocalNetConfig<V, I>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
+{
+    fn default() -> Self {
+        Self {
+            indexer_config: <I as Process>::Config::default(),
+            validator_config: <V as Process>::Config::default(),
+        }
     }
 }
 
-impl LocalNet<Lightwalletd, Zebrad> {
-    /// Launch LocalNet.
-    ///
-    /// The `validator_conf` field of [`crate::indexer::LightwalletdConfig`] will be overwritten to match the validator's config path.
-    pub async fn launch(
-        mut indexer_config: LightwalletdConfig,
-        validator_config: ZebradConfig,
-    ) -> Self {
-        let validator = Zebrad::launch(validator_config).await.unwrap();
-        indexer_config.zcashd_conf = validator.config_dir().path().join(config::ZCASHD_FILENAME);
-        let indexer = Lightwalletd::launch(indexer_config).unwrap();
+impl<V, I> Process for LocalNet<V, I>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
+{
+    const PROCESS: ProcessId = ProcessId::LocalNet;
 
-        LocalNet { indexer, validator }
+    type Config = LocalNetConfig<V, I>;
+
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        let LocalNetConfig {
+            mut indexer_config,
+            validator_config,
+        } = config;
+        let validator = <V as Process>::launch(validator_config).await?;
+        indexer_config.setup_validator_connection(&validator);
+        let indexer = <I as Process>::launch(indexer_config).await?;
+
+        Ok(LocalNet { indexer, validator })
+    }
+
+    fn stop(&mut self) {
+        self.indexer.stop();
+        self.validator.stop();
+    }
+
+    fn print_all(&self) {
+        self.indexer.print_all();
+        self.validator.print_all();
     }
 }
 
-impl LocalNet<Empty, Zcashd> {
-    /// Launch LocalNet.
-    pub async fn launch(indexer_config: EmptyConfig, validator_config: ZcashdConfig) -> Self {
-        let validator = Zcashd::launch(validator_config).await.unwrap();
-        let indexer = Empty::launch(indexer_config).unwrap();
-
-        LocalNet { indexer, validator }
-    }
-}
-
-impl LocalNet<Empty, Zebrad> {
-    /// Launch LocalNet.
-    pub async fn launch(indexer_config: EmptyConfig, validator_config: ZebradConfig) -> Self {
-        let validator = Zebrad::launch(validator_config).await.unwrap();
-        let indexer = Empty::launch(indexer_config).unwrap();
-
-        LocalNet { indexer, validator }
+impl<V, I> Drop for LocalNet<V, I>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+    I: Indexer + LogsToStdoutAndStderr,
+    <I as Process>::Config: Send,
+{
+    fn drop(&mut self) {
+        self.stop();
     }
 }

@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::Command};
 
-/// -Looks for an executable in TEST_BINARIES_DIR environment variable-
+/// -Looks for an executable in `TEST_BINARIES_DIR` environment variable-
 /// or launches directly, hoping it is in path.
 pub fn pick_command(executable_name: &str) -> Command {
     pick_path(executable_name)
@@ -8,7 +8,7 @@ pub fn pick_command(executable_name: &str) -> Command {
         .unwrap_or(Command::new(executable_name))
 }
 
-/// -Checks to see if an executable is in a directory determined by the TEST_BINARIES_DIR environment variable.
+/// -Checks to see if an executable is in a directory determined by the `TEST_BINARIES_DIR` environment variable.
 fn pick_path(executable_name: &str) -> Option<PathBuf> {
     let environment_variable_path: &str = "TEST_BINARIES_DIR";
 

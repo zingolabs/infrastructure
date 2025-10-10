@@ -1,44 +1,49 @@
 mod testutils;
 
+use zcash_local_net::indexer::lightwalletd::Lightwalletd;
+use zcash_local_net::process::Process;
+use zcash_local_net::validator::Validator as _;
+use zcash_local_net::LocalNetConfig;
 use zcash_local_net::{
     indexer::{
-        Empty, EmptyConfig, Indexer, Lightwalletd, LightwalletdConfig, Zainod, ZainodConfig,
+        empty::{Empty, EmptyConfig},
+        zainod::Zainod,
     },
     utils,
-    validator::{Validator, Zcashd, ZcashdConfig, Zebrad, ZebradConfig},
+    validator::{
+        zcashd::Zcashd,
+        zebrad::{Zebrad, ZebradConfig},
+    },
     LocalNet,
 };
+
+async fn launch_default_and_print_all<P: Process>() {
+    let p = P::launch_default().await.expect("Process launching!");
+    p.print_all();
+}
 
 #[tokio::test]
 async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let config = ZcashdConfig::default_test();
-    let zcashd = Zcashd::launch(config).await.unwrap();
-    zcashd.print_stdout();
-    zcashd.print_stderr();
+    launch_default_and_print_all::<Zcashd>().await;
 }
 
 #[tokio::test]
 async fn launch_zcashd_custom_activation_heights() {
     tracing_subscriber::fmt().init();
 
-    let config = ZcashdConfig::default_test();
-    let zcashd = Zcashd::launch(config).await.unwrap();
+    let zcashd = Zcashd::launch_default().await.unwrap();
 
     zcashd.generate_blocks(8).await.unwrap();
-    zcashd.print_stdout();
-    zcashd.print_stderr();
+    zcashd.print_all();
 }
 
 #[tokio::test]
 async fn launch_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let config = ZebradConfig::default_test();
-    let zebrad = Zebrad::launch(config).await.unwrap();
-    zebrad.print_stdout();
-    zebrad.print_stderr();
+    launch_default_and_print_all::<Zebrad>().await;
 }
 
 #[ignore = "temporary during refactor into workspace"]
@@ -46,12 +51,13 @@ async fn launch_zebrad() {
 async fn launch_zebrad_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let mut config = ZebradConfig::default_test();
-    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
     let zebrad = Zebrad::launch(config).await.unwrap();
-    zebrad.print_stdout();
-    zebrad.print_stderr();
+    zebrad.print_all();
 
     assert_eq!(zebrad.get_chain_height().await, 52u32);
 }
@@ -62,16 +68,16 @@ async fn launch_zebrad_with_cache() {
 #[tokio::test]
 async fn launch_multiple_individual_zebrads_with_cache() {
     tracing_subscriber::fmt().init();
-    let mut config = ZebradConfig::default_test();
-    config.chain_cache = Some(utils::chain_cache_dir().join("client_rpc_tests_large"));
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
     let zebrad_1 = Zebrad::launch(config.clone()).await.unwrap();
-    zebrad_1.print_stdout();
-    zebrad_1.print_stderr();
+    zebrad_1.print_all();
 
     let zebrad_2 = Zebrad::launch(config).await.unwrap();
-    zebrad_2.print_stdout();
-    zebrad_2.print_stderr();
+    zebrad_2.print_all();
 
     assert_eq!(zebrad_1.get_chain_height().await, 52u32);
     assert_eq!(zebrad_2.get_chain_height().await, 52u32);
@@ -83,15 +89,24 @@ async fn launch_multiple_individual_zebrads_with_cache() {
 async fn localnet_launch_multiple_zebrads_with_cache() {
     tracing_subscriber::fmt().init();
 
-    let chain_cache_source = utils::chain_cache_dir().join("client_rpc_tests_large");
+    let config = ZebradConfig {
+        chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
+        ..Default::default()
+    };
 
-    let mut zebrad_config = ZebradConfig::default_test();
-    zebrad_config.chain_cache = Some(chain_cache_source);
+    let local_net_1 = LocalNet::<Zebrad, Empty>::launch(LocalNetConfig {
+        indexer_config: EmptyConfig {},
+        validator_config: config.clone(),
+    })
+    .await
+    .unwrap();
 
-    let local_net_1 =
-        LocalNet::<Empty, Zebrad>::launch(EmptyConfig {}, zebrad_config.clone()).await;
-
-    let local_net_2 = LocalNet::<Empty, Zebrad>::launch(EmptyConfig {}, zebrad_config).await;
+    let local_net_2 = LocalNet::<Zebrad, Empty>::launch(LocalNetConfig {
+        indexer_config: EmptyConfig {},
+        validator_config: config.clone(),
+    })
+    .await
+    .unwrap();
 
     let zebrad_1 = local_net_1.validator();
     let zebrad_2 = local_net_2.validator();
@@ -99,76 +114,36 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     assert_eq!(zebrad_1.get_chain_height().await, 52u32);
     assert_eq!(zebrad_2.get_chain_height().await, 52u32);
 
-    zebrad_1.print_stdout();
-    zebrad_1.print_stderr();
-    zebrad_2.print_stdout();
-    zebrad_2.print_stderr();
+    zebrad_1.print_all();
+    zebrad_2.print_all();
 }
 
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
+    launch_default_and_print_all::<LocalNet<Zcashd, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_zainod_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Zainod, Zebrad>::launch(
-        ZainodConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_stderr();
+    launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Lightwalletd, Zcashd>::launch(
-        LightwalletdConfig::default_test(),
-        ZcashdConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_lwd_log();
-    local_net.indexer().print_stderr();
+    launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zebrad() {
     tracing_subscriber::fmt().init();
 
-    let local_net = LocalNet::<Lightwalletd, Zebrad>::launch(
-        LightwalletdConfig::default_test(),
-        ZebradConfig::default_test(),
-    )
-    .await;
-
-    local_net.validator().print_stdout();
-    local_net.validator().print_stderr();
-    local_net.indexer().print_stdout();
-    local_net.indexer().print_lwd_log();
-    local_net.indexer().print_stderr();
+    launch_default_and_print_all::<LocalNet<Zebrad, Lightwalletd>>().await;
 }
 
 #[ignore = "not a test. generates chain cache for client_rpc tests."]
