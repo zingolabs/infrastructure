@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use portpicker::Port;
 use tempfile::TempDir;
+use zcash_protocol::PoolType;
 use zebra_chain::parameters::testnet;
+use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zebra_chain::parameters::NetworkKind;
 
 use crate::process::IsAProcess;
@@ -11,8 +13,19 @@ use crate::process::IsAProcess;
 pub mod zcashd;
 pub mod zebrad;
 
+/// Can offer specific functionality shared across configuration for all validators.
+pub trait ValidatorConfig: Default {
+    /// To set up some stuff for Regtest.
+    fn set_test_parameters(
+        &mut self,
+        mine_to_pool: PoolType,
+        configured_activation_heights: ConfiguredActivationHeights,
+        chain_cache: Option<PathBuf>,
+    );
+}
+
 /// Functionality for validator/full-node processes.
-pub trait Validator: IsAProcess {
+pub trait Validator: IsAProcess<Config: ValidatorConfig> {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;

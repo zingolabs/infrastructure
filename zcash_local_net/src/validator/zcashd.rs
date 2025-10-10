@@ -5,11 +5,15 @@ use std::{path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::testnet;
+use zcash_protocol::PoolType;
+use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zebra_chain::parameters::NetworkKind;
-use zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART;
+use zingo_test_vectors::{
+    REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
+};
 
 use crate::logs::LogsToStdoutAndStderr;
+use crate::validator::ValidatorConfig;
 use crate::{
     config,
     error::LaunchError,
@@ -39,7 +43,7 @@ pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub configured_activation_heights: testnet::ConfiguredActivationHeights,
+    pub configured_activation_heights: ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
     /// Chain cache path
@@ -54,6 +58,23 @@ impl Default for ZcashdConfig {
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }
+    }
+}
+
+impl ValidatorConfig for ZcashdConfig {
+    fn set_test_parameters(
+        &mut self,
+        mine_to_pool: PoolType,
+        configured_activation_heights: ConfiguredActivationHeights,
+        chain_cache: Option<PathBuf>,
+    ) {
+        self.miner_address = Some(match mine_to_pool {
+            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
+            PoolType::SAPLING => REG_Z_ADDR_FROM_ABANDONART,
+            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
+        });
+        self.configured_activation_heights = configured_activation_heights;
+        self.chain_cache = chain_cache;
     }
 }
 
@@ -75,7 +96,7 @@ pub struct Zcashd {
     data_dir: TempDir,
     /// Network upgrade activation heights
     #[getset(skip)]
-    activation_heights: testnet::ConfiguredActivationHeights,
+    activation_heights: ConfiguredActivationHeights,
 }
 
 impl Zcashd {
@@ -204,7 +225,7 @@ impl IsAProcess for Zcashd {
 }
 
 impl Validator for Zcashd {
-    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+    fn get_activation_heights(&self) -> ConfiguredActivationHeights {
         self.activation_heights.clone()
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {

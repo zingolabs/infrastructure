@@ -8,9 +8,10 @@ use crate::{
     network,
     process::IsAProcess,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
-    validator::Validator,
+    validator::{Validator, ValidatorConfig},
     Process,
 };
+use zcash_protocol::PoolType;
 use zingo_common_components::protocol::activation_heights::for_test;
 use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 
@@ -23,7 +24,7 @@ use std::{
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::{self, NetworkKind};
+use zebra_chain::parameters::{self, testnet::ConfiguredActivationHeights, NetworkKind};
 use zebra_chain::{parameters::testnet, serialization::ZcashSerialize as _};
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
@@ -54,7 +55,7 @@ pub struct ZebradConfig {
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub configured_activation_heights: testnet::ConfiguredActivationHeights,
+    pub configured_activation_heights: ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: &'static str,
     /// Chain cache path
@@ -74,6 +75,19 @@ impl Default for ZebradConfig {
             chain_cache: None,
             network: NetworkKind::Regtest,
         }
+    }
+}
+
+impl ValidatorConfig for ZebradConfig {
+    fn set_test_parameters(
+        &mut self,
+        mine_to_pool: PoolType,
+        configured_activation_heights: ConfiguredActivationHeights,
+        chain_cache: Option<PathBuf>,
+    ) {
+        assert!(mine_to_pool, PoolType::Transparent, "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}");
+        self.configured_activation_heights = configured_activation_heights;
+        self.chain_cache = chain_cache;
     }
 }
 
@@ -99,7 +113,7 @@ pub struct Zebrad {
     data_dir: TempDir,
     /// Network upgrade activation heights
     #[getset(skip)]
-    configured_activation_heights: testnet::ConfiguredActivationHeights,
+    configured_activation_heights: ConfiguredActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
@@ -235,7 +249,7 @@ impl IsAProcess for Zebrad {
 }
 
 impl Validator for Zebrad {
-    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights {
+    fn get_activation_heights(&self) -> ConfiguredActivationHeights {
         self.configured_activation_heights.clone()
     }
 
@@ -249,7 +263,7 @@ impl Validator for Zebrad {
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = parameters::Network::new_regtest(testnet::ConfiguredActivationHeights {
+            let network = parameters::Network::new_regtest(ConfiguredActivationHeights {
                 before_overwinter: self.configured_activation_heights.before_overwinter,
                 overwinter: self.configured_activation_heights.overwinter,
                 sapling: self.configured_activation_heights.sapling,
