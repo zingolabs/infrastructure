@@ -21,7 +21,7 @@ pub trait IsAProcess: Sized {
     /// To print outputs from the process.
     fn print_all(&self);
 
-    /// Returns the indexer process.
+    /// Returns the indexer process id.
     fn process(&self) -> Process {
         Self::PROCESS
     }
