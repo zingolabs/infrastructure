@@ -116,6 +116,9 @@ where
 
     /// Briskly create a local net from configs.
     /// Here the first parameter is associated with a validator, with the reasoning that an indexer is supported by a validator.
+    ///
+    /// # Errors
+    /// `LaunchError` during launch of a compontent network piece.
     pub async fn launch_from_two_configs(
         validator_config: <V as IsAProcess>::Config,
         indexer_config: <I as IsAProcess>::Config,
