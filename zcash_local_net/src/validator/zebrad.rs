@@ -85,7 +85,7 @@ impl ValidatorConfig for ZebradConfig {
         configured_activation_heights: ConfiguredActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
-        assert!(mine_to_pool, PoolType::Transparent, "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}");
+        assert_eq!(mine_to_pool, PoolType::Transparent, "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}");
         self.configured_activation_heights = configured_activation_heights;
         self.chain_cache = chain_cache;
     }
