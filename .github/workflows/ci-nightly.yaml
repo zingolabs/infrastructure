@@ -1,9 +1,9 @@
 name: CI - Nightly
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 3 * * *'
-  workflow_dispatch:
 
 jobs:
   pr-checks:
