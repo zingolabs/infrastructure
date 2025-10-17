@@ -6,14 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  reject-trailing-whitespace:
-    uses: ./.github/workflows/trailing-whitespace.yaml
-
-  cargo-shear:
-    uses: ./.github/workflows/cargo-shear.yaml
-
-  cargo-checkmate:
-    uses: ./.github/workflows/cargo-checkmate.yaml
+  pr-checks:
+    uses: ./.github/workflows/ci-pr.yaml
 
   cargo-hack-build:
     uses: ./.github/workflows/cargo-hack.yaml
