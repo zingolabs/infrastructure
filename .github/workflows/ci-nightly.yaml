@@ -24,3 +24,5 @@ jobs:
 
   cargo-hack-build:
     uses: ./.github/workflows/cargo-hack.yaml
+    with:
+      hack-subcommand: build

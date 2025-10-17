@@ -23,3 +23,8 @@ jobs:
 
   cargo-checkmate:
     uses: ./.github/workflows/cargo-checkmate.yaml
+
+  cargo-hack-check:
+    uses: ./.github/workflows/cargo-hack.yaml
+    with:
+      hack-subcommand: check
