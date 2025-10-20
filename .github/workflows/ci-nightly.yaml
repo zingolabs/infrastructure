@@ -1,26 +1,15 @@
-name: CI (Nightly)
+name: CI - Nightly
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 3 * * *'
-  workflow_dispatch:
 
 jobs:
-  reject-trailing-whitespace:
-    name: Reject trailing whitespace
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Reject trailing whitespace
-        run: ./utils/trailing-whitespace.sh reject
-
-  cargo-shear:
-    uses: ./.github/workflows/cargo-shear.yaml
-
-  cargo-checkmate:
-    uses: ./.github/workflows/cargo-checkmate.yaml
+  pr-checks:
+    uses: ./.github/workflows/ci-pr.yaml
 
   cargo-hack-build:
     uses: ./.github/workflows/cargo-hack.yaml
+    with:
+      hack-subcommand: build

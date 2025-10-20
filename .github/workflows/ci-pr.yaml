@@ -1,6 +1,7 @@
-name: CI checks
+name: CI - PR
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     tags:
@@ -9,17 +10,15 @@ on:
 
 jobs:
   reject-trailing-whitespace:
-    name: Reject trailing whitespace
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Reject trailing whitespace
-        run: ./utils/trailing-whitespace.sh reject
+    uses: ./.github/workflows/trailing-whitespace.yaml
 
   cargo-shear:
     uses: ./.github/workflows/cargo-shear.yaml
 
   cargo-checkmate:
     uses: ./.github/workflows/cargo-checkmate.yaml
+
+  cargo-hack-check:
+    uses: ./.github/workflows/cargo-hack.yaml
+    with:
+      hack-subcommand: check
