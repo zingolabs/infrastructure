@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run cargo-shear
-        uses: ./.github/actions/cargo-shear.yml
+        uses: ./.github/actions/cargo-shear
 
   cargo-checkmate:
     uses: ./.github/workflows/cargo-checkmate.yaml
@@ -33,6 +33,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run cargo-hack
-        uses: ./.github/actions/cargo-hack.yml
+        uses: ./.github/actions/cargo-hack
         with:
           hack-subcommand: check
