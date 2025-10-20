@@ -23,19 +23,7 @@ jobs:
         uses: ./.github/actions/cargo-shear.yml
 
   cargo-checkmate:
-    name: Cargo Checkmate
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        phase: [build, check, clippy, doc, format]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run cargo-checkmate
-        uses: ./.github/actions/cargo-checkmate.yml
-        with:
-          phase: ${{ matrix.phase }}
+    uses: ./.github/workflows/cargo-checkmate.yaml
 
   cargo-hack-check:
     name: Cargo Hack Check
