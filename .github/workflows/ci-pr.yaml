@@ -1,6 +1,7 @@
 name: CI - PR
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     tags:
