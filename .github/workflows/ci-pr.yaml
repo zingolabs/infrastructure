@@ -13,12 +13,38 @@ jobs:
     uses: ./.github/workflows/trailing-whitespace.yaml
 
   cargo-shear:
-    uses: ./.github/workflows/cargo-shear.yaml
+    name: Cargo Shear
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run cargo-shear
+        uses: ./.github/actions/cargo-shear.yml
 
   cargo-checkmate:
-    uses: ./.github/workflows/cargo-checkmate.yaml
+    name: Cargo Checkmate
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        phase: [build, check, clippy, doc, format]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run cargo-checkmate
+        uses: ./.github/actions/cargo-checkmate.yml
+        with:
+          phase: ${{ matrix.phase }}
 
   cargo-hack-check:
-    uses: ./.github/workflows/cargo-hack.yaml
-    with:
-      hack-subcommand: check
+    name: Cargo Hack Check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run cargo-hack
+        uses: ./.github/actions/cargo-hack.yml
+        with:
+          hack-subcommand: check

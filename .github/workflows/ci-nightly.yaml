@@ -10,6 +10,13 @@ jobs:
     uses: ./.github/workflows/ci-pr.yaml
 
   cargo-hack-build:
-    uses: ./.github/workflows/cargo-hack.yaml
-    with:
-      hack-subcommand: build
+    name: Cargo Hack Build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run cargo-hack
+        uses: ./.github/actions/cargo-hack.yml
+        with:
+          hack-subcommand: build
