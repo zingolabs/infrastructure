@@ -1,0 +1,52 @@
+name: Cargo Hack
+description: Run cargo-hack to test feature combinations
+
+inputs:
+  toolchain:
+    description: Rust toolchain to use
+    required: false
+    default: stable
+  rustflags:
+    description: RUSTFLAGS passed via env
+    required: false
+    default: "-D warnings"
+  hack-subcommand:
+    description: cargo-hack subcommand (usually 'build')
+    required: false
+    default: build
+  hack-flags:
+    description: Flags to pass to cargo-hack
+    required: false
+    # Default: isolate each crate, try all feature combos, no dev-deps, build lib+bins only
+    default: "--workspace --feature-powerset --lib --bins --tests --target-dir target/hack"
+  install_protoc:
+    description: Install protobuf-compiler
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Rust toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: ${{ inputs.toolchain }}
+
+    - name: Cache cargo
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install protobuf-compiler
+      if: inputs.install_protoc == 'true'
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
+    - name: Install cargo-hack
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-hack
+
+    - name: Run cargo-hack
+      shell: bash
+      env:
+        RUSTFLAGS: ${{ inputs.rustflags }}
+      run: cargo hack ${{ inputs.hack-subcommand }} ${{ inputs.hack-flags }}
