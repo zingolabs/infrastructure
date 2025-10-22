@@ -19,24 +19,13 @@ jobs:
     strategy:
       matrix:
         phase: [build, check, clippy, doc, format]
-    env:
-      RUSTFLAGS: ${{ inputs.rustflags }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Run cargo-checkmate
+        uses: zingolabs/infrastructure/.github/actions/cargo-checkmate@843c3b12c87bff458154a25ccc1bbf9be09d628b
         with:
           toolchain: ${{ inputs.toolchain }}
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-checkmate
-        uses: taiki-e/cache-cargo-install-action@v2
-        with:
-          tool: cargo-checkmate
-
-      - name: Run cargo checkmate
-        run: cargo-checkmate run ${{ matrix.phase }}
+          rustflags: ${{ inputs.rustflags }}
+          phase: ${{ matrix.phase }}
