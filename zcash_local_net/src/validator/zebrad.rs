@@ -294,8 +294,8 @@ impl Validator for Zebrad {
                 .unwrap();
 
             if !submit_block_response.contains(r#""result":null"#) {
-                dbg!(&submit_block_response);
-                panic!("failed to submit block!");
+                tklog::error!("Failed to submit block: {submit_block_response}");
+                panic!("Failed to submit block!");
             }
         }
         self.poll_chain_height(chain_height + n).await;
