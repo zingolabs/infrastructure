@@ -226,7 +226,7 @@ impl Process for Zcashd {
 
 impl Validator for Zcashd {
     fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.activation_heights.clone()
+        self.activation_heights
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;

@@ -250,7 +250,7 @@ impl Process for Zebrad {
 
 impl Validator for Zebrad {
     fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.configured_activation_heights.clone()
+        self.configured_activation_heights
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
@@ -263,18 +263,21 @@ impl Validator for Zebrad {
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = parameters::Network::new_regtest(ConfiguredActivationHeights {
-                before_overwinter: self.configured_activation_heights.before_overwinter,
-                overwinter: self.configured_activation_heights.overwinter,
-                sapling: self.configured_activation_heights.sapling,
-                blossom: self.configured_activation_heights.blossom,
-                heartwood: self.configured_activation_heights.heartwood,
-                canopy: self.configured_activation_heights.canopy,
-                nu5: self.configured_activation_heights.nu5,
-                nu6: self.configured_activation_heights.nu6,
-                nu6_1: self.configured_activation_heights.nu6_1,
-                nu7: self.configured_activation_heights.nu7,
-            });
+            let network = parameters::Network::new_regtest(
+                ConfiguredActivationHeights {
+                    before_overwinter: self.configured_activation_heights.before_overwinter,
+                    overwinter: self.configured_activation_heights.overwinter,
+                    sapling: self.configured_activation_heights.sapling,
+                    blossom: self.configured_activation_heights.blossom,
+                    heartwood: self.configured_activation_heights.heartwood,
+                    canopy: self.configured_activation_heights.canopy,
+                    nu5: self.configured_activation_heights.nu5,
+                    nu6: self.configured_activation_heights.nu6,
+                    nu6_1: self.configured_activation_heights.nu6_1,
+                    nu7: self.configured_activation_heights.nu7,
+                }
+                .into(),
+            );
 
             let block_data = hex::encode(
                 proposal_block_from_template(
