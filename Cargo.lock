@@ -4620,7 +4620,7 @@ dependencies = [
  "core2",
  "f4jumble",
  "zcash_encoding",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
 ]
 
 [[package]]
@@ -4665,7 +4665,7 @@ dependencies = [
  "tracing",
  "zcash_address",
  "zcash_encoding",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zcash_transparent",
  "zip32",
 ]
@@ -4685,7 +4685,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "zcash_protocol 0.6.1",
+ "zcash_protocol",
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
@@ -4742,7 +4742,7 @@ dependencies = [
  "zcash_address",
  "zcash_encoding",
  "zcash_note_encryption",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zcash_script",
  "zcash_spec",
  "zcash_transparent",
@@ -4771,17 +4771,6 @@ dependencies = [
  "wagyu-zcash-parameters",
  "xdg",
  "zcash_primitives",
-]
-
-[[package]]
-name = "zcash_protocol"
-version = "0.6.1"
-source = "git+https://github.com/zcash/librustzcash?rev=d387aed7e04e881dbe30c6ff8b26a96c834c094b#d387aed7e04e881dbe30c6ff8b26a96c834c094b"
-dependencies = [
- "core2",
- "document-features",
- "hex",
- "memuse",
 ]
 
 [[package]]
@@ -4839,7 +4828,7 @@ dependencies = [
  "subtle",
  "zcash_address",
  "zcash_encoding",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zcash_script",
  "zcash_spec",
  "zip32",
@@ -4901,7 +4890,7 @@ dependencies = [
  "zcash_history",
  "zcash_note_encryption",
  "zcash_primitives",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zcash_script",
  "zcash_transparent",
 ]
@@ -4938,7 +4927,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "zcash_proofs",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zebra-chain",
  "zebra-node-services",
  "zebra-script",
@@ -5036,7 +5025,7 @@ dependencies = [
  "zcash_address",
  "zcash_keys",
  "zcash_primitives",
- "zcash_protocol 0.7.1",
+ "zcash_protocol",
  "zcash_script",
  "zcash_transparent",
  "zebra-chain",
