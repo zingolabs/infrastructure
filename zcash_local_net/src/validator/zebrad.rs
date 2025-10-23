@@ -250,7 +250,7 @@ impl Process for Zebrad {
 
 impl Validator for Zebrad {
     fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.configured_activation_heights.clone()
+        self.configured_activation_heights
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
