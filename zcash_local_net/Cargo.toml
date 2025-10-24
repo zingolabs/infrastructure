@@ -28,6 +28,7 @@ tempfile = { workspace = true }
 portpicker = { workspace = true }
 http = { workspace = true }
 thiserror = { workspace = true }
+tklog = { workspace = true }
 tracing = { workspace = true }
 getset = { workspace = true }
 json = { workspace = true }
