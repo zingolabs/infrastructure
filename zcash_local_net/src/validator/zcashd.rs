@@ -25,7 +25,6 @@ use crate::{
     validator::Validator,
     ProcessId,
 };
-use zingo_common_components::protocol::activation_heights::for_test;
 
 /// Zcashd configuration
 ///
@@ -54,7 +53,19 @@ impl Default for ZcashdConfig {
     fn default() -> Self {
         Self {
             rpc_listen_port: None,
-            configured_activation_heights: for_test::all_height_one_nus(),
+            configured_activation_heights: ConfiguredActivationHeights {
+                before_overwinter: Some(1),
+                overwinter: Some(1),
+                sapling: Some(1),
+                blossom: Some(1),
+                heartwood: Some(1),
+                canopy: Some(1),
+                nu5: Some(1),
+                nu6: Some(1),
+                // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
+                nu6_1: Some(1),
+                nu7: None,
+            },
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }

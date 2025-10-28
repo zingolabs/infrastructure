@@ -12,7 +12,6 @@ use crate::{
     ProcessId,
 };
 use zcash_protocol::PoolType;
-use zingo_common_components::protocol::activation_heights::for_test;
 use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 
 use std::{
@@ -70,7 +69,19 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            configured_activation_heights: for_test::all_height_one_nus(),
+            configured_activation_heights: ConfiguredActivationHeights {
+                before_overwinter: Some(1),
+                overwinter: Some(1),
+                sapling: Some(1),
+                blossom: Some(1),
+                heartwood: Some(1),
+                canopy: Some(1),
+                nu5: Some(1),
+                nu6: Some(1),
+                // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
+                nu6_1: Some(1),
+                nu7: None,
+            },
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,

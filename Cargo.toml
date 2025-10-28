@@ -8,9 +8,10 @@ resolver = "2"
 zingo_test_vectors = { path = "zingo_test_vectors" }
 
 # zebra
-zebra-chain = "3.0"
-zebra-node-services = "2.0"
-zebra-rpc = "3.0"
+zebra-chain = { rev = "eed8e0771f92db0b1938bab8af448e04d7d8ea51", git = "https://github.com/ZcashFoundation/zebra.git" }
+
+zebra-node-services = {version = "2.0", features = ["rpc-client"] }
+zebra-rpc = { rev = "eed8e0771f92db0b1938bab8af448e04d7d8ea51", git = "https://github.com/ZcashFoundation/zebra.git" }
 
 # other
 http = "1.1.0"

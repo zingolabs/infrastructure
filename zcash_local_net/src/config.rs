@@ -390,7 +390,6 @@ mod tests {
     use std::path::PathBuf;
 
     use zebra_chain::parameters::NetworkKind;
-    use zingo_common_components::protocol::activation_heights::for_test;
 
     use crate::logs;
 
@@ -432,7 +431,20 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let test_activation_heights = for_test::sequential_height_nus();
+        let test_activation_heights =
+            zebra_chain::parameters::testnet::ConfiguredActivationHeights {
+                before_overwinter: Some(1),
+                overwinter: Some(2),
+                sapling: Some(3),
+                blossom: Some(4),
+                heartwood: Some(5),
+                canopy: Some(6),
+                nu5: Some(7),
+                nu6: Some(8),
+                // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
+                nu6_1: Some(9),
+                nu7: None,
+            };
 
         super::zcashd(config_dir.path(), 1234, &test_activation_heights, None).unwrap();
 
@@ -445,7 +457,20 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let test_activation_heights = for_test::sequential_height_nus();
+        let test_activation_heights =
+            zebra_chain::parameters::testnet::ConfiguredActivationHeights {
+                before_overwinter: Some(1),
+                overwinter: Some(2),
+                sapling: Some(3),
+                blossom: Some(4),
+                heartwood: Some(5),
+                canopy: Some(6),
+                nu5: Some(7),
+                nu6: Some(8),
+                // see https://zips.z.cash/#nu6-1-candidate-zips for info on NU6.1
+                nu6_1: Some(9),
+                nu7: None,
+            };
 
         super::zcashd(
             config_dir.path(),
