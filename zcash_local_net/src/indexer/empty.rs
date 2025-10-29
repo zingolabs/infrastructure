@@ -40,12 +40,12 @@ pub struct Empty {
 
 impl LogsToStdoutAndStderr for Empty {
     fn print_stdout(&self) {
-        tklog::info!("Empty indexer stdout.");
+        tracing::info!("Empty indexer stdout.");
         todo!()
     }
 
     fn print_stderr(&self) {
-        tklog::info!("Empty indexer stderr.");
+        tracing::info!("Empty indexer stderr.");
     }
 }
 
@@ -67,7 +67,7 @@ impl Process for Empty {
     fn stop(&mut self) {}
 
     fn print_all(&self) {
-        tklog::info!("Empty indexer.");
+        tracing::info!("Empty indexer.");
     }
 }
 
