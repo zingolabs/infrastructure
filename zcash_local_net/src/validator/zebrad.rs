@@ -249,8 +249,20 @@ impl Process for Zebrad {
 }
 
 impl Validator for Zebrad {
-    fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.configured_activation_heights
+    async fn get_activation_heights(&self) -> ConfiguredActivationHeights {
+        let response: serde_json::Value = self
+            .client
+            .json_result_from_call("getblockchaininfo", "[]".to_string())
+            .await
+            .expect("getblockchaininfo should succeed");
+
+        let upgrades = response
+            .get("upgrades")
+            .expect("upgrades field should exist")
+            .as_object()
+            .expect("upgrades should be an object");
+
+        crate::validator::parse_activation_heights_from_rpc(upgrades)
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
@@ -305,7 +317,13 @@ impl Validator for Zebrad {
 
         Ok(())
     }
-
+    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
+        for _ in 0..blocks {
+            self.generate_blocks(1).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        }
+        Ok(())
+    }
     async fn get_chain_height(&self) -> u32 {
         let response: serde_json::Value = self
             .client
