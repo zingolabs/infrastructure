@@ -309,7 +309,7 @@ impl Validator for Zebrad {
                 .unwrap();
 
             if !submit_block_response.contains(r#""result":null"#) {
-                tklog::error!("Failed to submit block: {submit_block_response}");
+                tracing::error!("Failed to submit block: {submit_block_response}");
                 panic!("Failed to submit block!");
             }
         }
