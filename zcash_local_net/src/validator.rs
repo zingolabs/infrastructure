@@ -14,7 +14,7 @@ pub mod zcashd;
 pub mod zebrad;
 
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
-pub fn parse_activation_heights_from_rpc(
+fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,
 ) -> testnet::ConfiguredActivationHeights {
     // Helper function to extract activation height for a network upgrade by name
