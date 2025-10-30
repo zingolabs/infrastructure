@@ -13,6 +13,38 @@ use crate::process::Process;
 pub mod zcashd;
 pub mod zebrad;
 
+/// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
+fn parse_activation_heights_from_rpc(
+    upgrades: &serde_json::Map<String, serde_json::Value>,
+) -> testnet::ConfiguredActivationHeights {
+    // Helper function to extract activation height for a network upgrade by name
+    let get_height = |name: &str| -> Option<u32> {
+        upgrades.values().find_map(|upgrade| {
+            if upgrade.get("name")?.as_str()?.eq_ignore_ascii_case(name) {
+                upgrade
+                    .get("activationheight")?
+                    .as_u64()
+                    .and_then(|h| u32::try_from(h).ok())
+            } else {
+                None
+            }
+        })
+    };
+
+    testnet::ConfiguredActivationHeights {
+        before_overwinter: get_height("BeforeOverwinter"),
+        overwinter: get_height("Overwinter"),
+        sapling: get_height("Sapling"),
+        blossom: get_height("Blossom"),
+        heartwood: get_height("Heartwood"),
+        canopy: get_height("Canopy"),
+        nu5: get_height("NU5"),
+        nu6: get_height("NU6"),
+        nu6_1: get_height("NU6_1"),
+        nu7: get_height("NU7"),
+    }
+}
+
 /// Can offer specific functionality shared across configuration for all validators.
 pub trait ValidatorConfig: Default {
     /// To set the config for common Regtest parameters.
@@ -28,11 +60,20 @@ pub trait ValidatorConfig: Default {
 pub trait Validator: Process<Config: ValidatorConfig> {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
-    fn get_activation_heights(&self) -> testnet::ConfiguredActivationHeights;
+    fn get_activation_heights(
+        &self,
+    ) -> impl std::future::Future<Output = testnet::ConfiguredActivationHeights> + Send;
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
     fn generate_blocks(
+        &self,
+        n: u32,
+    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
+
+    /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
+    /// correct height when this function returns.
+    fn generate_blocks_with_delay(
         &self,
         n: u32,
     ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
