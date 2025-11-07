@@ -47,6 +47,8 @@ use crate::{
     error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::Process,
 };
 
+pub use zcash_protocol::PoolType;
+
 /// All processes currently supported
 #[derive(Clone, Copy)]
 #[allow(missing_docs)]
