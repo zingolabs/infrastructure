@@ -1,5 +1,5 @@
 [workspace]
-members = ["zcash_local_net", "zingo_test_vectors"]
+members = [ "client_rpc_test_fixtures","zcash_local_net", "zingo_test_vectors"]
 resolver = "2"
 
 [workspace.dependencies]
