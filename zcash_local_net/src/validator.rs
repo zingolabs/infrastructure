@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use portpicker::Port;
 use tempfile::TempDir;
 use zcash_protocol::PoolType;
-use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zebra_chain::parameters::NetworkKind;
 
@@ -16,7 +15,7 @@ pub mod zebrad;
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,
-) -> testnet::ConfiguredActivationHeights {
+) -> ConfiguredActivationHeights {
     // Helper function to extract activation height for a network upgrade by name
     let get_height = |name: &str| -> Option<u32> {
         upgrades.values().find_map(|upgrade| {
@@ -31,7 +30,7 @@ fn parse_activation_heights_from_rpc(
         })
     };
 
-    testnet::ConfiguredActivationHeights {
+    ConfiguredActivationHeights {
         before_overwinter: get_height("BeforeOverwinter"),
         overwinter: get_height("Overwinter"),
         sapling: get_height("Sapling"),
@@ -62,7 +61,7 @@ pub trait Validator: Process<Config: ValidatorConfig> {
     /// Validator's test configuration.
     fn get_activation_heights(
         &self,
-    ) -> impl std::future::Future<Output = testnet::ConfiguredActivationHeights> + Send;
+    ) -> impl std::future::Future<Output = ConfiguredActivationHeights> + Send;
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
