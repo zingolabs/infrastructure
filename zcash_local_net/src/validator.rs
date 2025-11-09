@@ -30,7 +30,7 @@ fn parse_activation_heights_from_rpc(
         })
     };
 
-    ConfiguredActivationHeights {
+    let configured_activation_heights = ConfiguredActivationHeights {
         before_overwinter: get_height("BeforeOverwinter"),
         overwinter: get_height("Overwinter"),
         sapling: get_height("Sapling"),
@@ -41,7 +41,9 @@ fn parse_activation_heights_from_rpc(
         nu6: get_height("NU6"),
         nu6_1: get_height("NU6_1"),
         nu7: get_height("NU7"),
-    }
+    };
+    tracing::debug!("regtest validator reports the following activation heights: {configured_activation_heights:?}");
+    configured_activation_heights
 }
 
 /// Can offer specific functionality shared across configuration for all validators.
