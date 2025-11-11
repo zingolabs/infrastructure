@@ -52,3 +52,6 @@ jobs:
         uses: ./.github/actions/cargo-hack
         with:
           hack-subcommand: check
+  test:
+    uses: zingolabs/zingolib/.github/workflows/test.yaml@349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5
+
