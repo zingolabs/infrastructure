@@ -5,6 +5,7 @@ resolver = "2"
 [workspace.dependencies]
 
 # workspace
+zcash_local_net = { path = "zcash_local_net" }
 zingo_test_vectors = { path = "zingo_test_vectors" }
 
 # zebra

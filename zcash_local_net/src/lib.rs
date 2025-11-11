@@ -85,8 +85,8 @@ where
     I: Indexer + LogsToStdoutAndStderr,
     <I as Process>::Config: Send,
 {
-    indexer: I,
     validator: V,
+    indexer: I,
 }
 
 impl<V, I> LocalNet<V, I>

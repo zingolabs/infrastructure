@@ -5,7 +5,7 @@ edition = "2021"
 license = "MIT License"
 
 [badges]
-github = { repository = "zingolabs/infrastructure/services" }
+github = { repository = "zingolabs/infrastructure/zcash_local_net" }
 
 [dependencies]
 

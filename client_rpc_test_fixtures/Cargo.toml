@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+zingo_test_vectors = { workspace = true }
+zcash_local_net = { workspace = true }
+
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", rev = "349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5" }
+
+tempfile = { workspace = true }
