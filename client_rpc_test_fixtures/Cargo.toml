@@ -7,6 +7,7 @@ edition = "2024"
 zingo_test_vectors = { workspace = true }
 zcash_local_net = { workspace = true }
 
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", rev = "349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5" }
+# zingolib = { git = "https://github.com/zingolabs/zingolib.git", rev = "349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5" }
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.7" }
 
 tempfile = { workspace = true }
