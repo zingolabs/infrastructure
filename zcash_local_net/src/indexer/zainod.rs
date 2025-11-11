@@ -101,7 +101,7 @@ impl Process for Zainod {
             data_dir.path().to_path_buf()
         };
 
-        let config_file_path = config::zainod(
+        let config_file_path = config::write_zainod_config(
             config_dir.path(),
             cache_dir,
             port,
