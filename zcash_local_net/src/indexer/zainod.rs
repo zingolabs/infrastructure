@@ -29,6 +29,7 @@ use crate::{
 /// The `validator_port` must be specified and the validator process must be running before launching Zainod.
 ///
 /// `network` must match the configured network of the validator.
+#[derive(Debug)]
 pub struct ZainodConfig {
     /// Listen RPC port
     pub listen_port: Option<Port>,
@@ -62,7 +63,7 @@ impl IndexerConfig for ZainodConfig {
 }
 
 /// This struct is used to represent and manage the Zainod process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zainod {
     /// Child process handle

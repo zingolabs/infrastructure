@@ -152,6 +152,7 @@ where
 }
 
 /// A combined config for `LocalNet`
+#[derive(Debug)]
 pub struct LocalNetConfig<V, I>
 where
     V: Validator + LogsToStdoutAndStderr + Send,

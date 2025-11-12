@@ -39,6 +39,7 @@ use zingo_common_components::protocol::activation_heights::for_test;
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
+#[derive(Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
@@ -79,7 +80,7 @@ impl ValidatorConfig for ZcashdConfig {
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zcashd {
     /// Child process handle

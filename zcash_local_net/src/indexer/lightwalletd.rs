@@ -23,6 +23,7 @@ use crate::{
 /// The `zcash_conf` path must be specified and the validator process must be running before launching Lightwalletd.
 /// When running a validator that is not Zcashd (i.e. Zebrad), a zcash config file must still be created to specify the
 /// validator port. This is automatically handled by [`crate::LocalNet::launch`] when using [`crate::LocalNet`].
+#[derive(Debug)]
 pub struct LightwalletdConfig {
     /// Listen RPC port
     pub listen_port: Option<Port>,
@@ -52,7 +53,7 @@ impl IndexerConfig for LightwalletdConfig {
     }
 }
 /// This struct is used to represent and manage the Lightwalletd process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Lightwalletd {
     /// Child process handle
