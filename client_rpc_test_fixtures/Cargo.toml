@@ -4,10 +4,40 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tempfile = { workspace = true }
+portpicker = { workspace = true }
+zip32 = { workspace = true }
+tonic = { workspace = true }
+tokio = { workspace = true }
+
+# GRPC (temporary until `build_grpc_client` can be replaced by zingo-netutils version)
+hyper-util = "0.1"
+http = "1.1.0"
+tokio-rustls = "0.26"
+webpki-roots = "0.25"
+tower = "0.5"
+hyper-rustls = { version = "0.27", features = ["http2"] }
+http-body = "1"
+
+# Zcash
+zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
+    "local-consensus",
+] }
+zcash_client_backend = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b", features = [
+    "lightwalletd-tonic",
+] }
+zcash_primitives = { git = "https://github.com/zcash/librustzcash", rev = "d387aed7e04e881dbe30c6ff8b26a96c834c094b" }
+
+# Zebra
+zebra-chain = { workspace = true }
+
+# Zingo
+zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.7", features = [ "testutils" ] }
+
+# Zingo-common
+zingo_netutils = { workspace = true }
+
+# Infra
 zingo_test_vectors = { workspace = true }
 zcash_local_net = { workspace = true }
-
-# zingolib = { git = "https://github.com/zingolabs/zingolib.git", rev = "349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5" }
-zingolib = { git = "https://github.com/zingolabs/zingolib.git", tag = "2.0.7" }
-
-tempfile = { workspace = true }
+tokio-stream = "0.1.17"

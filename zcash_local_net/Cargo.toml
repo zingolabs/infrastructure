@@ -14,7 +14,7 @@ zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git
 zingo_test_vectors = { workspace = true }
 
 # zcash
-zcash_protocol = { version = "0.6.2", features = [
+zcash_protocol = { workspace = true, features = [
     "local-consensus",
 ] }
 

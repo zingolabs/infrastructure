@@ -81,7 +81,7 @@ async fn launch_multiple_individual_zebrads_with_cache() {
     assert_eq!(zebrad_2.get_chain_height().await, 52u32);
 }
 
-#[ignore = "requires chain cache to be generated"]
+#[ignore = "requires chain cache to be generated. see `client_rpc_test_fixtures` crate"]
 /// Tests that 2 `zebrad` instances, each with a copy of the chain cache, can be launched.
 #[tokio::test]
 async fn localnet_launch_multiple_zebrads_with_cache() {
@@ -142,22 +142,4 @@ async fn launch_localnet_lightwalletd_zebrad() {
     tracing_subscriber::fmt().init();
 
     launch_default_and_print_all::<LocalNet<Zebrad, Lightwalletd>>().await;
-}
-
-#[ignore = "not a test. generates chain cache for client_rpc tests."]
-#[tokio::test]
-async fn generate_zebrad_large_chain_cache() {
-    tracing_subscriber::fmt().init();
-
-    crate::testutils::generate_zebrad_large_chain_cache().await;
-}
-
-// FIXME: This is not a test, so it shouldn't be marked as one.
-// and TODO: Pre-test setups should be moved elsewhere.
-#[ignore = "not a test. generates chain cache for client_rpc tests."]
-#[tokio::test]
-async fn generate_zcashd_chain_cache() {
-    tracing_subscriber::fmt().init();
-
-    crate::testutils::generate_zcashd_chain_cache().await;
 }

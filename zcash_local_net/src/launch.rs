@@ -109,6 +109,7 @@ pub(crate) fn wait(
             }
         }
 
+        // TODO: replace with tokio sleep to prevent risk of blocking the runtime
         std::thread::sleep(interval);
     }
 

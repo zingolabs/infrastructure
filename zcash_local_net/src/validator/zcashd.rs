@@ -100,11 +100,6 @@ pub struct Zcashd {
 }
 
 impl Zcashd {
-    /// Returns path to config file.
-    fn config_path(&self) -> PathBuf {
-        self.config_dir().path().join(config::ZCASHD_FILENAME)
-    }
-
     /// Runs a Zcash-cli command with the given `args`.
     ///
     /// Example usage for generating blocks in Zcashd local net:
@@ -114,7 +109,10 @@ impl Zcashd {
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
         let mut command = pick_command("zcash-cli");
 
-        command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
+        command.arg(format!(
+            "-conf={}",
+            self.get_zcashd_conf_path().to_str().unwrap()
+        ));
         command.args(args).output()
     }
 }

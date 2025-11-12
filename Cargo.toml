@@ -8,6 +8,12 @@ resolver = "2"
 zcash_local_net = { path = "zcash_local_net" }
 zingo_test_vectors = { path = "zingo_test_vectors" }
 
+# zingo-common
+zingo_netutils = { git = "https://github.com/zingolabs/zingo-common.git", rev = "b64dfd6d6a2a597a5456d1cc7b2bc9b649328187" }
+
+# zcash
+zcash_protocol = "0.6.1"
+
 # zebra
 zebra-chain = "2.0"
 zebra-node-services = "1.0"
@@ -25,3 +31,5 @@ thiserror = "1.0.64"
 tokio = "1.42.0"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.15"
+zip32 = "0.2.0"
+tonic = { version = "0.13", default-features = false }

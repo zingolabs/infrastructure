@@ -20,32 +20,191 @@
 //! }
 //! ```
 
-use zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART;
+use std::sync::Arc;
 
-use zcash_local_net::{
-    indexer::lightwalletd::Lightwalletd,
-    process::Process,
-    utils,
-    validator::{zcashd::Zcashd, zebrad::Zebrad, Validator as _},
-    LocalNet,
+use http::{uri::PathAndQuery, Uri};
+use http_body::Body;
+use hyper_util::client::legacy::{connect::{Connect, HttpConnector}, Client};
+use portpicker::Port;
+
+use tokio::sync::mpsc::unbounded_channel;
+use tokio_rustls::rustls::{pki_types::{Der, TrustAnchor}, ClientConfig, RootCertStore};
+use tower::ServiceExt;
+use zcash_client_backend::proto::{compact_formats::CompactBlock, service::{compact_tx_streamer_client::CompactTxStreamerClient, Address, AddressList, BlockId, BlockRange, ChainSpec, Empty, Exclude, GetSubtreeRootsArg, RawTransaction, TransparentAddressBlockFilter, TxFilter}};
+use zcash_primitives::transaction::Transaction;
+use zcash_protocol::{consensus::{BlockHeight, BranchId}, local_consensus::LocalNetwork, PoolType, ShieldedProtocol};
+use zebra_chain::parameters::{NetworkKind, testnet::ConfiguredActivationHeights};
+use zingo_netutils::UnderlyingService;
+use zingolib::{
+    config::ChainType, lightclient::LightClient, testutils::{
+        lightclient::{from_inputs, get_base_address},
+        scenarios::ClientBuilder,
+    }
 };
 
+use zcash_local_net::{
+    config, indexer::{
+        lightwalletd::{Lightwalletd, LightwalletdConfig},
+        zainod::{Zainod, ZainodConfig}, Indexer,
+    }, network, process::Process, utils, validator::{
+        zcashd::{Zcashd, ZcashdConfig}, zebrad::{Zebrad, ZebradConfig}, Validator as _
+    }, LocalNet, LocalNetConfig
+};
+use zingo_test_vectors::{seeds, REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER};
+
+const DEFAULT_ACTIVATION_HEIGHTS: ConfiguredActivationHeights = ConfiguredActivationHeights {
+    before_overwinter: Some(1),
+    overwinter: Some(1),
+    sapling: Some(1),
+    blossom: Some(1),
+    heartwood: Some(1),
+    canopy: Some(1),
+    nu5: Some(1),
+    nu6: Some(1),
+    nu6_1: Some(1),
+    nu7: None,
+};
+const DEFAULT_ACTIVATION_HEIGHTS_ZP: LocalNetwork = 
+        LocalNetwork {
+            overwinter: Some(BlockHeight::from_u32(1)),
+            sapling: Some(BlockHeight::from_u32(1)),
+            blossom: Some(BlockHeight::from_u32(1)),
+            heartwood: Some(BlockHeight::from_u32(1)),
+            canopy: Some(BlockHeight::from_u32(1)),
+            nu5: Some(BlockHeight::from_u32(1)),
+            nu6: Some(BlockHeight::from_u32(1)),
+            nu6_1: Some(BlockHeight::from_u32(1)),
+        };
+
+    // TODO: replace with zingo-netutils version when dep graph is stabilised
+    fn client_from_connector<C, B>(connector: C, http2_only: bool) -> Box<Client<C, B>>
+    where
+        C: Connect + Clone,
+        B: Body + Send,
+        B::Data: Send,
+    {
+        Box::new(
+            Client::builder(hyper_util::rt::TokioExecutor::new())
+                .http2_only(http2_only)
+                .build(connector),
+        )
+    }
+    // TODO: replace with zingo-netutils version when dep graph is stabilised
+    async fn build_grpc_client(uri: http::Uri
+    ) -> CompactTxStreamerClient<UnderlyingService> {
+        let uri = Arc::new(uri.clone());
+            let mut http_connector = HttpConnector::new();
+            http_connector.enforce_http(false);
+            let scheme = uri.scheme().unwrap().clone();
+            let authority = uri
+                .authority()
+                .unwrap()
+                .clone();
+            if uri.scheme_str() == Some("https") {
+                let mut root_store = RootCertStore::empty();
+                //webpki uses a different struct for TrustAnchor
+                root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().map(|anchor_ref| {
+                    TrustAnchor {
+                        subject: Der::from_slice(anchor_ref.subject),
+                        subject_public_key_info: Der::from_slice(anchor_ref.spki),
+                        name_constraints: anchor_ref.name_constraints.map(Der::from_slice),
+                    }
+                }));
+
+                let config = ClientConfig::builder()
+                    .with_root_certificates(root_store)
+                    .with_no_client_auth();
+
+                let connector = tower::ServiceBuilder::new()
+                    .layer_fn(move |s| {
+                        let tls = config.clone();
+
+                        hyper_rustls::HttpsConnectorBuilder::new()
+                            .with_tls_config(tls)
+                            .https_or_http()
+                            .enable_http2()
+                            .wrap_connector(s)
+                    })
+                    .service(http_connector);
+                let client = client_from_connector(connector, false);
+                let svc = tower::ServiceBuilder::new()
+                    //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
+                    .map_request(move |mut request: http::Request<_>| {
+                        let path_and_query = request
+                            .uri()
+                            .path_and_query()
+                            .cloned()
+                            .unwrap_or(PathAndQuery::from_static("/"));
+                        let uri = Uri::builder()
+                            .scheme(scheme.clone())
+                            .authority(authority.clone())
+                            //here. The Request's uri contains the path to the GRPC server and
+                            //the method being called
+                            .path_and_query(path_and_query)
+                            .build()
+                            .unwrap();
+
+                        *request.uri_mut() = uri;
+                        request
+                    })
+                    .service(client);
+
+                CompactTxStreamerClient::new(svc.boxed_clone())
+            } else {
+                let connector = tower::ServiceBuilder::new().service(http_connector);
+                let client = client_from_connector(connector, true);
+                let svc = tower::ServiceBuilder::new()
+                    //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
+                    .map_request(move |mut request: http::Request<_>| {
+                        let path_and_query = request
+                            .uri()
+                            .path_and_query()
+                            .cloned()
+                            .unwrap_or(PathAndQuery::from_static("/"));
+                        let uri = Uri::builder()
+                            .scheme(scheme.clone())
+                            .authority(authority.clone())
+                            //here. The Request's uri contains the path to the GRPC server and
+                            //the method being called
+                            .path_and_query(path_and_query)
+                            .build()
+                            .unwrap();
+
+                        *request.uri_mut() = uri;
+                        request
+                    })
+                    .service(client);
+
+                CompactTxStreamerClient::new(svc.boxed_clone())
+        }
+    }
+
 /// Builds faucet (miner) and recipient lightclients for local network integration testing
-pub fn build_lightclients(
-    lightclient_dir: PathBuf,
-    indexer_port: Port,
-) -> (LightClient, LightClient) {
+pub fn build_lightclients(indexer_port: Port) -> (LightClient, LightClient, ClientBuilder) {
+    let lightclient_dir = tempfile::tempdir().unwrap();
     let mut client_builder =
         ClientBuilder::new(network::localhost_uri(indexer_port), lightclient_dir);
-    let faucet = client_builder.build_faucet(true, RegtestNetwork::all_upgrades_active());
+    let faucet = client_builder.build_faucet(
+        true,
+        DEFAULT_ACTIVATION_HEIGHTS_ZP,
+    );
     let recipient = client_builder.build_client(
         seeds::HOSPITAL_MUSEUM_SEED.to_string(),
         1,
         true,
-        RegtestNetwork::all_upgrades_active(),
+        zcash_protocol::local_consensus::LocalNetwork {
+            overwinter: Some(1.into()),
+            sapling: Some(1.into()),
+            blossom: Some(1.into()),
+            heartwood: Some(1.into()),
+            canopy: Some(1.into()),
+            nu5: Some(1.into()),
+            nu6: Some(1.into()),
+            nu6_1: Some(1.into()),
+        },
     );
 
-    (faucet, recipient)
+    (faucet, recipient, client_builder)
 }
 
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
@@ -67,115 +226,114 @@ pub async fn generate_zebrad_large_chain_cache() {
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache() {
-     let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch_default(
-     )
-     .await.unwrap();
+    let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch_default()
+        .await
+        .unwrap();
 
-     local_net.validator().generate_blocks(2).await.unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
 
-     let lightclient_dir = tempfile::tempdir().unwrap();
-     let (mut faucet, mut recipient) = client::build_lightclients(
-         lightclient_dir.path().to_path_buf(),
-         local_net.indexer().port(),
-     );
+    let (mut faucet, mut recipient, _) = build_lightclients(local_net.indexer().port());
 
-     // TODO: use second recipient taddr
-     // recipient.do_new_address("ozt").await.unwrap();
-     // let recipient_addresses = recipient.do_addresses().await;
-     // recipient taddr child index 0:
-     // tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i
-    
-     // recipient taddr child index 1:
-     // tmAtLC3JkTDrXyn5okUbb6qcMGE4Xq4UdhD
-    
-     // faucet taddr child index 0:
-     // tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
+    // TODO: use second recipient taddr
+    // recipient.do_new_address("ozt").await.unwrap();
+    // let recipient_addresses = recipient.do_addresses().await;
+    // recipient taddr child index 0:
+    // tmFLszfkjgim4zoUMAXpuohnFBAKy99rr2i
 
-     faucet.sync_and_await().await.unwrap();
-     from_inputs::quick_send(
-         &mut faucet,
-         vec![(
-             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
-             100_000,
-             Some("orchard test memo"),
-         )],
-     )
-     .await
-     .unwrap();
-     from_inputs::quick_send(
-         &mut faucet,
-         vec![(
-             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
-             100_000,
-             Some("sapling test memo"),
-         )],
-     )
-     .await
-     .unwrap();
-     from_inputs::quick_send(
-         &mut faucet,
-         vec![(
-             &get_base_address(&recipient, PoolType::Transparent).await,
-             100_000,
-             None,
-         )],
-     )
-     .await
-     .unwrap();
-     local_net.validator().generate_blocks(1).await.unwrap();
+    // recipient taddr child index 1:
+    // tmAtLC3JkTDrXyn5okUbb6qcMGE4Xq4UdhD
 
-     recipient.sync_and_await().await.unwrap();
-     recipient.quick_shield().await.unwrap();
-     local_net.validator().generate_blocks(1).await.unwrap();
+    // faucet taddr child index 0:
+    // tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
 
-     faucet.sync_and_await().await.unwrap();
-     from_inputs::quick_send(
-         &mut faucet,
-         vec![(
-             &get_base_address(&recipient, PoolType::Transparent).await,
-             200_000,
-             None,
-         )],
-     )
-     .await
-     .unwrap();
-     local_net.validator().generate_blocks(1).await.unwrap();
+    faucet.sync_and_await().await.unwrap();
+    from_inputs::quick_send(
+        &mut faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Orchard)).await,
+            100_000,
+            Some("orchard test memo"),
+        )],
+    )
+    .await
+    .unwrap();
+    from_inputs::quick_send(
+        &mut faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+            100_000,
+            Some("sapling test memo"),
+        )],
+    )
+    .await
+    .unwrap();
+    from_inputs::quick_send(
+        &mut faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Transparent).await,
+            100_000,
+            None,
+        )],
+    )
+    .await
+    .unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
-     recipient.sync_and_await().await.unwrap();
-     from_inputs::quick_send(
-         &mut recipient,
-         vec![(
-             &get_base_address(&faucet, PoolType::Transparent).await,
-             10_000,
-             None,
-         )],
-     )
-     .await
-     .unwrap();
-     local_net.validator().generate_blocks(1).await.unwrap();
+    recipient.sync_and_await().await.unwrap();
+    recipient
+        .quick_shield(zip32::AccountId::ZERO)
+        .await
+        .unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
-     recipient.sync_and_await().await.unwrap();
-     let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
-     from_inputs::quick_send(
-         &mut recipient,
-         vec![(&recipient_ua, 10_000, Some("orchard test memo"))],
-     )
-     .await
-     .unwrap();
-     local_net.validator().generate_blocks(2).await.unwrap();
+    faucet.sync_and_await().await.unwrap();
+    from_inputs::quick_send(
+        &mut faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Transparent).await,
+            200_000,
+            None,
+        )],
+    )
+    .await
+    .unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
-     faucet.sync_and_await().await.unwrap();
-     from_inputs::quick_send(
-         &mut faucet,
-         vec![(
-             &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
-             100_000,
-             None,
-         )],
-     )
-     .await
-     .unwrap();
-     local_net.validator().generate_blocks(1).await.unwrap();
+    recipient.sync_and_await().await.unwrap();
+    from_inputs::quick_send(
+        &mut recipient,
+        vec![(
+            &get_base_address(&faucet, PoolType::Transparent).await,
+            10_000,
+            None,
+        )],
+    )
+    .await
+    .unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
+
+    recipient.sync_and_await().await.unwrap();
+    let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
+    from_inputs::quick_send(
+        &mut recipient,
+        vec![(&recipient_ua, 10_000, Some("orchard test memo"))],
+    )
+    .await
+    .unwrap();
+    local_net.validator().generate_blocks(2).await.unwrap();
+
+    faucet.sync_and_await().await.unwrap();
+    from_inputs::quick_send(
+        &mut faucet,
+        vec![(
+            &get_base_address(&recipient, PoolType::Shielded(ShieldedProtocol::Sapling)).await,
+            100_000,
+            None,
+        )],
+    )
+    .await
+    .unwrap();
+    local_net.validator().generate_blocks(1).await.unwrap();
 
     let chain_cache_dir = utils::chain_cache_dir();
     if !chain_cache_dir.exists() {
@@ -187,41 +345,32 @@ pub async fn generate_zcashd_chain_cache() {
 }
 
 /// GetLightdInfo RPC test
-pub async fn get_lightd_info(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_lightd_info() {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(Empty {});
     let zainod_response = zainod_client
         .get_lightd_info(request)
@@ -229,9 +378,7 @@ pub async fn get_lightd_info(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(Empty {});
     let lwd_response = lwd_client
         .get_lightd_info(request)
@@ -297,42 +444,34 @@ pub async fn get_lightd_info(
 
 /// GetLatestBlock RPC test
 pub async fn get_latest_block(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(ChainSpec {});
     let zainod_response = zainod_client
         .get_latest_block(request)
@@ -340,9 +479,7 @@ pub async fn get_latest_block(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(ChainSpec {});
     let mut lwd_response = lwd_client
         .get_latest_block(request)
@@ -368,35 +505,29 @@ pub async fn get_latest_block(
 
 /// GetBlock RPC test
 pub async fn get_block(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -406,15 +537,11 @@ pub async fn get_block(
         hash: vec![],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_response = zainod_client.get_block(request).await.unwrap().into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let lwd_response = lwd_client.get_block(request).await.unwrap().into_inner();
 
@@ -438,35 +565,29 @@ pub async fn get_block(
 
 /// GetBlock RPC test
 pub async fn get_block_out_of_bounds(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -476,15 +597,11 @@ pub async fn get_block_out_of_bounds(
         hash: vec![],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_err_status = zainod_client.get_block(request).await.unwrap_err();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let lwd_err_status = lwd_client.get_block(request).await.unwrap_err();
 
@@ -504,35 +621,29 @@ pub async fn get_block_out_of_bounds(
 
 /// GetBlockNullifiers RPC test
 pub async fn get_block_nullifiers(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -542,9 +653,7 @@ pub async fn get_block_nullifiers(
         hash: vec![],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_response = zainod_client
         .get_block_nullifiers(request)
@@ -552,9 +661,7 @@ pub async fn get_block_nullifiers(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let lwd_response = lwd_client
         .get_block_nullifiers(request)
@@ -582,35 +689,29 @@ pub async fn get_block_nullifiers(
 
 /// GetBlockRangeNullifiers RPC test
 pub async fn get_block_range_nullifiers(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -626,9 +727,7 @@ pub async fn get_block_range_nullifiers(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range_nullifiers(request)
@@ -640,9 +739,7 @@ pub async fn get_block_range_nullifiers(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range_nullifiers(request)
@@ -674,35 +771,29 @@ pub async fn get_block_range_nullifiers(
 
 /// GetBlockRangeNullifiers RPC test
 pub async fn get_block_range_nullifiers_reverse(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -718,9 +809,7 @@ pub async fn get_block_range_nullifiers_reverse(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range_nullifiers(request)
@@ -732,9 +821,7 @@ pub async fn get_block_range_nullifiers_reverse(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range_nullifiers(request)
@@ -766,35 +853,29 @@ pub async fn get_block_range_nullifiers_reverse(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_lower(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -810,9 +891,7 @@ pub async fn get_block_range_lower(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range(request)
@@ -824,9 +903,7 @@ pub async fn get_block_range_lower(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range(request)
@@ -858,35 +935,29 @@ pub async fn get_block_range_lower(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_upper(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -902,9 +973,7 @@ pub async fn get_block_range_upper(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range(request)
@@ -916,9 +985,7 @@ pub async fn get_block_range_upper(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range(request)
@@ -949,35 +1016,29 @@ pub async fn get_block_range_upper(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_reverse(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -993,9 +1054,7 @@ pub async fn get_block_range_reverse(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range(request)
@@ -1007,9 +1066,7 @@ pub async fn get_block_range_reverse(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range(request)
@@ -1041,35 +1098,29 @@ pub async fn get_block_range_reverse(
 
 /// GetBlockRange RPC test
 pub async fn get_block_range_out_of_bounds(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -1085,9 +1136,7 @@ pub async fn get_block_range_out_of_bounds(
         }),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut zainod_response = zainod_client
         .get_block_range(request)
@@ -1106,9 +1155,7 @@ pub async fn get_block_range_out_of_bounds(
         zainod_blocks.push(compact_block);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_range.clone());
     let mut lwd_response = lwd_client
         .get_block_range(request)
@@ -1150,7 +1197,8 @@ pub async fn get_block_range_out_of_bounds(
     assert_eq!(zainod_blocks, lwd_blocks);
     assert_eq!(
         zainod_err_status.message(),
-        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10].");
+        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10]."
+    );
     assert_eq!(lwd_err_status.message(), "-8: Block height out of range");
     assert_eq!(zainod_err_status.code(), tonic::Code::OutOfRange);
     assert_eq!(lwd_err_status.code(), tonic::Code::Unknown);
@@ -1158,43 +1206,36 @@ pub async fn get_block_range_out_of_bounds(
 
 /// GetTransaction RPC test
 pub async fn get_transaction(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // TODO: get txid from chain cache
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (mut faucet, recipient, _) =
+        build_lightclients(lightwalletd.port());
     faucet.sync_and_await().await.unwrap();
     let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
     let txids = from_inputs::quick_send(&mut faucet, vec![(&recipient_ua, 100_000, None)])
@@ -1210,9 +1251,7 @@ pub async fn get_transaction(
         hash: txids.first().as_ref().to_vec(),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let zainod_response = zainod_client
         .get_transaction(request)
@@ -1220,9 +1259,7 @@ pub async fn get_transaction(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let lwd_response = lwd_client
         .get_transaction(request)
@@ -1247,35 +1284,27 @@ pub async fn get_transaction(
 ///
 /// INCOMPLETE
 pub async fn send_transaction(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    _lightwalletd_bin: ExecutableLocation,
 ) {
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig {
-            zainod_bin: zainod_bin.clone(),
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZcashdConfig {
-            zcashd_bin: zcashd_bin.clone(),
-            zcash_cli_bin: zcash_cli_bin.clone(),
+    let local_net = LocalNet::<Zcashd, Zainod>::launch(LocalNetConfig {
+        validator_config: ZcashdConfig {
             rpc_listen_port: None,
-            activation_heights: default_regtest_heights(),
+            configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    )
-    .await;
+
+        indexer_config: ZainodConfig {
+            listen_port: None,
+            validator_port: 0,
+            chain_cache: None,
+            network: NetworkKind::Regtest,
+        },
+    })
+    .await.unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
+    let (mut faucet, recipient, _) = build_lightclients(
         local_net.indexer().port(),
     );
     faucet.sync_and_await().await.unwrap();
@@ -1299,10 +1328,7 @@ pub async fn send_transaction(
         hash: txids.first().as_ref().to_vec(),
     };
 
-    let mut zainod_client =
-        client::build_client(network::localhost_uri(local_net.indexer().port()))
-            .await
-            .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let zainod_response = zainod_client
         .get_transaction(request)
@@ -1314,30 +1340,26 @@ pub async fn send_transaction(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let local_net = LocalNet::<Zainod, Zcashd>::launch(
-        ZainodConfig {
-            zainod_bin,
-            listen_port: None,
-            validator_port: 0,
-            chain_cache: None,
-            network: network::Network::Regtest,
-        },
-        ZcashdConfig {
-            zcashd_bin,
-            zcash_cli_bin,
+    let local_net = LocalNet::<Zcashd, Zainod>::launch(LocalNetConfig {
+        validator_config: ZcashdConfig {
             rpc_listen_port: None,
-            activation_heights: default_regtest_heights(),
+            configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
         },
-    )
-    .await;
+
+        indexer_config: ZainodConfig {
+            listen_port: None,
+            validator_port: 0,
+            chain_cache: None,
+            network: NetworkKind::Regtest,
+        },
+    })
+    .await.unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, recipient) = client::build_lightclients(
-        lightclient_dir.path().to_path_buf(),
+    let (mut faucet, recipient, _) = build_lightclients(
         local_net.indexer().port(),
     );
     faucet.sync_and_await().await.unwrap();
@@ -1355,10 +1377,7 @@ pub async fn send_transaction(
         hash: txids.first().as_ref().to_vec(),
     };
 
-    let mut zainod_client =
-        client::build_client(network::localhost_uri(local_net.indexer().port()))
-            .await
-            .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let lwd_response = zainod_client
         .get_transaction(request)
@@ -1366,7 +1385,7 @@ pub async fn send_transaction(
         .unwrap()
         .into_inner();
 
-    let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
+    let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
     let zainod_tx = Transaction::read(
         &zainod_response.data[..],
         BranchId::for_height(
@@ -1399,40 +1418,34 @@ pub async fn send_transaction(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_all(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
+    let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
 
     let block_range = BlockRange {
         start: Some(BlockId {
@@ -1450,9 +1463,7 @@ pub async fn get_taddress_txids_all(
         range: Some(block_range),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut zainod_response = zainod_client
         .get_taddress_txids(request)
@@ -1475,9 +1486,7 @@ pub async fn get_taddress_txids_all(
         .collect::<Vec<_>>();
     zainod_txs.sort_by_key(|a| a.txid());
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut lwd_response = lwd_client
         .get_taddress_txids(request)
@@ -1516,40 +1525,34 @@ pub async fn get_taddress_txids_all(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_lower(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
+    let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
 
     let block_range = BlockRange {
         start: Some(BlockId {
@@ -1567,9 +1570,7 @@ pub async fn get_taddress_txids_lower(
         range: Some(block_range),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut zainod_response = zainod_client
         .get_taddress_txids(request)
@@ -1592,9 +1593,7 @@ pub async fn get_taddress_txids_lower(
         .collect::<Vec<_>>();
     zainod_txs.sort_by_key(|a| a.txid());
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut lwd_response = lwd_client
         .get_taddress_txids(request)
@@ -1633,40 +1632,34 @@ pub async fn get_taddress_txids_lower(
 
 /// GetTaddressTxids RPC test
 pub async fn get_taddress_txids_upper(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
+    let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
 
     let block_range = BlockRange {
         start: Some(BlockId {
@@ -1684,9 +1677,7 @@ pub async fn get_taddress_txids_upper(
         range: Some(block_range),
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut zainod_response = zainod_client
         .get_taddress_txids(request)
@@ -1709,9 +1700,7 @@ pub async fn get_taddress_txids_upper(
         .collect::<Vec<_>>();
     zainod_txs.sort_by_key(|a| a.txid());
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(taddr_block_filter.clone());
     let mut lwd_response = lwd_client
         .get_taddress_txids(request)
@@ -1750,35 +1739,29 @@ pub async fn get_taddress_txids_upper(
 
 /// GetTaddressBalance RPC test
 pub async fn get_taddress_balance(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -1790,9 +1773,7 @@ pub async fn get_taddress_balance(
         ],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_list.clone());
     let zainod_response = zainod_client
         .get_taddress_balance(request)
@@ -1800,9 +1781,7 @@ pub async fn get_taddress_balance(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_list.clone());
     let lwd_response = lwd_client
         .get_taddress_balance(request)
@@ -1826,35 +1805,29 @@ pub async fn get_taddress_balance(
 
 /// GetTaddressBalanceStream RPC test
 pub async fn get_taddress_balance_stream(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -1868,9 +1841,7 @@ pub async fn get_taddress_balance_stream(
         },
     ];
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(tokio_stream::iter(address_list.clone()));
     let zainod_response = zainod_client
         .get_taddress_balance_stream(request)
@@ -1878,9 +1849,7 @@ pub async fn get_taddress_balance_stream(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(tokio_stream::iter(address_list.clone()));
     let lwd_response = lwd_client
         .get_taddress_balance_stream(request)
@@ -1904,42 +1873,35 @@ pub async fn get_taddress_balance_stream(
 
 /// GetMempoolTx RPC test
 pub async fn get_mempool_tx(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (mut faucet, mut recipient, _) =
+        build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let txids_1 = from_inputs::quick_send(
@@ -1997,9 +1959,7 @@ pub async fn get_mempool_tx(
         txid: vec![full_txid_2, truncated_txid_4],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(exclude_list.clone());
     let mut zainod_response = zainod_client
         .get_mempool_tx(request)
@@ -2012,9 +1972,7 @@ pub async fn get_mempool_tx(
     }
     zainod_txs.sort_by(|a, b| a.hash.cmp(&b.hash));
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(exclude_list.clone());
     let mut lwd_response = lwd_client
         .get_mempool_tx(request)
@@ -2053,42 +2011,35 @@ pub async fn get_mempool_tx(
 
 /// GetMempoolStream RPC test (zingolib mempool monitor)
 pub async fn get_mempool_stream_zingolib_mempool_monitor(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (mut faucet, mut recipient, _) =
+        build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let _txids_1 = from_inputs::quick_send(
@@ -2142,9 +2093,8 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (_faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port());
+    let (_faucet, mut recipient, _) =
+        build_lightclients(zainod.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2154,7 +2104,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     recipient.sync_and_await().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let zainod_tx_summaries = recipient.transaction_summaries().await.unwrap();
+    let zainod_tx_summaries = recipient.transaction_summaries(false).await.unwrap();
     println!("Zainod Transactions:\n{}", zainod_tx_summaries);
     let mut zainod_tx_summaries = zainod_tx_summaries.0;
 
@@ -2163,9 +2113,8 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (_faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (_faucet, mut recipient, _) =
+        build_lightclients(lightwalletd.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2175,14 +2124,14 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     recipient.sync_and_await().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let lwd_tx_summaries = recipient.transaction_summaries().await.unwrap();
+    let lwd_tx_summaries = recipient.transaction_summaries(false).await.unwrap();
     println!("Lightwalletd Transactions:\n{}", lwd_tx_summaries);
     let mut lwd_tx_summaries = lwd_tx_summaries.0;
 
-    zainod_tx_summaries.sort_by_key(|tx| tx.txid());
-    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight());
-    lwd_tx_summaries.sort_by_key(|tx| tx.txid());
-    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight());
+    zainod_tx_summaries.sort_by_key(|tx| tx.txid);
+    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight);
+    lwd_tx_summaries.sort_by_key(|tx| tx.txid);
+    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight);
 
     println!("Asserting wallet transaction summaries...");
 
@@ -2197,45 +2146,45 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
         println!();
 
-        assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
+        assert_eq!(lwd_tx_summaries[i].txid, zainod_tx_summaries[i].txid);
         assert_eq!(
-            lwd_tx_summaries[i].status(),
-            zainod_tx_summaries[i].status()
+            lwd_tx_summaries[i].status,
+            zainod_tx_summaries[i].status
         );
         assert_eq!(
-            lwd_tx_summaries[i].blockheight(),
-            zainod_tx_summaries[i].blockheight()
+            lwd_tx_summaries[i].blockheight,
+            zainod_tx_summaries[i].blockheight
         );
-        assert_eq!(lwd_tx_summaries[i].kind(), zainod_tx_summaries[i].kind());
-        assert_eq!(lwd_tx_summaries[i].value(), zainod_tx_summaries[i].value());
-        assert_eq!(lwd_tx_summaries[i].fee(), zainod_tx_summaries[i].fee());
+        assert_eq!(lwd_tx_summaries[i].kind, zainod_tx_summaries[i].kind);
+        assert_eq!(lwd_tx_summaries[i].value, zainod_tx_summaries[i].value);
+        assert_eq!(lwd_tx_summaries[i].fee, zainod_tx_summaries[i].fee);
         assert_eq!(
-            lwd_tx_summaries[i].zec_price(),
-            zainod_tx_summaries[i].zec_price()
-        );
-        assert_eq!(
-            lwd_tx_summaries[i].orchard_notes(),
-            zainod_tx_summaries[i].orchard_notes()
+            lwd_tx_summaries[i].zec_price,
+            zainod_tx_summaries[i].zec_price
         );
         assert_eq!(
-            lwd_tx_summaries[i].sapling_notes(),
-            zainod_tx_summaries[i].sapling_notes()
+            lwd_tx_summaries[i].orchard_notes,
+            zainod_tx_summaries[i].orchard_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].transparent_coins(),
-            zainod_tx_summaries[i].transparent_coins()
+            lwd_tx_summaries[i].sapling_notes,
+            zainod_tx_summaries[i].sapling_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_orchard_notes(),
-            zainod_tx_summaries[i].outgoing_orchard_notes()
+            lwd_tx_summaries[i].transparent_coins,
+            zainod_tx_summaries[i].transparent_coins
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_sapling_notes(),
-            zainod_tx_summaries[i].outgoing_sapling_notes()
+            lwd_tx_summaries[i].outgoing_orchard_notes,
+            zainod_tx_summaries[i].outgoing_orchard_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_transparent_coins(),
-            zainod_tx_summaries[i].outgoing_transparent_coins()
+            lwd_tx_summaries[i].outgoing_sapling_notes,
+            zainod_tx_summaries[i].outgoing_sapling_notes
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].outgoing_transparent_coins,
+            zainod_tx_summaries[i].outgoing_transparent_coins
         );
         // TODO: fix detailed tx summaries in zingolib
         // assert_eq!(
@@ -2251,35 +2200,29 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
 /// GetMempoolStream RPC test
 pub async fn get_mempool_stream(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -2288,9 +2231,7 @@ pub async fn get_mempool_stream(
     let (zainod_sender, mut zainod_receiver) = unbounded_channel::<RawTransaction>();
     let zainod_port = zainod.port();
     let _zainod_handle = tokio::spawn(async move {
-        let mut zainod_client = client::build_client(network::localhost_uri(zainod_port))
-            .await
-            .unwrap();
+        let mut zainod_client = build_grpc_client(network::localhost_uri(zainod_port)).await;
         loop {
             let request = tonic::Request::new(Empty {});
             let mut zainod_response = zainod_client
@@ -2308,9 +2249,7 @@ pub async fn get_mempool_stream(
     let (lwd_sender, mut lwd_receiver) = unbounded_channel::<RawTransaction>();
     let lwd_port = lightwalletd.port();
     let _lwd_handle = tokio::spawn(async move {
-        let mut lwd_client = client::build_client(network::localhost_uri(lwd_port))
-            .await
-            .unwrap();
+        let mut lwd_client = build_grpc_client(network::localhost_uri(lwd_port)).await;
         loop {
             let request = tonic::Request::new(Empty {});
             let mut lwd_response = lwd_client
@@ -2328,9 +2267,8 @@ pub async fn get_mempool_stream(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // send txs to mempool
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (mut faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (mut faucet, mut recipient, _) =
+        build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let txids_1 = from_inputs::quick_send(
@@ -2357,7 +2295,7 @@ pub async fn get_mempool_stream(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // receive txs from mempool
-    let chain_type = ChainType::Regtest(RegtestNetwork::all_upgrades_active());
+    let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
 
     let mut zainod_raw_txs = Vec::new();
     while let Some(raw_tx) = zainod_receiver.recv().await {
@@ -2506,15 +2444,14 @@ pub async fn get_mempool_stream(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (_faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), zainod.port());
+    let (_faucet, mut recipient, _) =
+        build_lightclients(zainod.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     recipient.sync_and_await().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let zainod_tx_summaries = recipient.transaction_summaries().await.unwrap();
+    let zainod_tx_summaries = recipient.transaction_summaries(false).await.unwrap();
     println!("Zainod Transactions:\n{}\n", zainod_tx_summaries);
     let mut zainod_tx_summaries = zainod_tx_summaries.0;
 
@@ -2523,22 +2460,21 @@ pub async fn get_mempool_stream(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let lightclient_dir = tempfile::tempdir().unwrap();
-    let (_faucet, mut recipient) =
-        client::build_lightclients(lightclient_dir.path().to_path_buf(), lightwalletd.port());
+    let (_faucet, mut recipient, _) =
+        build_lightclients(lightwalletd.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     recipient.sync_and_await().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    let lwd_tx_summaries = recipient.transaction_summaries().await.unwrap();
+    let lwd_tx_summaries = recipient.transaction_summaries(false).await.unwrap();
     println!("Lightwalletd Transactions:\n{}\n", lwd_tx_summaries);
     let mut lwd_tx_summaries = lwd_tx_summaries.0;
 
-    zainod_tx_summaries.sort_by_key(|tx| tx.txid());
-    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight());
-    lwd_tx_summaries.sort_by_key(|tx| tx.txid());
-    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight());
+    zainod_tx_summaries.sort_by_key(|tx| tx.txid);
+    zainod_tx_summaries.sort_by_key(|tx| tx.blockheight);
+    lwd_tx_summaries.sort_by_key(|tx| tx.txid);
+    lwd_tx_summaries.sort_by_key(|tx| tx.blockheight);
 
     println!("Asserting wallet transaction summaries...");
 
@@ -2553,45 +2489,45 @@ pub async fn get_mempool_stream(
 
         println!();
 
-        assert_eq!(lwd_tx_summaries[i].txid(), zainod_tx_summaries[i].txid());
+        assert_eq!(lwd_tx_summaries[i].txid, zainod_tx_summaries[i].txid);
         assert_eq!(
-            lwd_tx_summaries[i].status(),
-            zainod_tx_summaries[i].status()
+            lwd_tx_summaries[i].status,
+            zainod_tx_summaries[i].status
         );
         assert_eq!(
-            lwd_tx_summaries[i].blockheight(),
-            zainod_tx_summaries[i].blockheight()
+            lwd_tx_summaries[i].blockheight,
+            zainod_tx_summaries[i].blockheight
         );
-        assert_eq!(lwd_tx_summaries[i].kind(), zainod_tx_summaries[i].kind());
-        assert_eq!(lwd_tx_summaries[i].value(), zainod_tx_summaries[i].value());
-        assert_eq!(lwd_tx_summaries[i].fee(), zainod_tx_summaries[i].fee());
+        assert_eq!(lwd_tx_summaries[i].kind, zainod_tx_summaries[i].kind);
+        assert_eq!(lwd_tx_summaries[i].value, zainod_tx_summaries[i].value);
+        assert_eq!(lwd_tx_summaries[i].fee, zainod_tx_summaries[i].fee);
         assert_eq!(
-            lwd_tx_summaries[i].zec_price(),
-            zainod_tx_summaries[i].zec_price()
-        );
-        assert_eq!(
-            lwd_tx_summaries[i].orchard_notes(),
-            zainod_tx_summaries[i].orchard_notes()
+            lwd_tx_summaries[i].zec_price,
+            zainod_tx_summaries[i].zec_price
         );
         assert_eq!(
-            lwd_tx_summaries[i].sapling_notes(),
-            zainod_tx_summaries[i].sapling_notes()
+            lwd_tx_summaries[i].orchard_notes,
+            zainod_tx_summaries[i].orchard_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].transparent_coins(),
-            zainod_tx_summaries[i].transparent_coins()
+            lwd_tx_summaries[i].sapling_notes,
+            zainod_tx_summaries[i].sapling_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_orchard_notes(),
-            zainod_tx_summaries[i].outgoing_orchard_notes()
+            lwd_tx_summaries[i].transparent_coins,
+            zainod_tx_summaries[i].transparent_coins
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_sapling_notes(),
-            zainod_tx_summaries[i].outgoing_sapling_notes()
+            lwd_tx_summaries[i].outgoing_orchard_notes,
+            zainod_tx_summaries[i].outgoing_orchard_notes
         );
         assert_eq!(
-            lwd_tx_summaries[i].outgoing_transparent_coins(),
-            zainod_tx_summaries[i].outgoing_transparent_coins()
+            lwd_tx_summaries[i].outgoing_sapling_notes,
+            zainod_tx_summaries[i].outgoing_sapling_notes
+        );
+        assert_eq!(
+            lwd_tx_summaries[i].outgoing_transparent_coins,
+            zainod_tx_summaries[i].outgoing_transparent_coins
         );
         // TODO: fix detailed tx summaries in zingolib
         // assert_eq!(
@@ -2607,35 +2543,29 @@ pub async fn get_mempool_stream(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_by_height(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -2645,9 +2575,7 @@ pub async fn get_tree_state_by_height(
         hash: vec![],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_response = zainod_client
         .get_tree_state(request)
@@ -2655,9 +2583,7 @@ pub async fn get_tree_state_by_height(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let lwd_response = lwd_client
         .get_tree_state(request)
@@ -2680,35 +2606,29 @@ pub async fn get_tree_state_by_height(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_by_hash(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -2718,9 +2638,7 @@ pub async fn get_tree_state_by_hash(
         hash: vec![],
     };
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let block = lwd_client.get_block(request).await.unwrap().into_inner();
     let mut block_hash = block.hash.clone();
@@ -2731,9 +2649,7 @@ pub async fn get_tree_state_by_hash(
         hash: block_hash,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_response = zainod_client
         .get_tree_state(request)
@@ -2763,35 +2679,29 @@ pub async fn get_tree_state_by_hash(
 
 /// GetTreeState RPC test
 pub async fn get_tree_state_out_of_bounds(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -2801,15 +2711,11 @@ pub async fn get_tree_state_out_of_bounds(
         hash: vec![],
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let zainod_err_status = zainod_client.get_tree_state(request).await.unwrap_err();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(block_id.clone());
     let lwd_err_status = lwd_client.get_tree_state(request).await.unwrap_err();
 
@@ -2825,7 +2731,8 @@ pub async fn get_tree_state_out_of_bounds(
 
     assert_eq!(
         zainod_err_status.message(),
-        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10].");
+        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10]."
+    );
     assert_eq!(
         lwd_err_status.message(),
         "GetTreeState: z_gettreestate failed: -8: Block height out of range"
@@ -2836,42 +2743,34 @@ pub async fn get_tree_state_out_of_bounds(
 
 /// GetLatestTreeState RPC test
 pub async fn get_latest_tree_state(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(Empty {});
     let zainod_response = zainod_client
         .get_latest_tree_state(request)
@@ -2879,9 +2778,7 @@ pub async fn get_latest_tree_state(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(Empty {});
     let lwd_response = lwd_client
         .get_latest_tree_state(request)
@@ -2919,21 +2816,17 @@ pub async fn get_latest_tree_state(
 /// ```
 ///
 pub async fn get_subtree_roots_sapling(
-    zebrad_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-    network: Network,
+    network: NetworkKind,
 ) {
-    if matches!(network, Network::Regtest) {
+    if matches!(network, NetworkKind::Regtest) {
         panic!("this test fixture requires testnet or mainnet network!");
     }
 
     let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
         indexer_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
@@ -2941,19 +2834,17 @@ pub async fn get_subtree_roots_sapling(
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
-    })
+    }).await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
         darkside: false,
-    })
+    }).await
     .unwrap();
 
     let subtree_roots_arg = GetSubtreeRootsArg {
@@ -2962,9 +2853,7 @@ pub async fn get_subtree_roots_sapling(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
@@ -2976,9 +2865,7 @@ pub async fn get_subtree_roots_sapling(
         zainod_subtree_roots.push(subtree_root);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
@@ -3046,7 +2933,6 @@ pub async fn get_subtree_roots_orchard(
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zebrad.rpc_listen_port(),
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
@@ -3054,7 +2940,6 @@ pub async fn get_subtree_roots_orchard(
     })
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
         darkside: false,
@@ -3119,29 +3004,27 @@ pub async fn get_address_utxos_all(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3197,29 +3080,27 @@ pub async fn get_address_utxos_lower(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3276,29 +3157,27 @@ pub async fn get_address_utxos_upper(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3355,29 +3234,27 @@ pub async fn get_address_utxos_out_of_bounds(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3433,29 +3310,27 @@ pub async fn get_address_utxos_stream_all(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3519,29 +3394,27 @@ pub async fn get_address_utxos_stream_lower(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3606,29 +3479,27 @@ pub async fn get_address_utxos_stream_upper(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -3693,29 +3564,27 @@ pub async fn get_address_utxos_stream_out_of_bounds(
     lightwalletd_bin: ExecutableLocation,
 ) {
     let zcashd = Zcashd::launch(ZcashdConfig {
-        zcashd_bin,
-        zcash_cli_bin,
         rpc_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests")),
     })
     .await
     .unwrap();
     let zainod = Zainod::launch(ZainodConfig {
-        zainod_bin,
         listen_port: None,
         validator_port: zcashd.port(),
         chain_cache: None,
-        network: network::Network::Regtest,
+        network: NetworkKind::Regtest,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
-        lightwalletd_bin,
         listen_port: None,
-        zcashd_conf: zcashd.config_path(),
+        zcashd_conf: zcashd.get_zcashd_conf_path(),
         darkside: false,
     })
+    .await
     .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;

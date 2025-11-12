@@ -157,10 +157,10 @@ where
     I: Indexer + LogsToStdoutAndStderr,
     <I as Process>::Config: Send,
 {
-    /// An indexer configuration.
-    pub indexer_config: <I as Process>::Config,
     /// A validator configuration.
     pub validator_config: <V as Process>::Config,
+    /// An indexer configuration.
+    pub indexer_config: <I as Process>::Config,
 }
 
 impl<V, I> Default for LocalNetConfig<V, I>
@@ -172,8 +172,8 @@ where
 {
     fn default() -> Self {
         Self {
-            indexer_config: <I as Process>::Config::default(),
             validator_config: <V as Process>::Config::default(),
+            indexer_config: <I as Process>::Config::default(),
         }
     }
 }
@@ -191,14 +191,14 @@ where
 
     async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
         let LocalNetConfig {
-            mut indexer_config,
             validator_config,
+            mut indexer_config,
         } = config;
         let validator = <V as Process>::launch(validator_config).await?;
         indexer_config.setup_validator_connection(&validator);
         let indexer = <I as Process>::launch(indexer_config).await?;
 
-        Ok(LocalNet { indexer, validator })
+        Ok(LocalNet { validator, indexer })
     }
 
     fn stop(&mut self) {
