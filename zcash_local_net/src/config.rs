@@ -513,7 +513,7 @@ grpc_tls = false
 
 # Full node / validator listen address.
 #
-# Must be a \"pravate\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
+# Must be a \"private\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
 #
 # Must use validator rpc cookie authentication when connecting to non localhost addresses.
 validator_listen_address = \"localhost:18232\"
