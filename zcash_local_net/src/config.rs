@@ -231,8 +231,8 @@ NU6 = {nu6_activation_height}
 pub(crate) fn write_zainod_config(
     config_dir: &Path,
     validator_cache_dir: PathBuf,
-    listen_port: Port,
-    validator_port: Port,
+    zainod_grpc_control_port: Port,
+    validator_rpc_control_port: Port,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
@@ -253,7 +253,7 @@ pub(crate) fn write_zainod_config(
 # Zainod's gRPC server listen address.
 #
 # Must use TLS when connecting to non localhost addresses.
-grpc_listen_address = \"localhost:{listen_port}\"
+grpc_listen_address = \"localhost:{zainod_grpc_control_port}\"
 
 # Enables TLS for the gRPC server.
 grpc_tls = false
@@ -272,10 +272,10 @@ grpc_tls = false
 
 # Full node / validator listen address.
 #
-# Must be a \"pravate\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
+# Must be a \"private\" address as defined in [IETF RFC 1918] for ipv4 addreses and [IETF RFC 4193] for ipv6 addreses.
 #
 # Must use validator rpc cookie authentication when connecting to non localhost addresses.
-validator_listen_address = \"localhost:{validator_port}\"
+validator_listen_address = \"localhost:{validator_rpc_control_port}\"
 
 # Enable validator rpc cookie authentication.
 validator_cookie_auth = false

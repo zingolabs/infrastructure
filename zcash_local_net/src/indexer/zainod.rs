@@ -34,7 +34,7 @@ pub struct ZainodConfig {
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Validator RPC port
-    pub validator_port: Port,
+    pub validator_rpc_control_port: Port,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type.
@@ -45,7 +45,7 @@ impl Default for ZainodConfig {
     fn default() -> Self {
         ZainodConfig {
             listen_port: None,
-            validator_port: 0,
+            validator_rpc_control_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
         }
@@ -54,7 +54,7 @@ impl Default for ZainodConfig {
 
 impl IndexerConfig for ZainodConfig {
     fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
-        self.validator_port = validator.get_port();
+        self.validator_rpc_control_port = validator.get_port();
     }
 
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
@@ -93,7 +93,7 @@ impl Process for Zainod {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        let port = network::pick_unused_port(config.listen_port);
+        let zainod_grpc_control_port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
 
         let cache_dir = if let Some(cache) = config.chain_cache.clone() {
@@ -105,8 +105,8 @@ impl Process for Zainod {
         let config_file_path = config::write_zainod_config(
             config_dir.path(),
             cache_dir,
-            port,
-            config.validator_port,
+            zainod_grpc_control_port,
+            config.validator_rpc_control_port,
             config.network,
         )
         .unwrap();
@@ -134,7 +134,7 @@ impl Process for Zainod {
 
         Ok(Zainod {
             handle,
-            port,
+            port: zainod_grpc_control_port,
             logs_dir,
             config_dir,
         })
