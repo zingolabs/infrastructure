@@ -17,12 +17,12 @@ use crate::{
 pub struct EmptyConfig {}
 
 impl IndexerConfig for EmptyConfig {
-    fn get_p2p_chain_port<V: crate::validator::Validator>(&mut self, _validator: &V) {
-        tracing::info!("Empty Validator cannot accept a port!");
+    fn set_validator_p2p_port<V: crate::validator::Validator>(&mut self, _validator: &V) {
+        tracing::info!("Empty Validator no port to set!");
     }
 
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
-        panic!("Empty validator cannot listen on port! {indexer_listen_port:?}");
+    fn set_validator_controlplane_port<V: crate::validator::Validator>(&mut self, _validator: &V) {
+        tracing::info!("Empty Validator no port to set!");
     }
 }
 

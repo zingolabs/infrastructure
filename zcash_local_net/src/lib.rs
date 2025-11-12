@@ -200,7 +200,8 @@ where
         let validator = <V as Process>::launch(validator_config).await?;
         dbg!(&validator.get_controlplane_port());
         dbg!(&indexer_config);
-        indexer_config.get_p2p_chain_port(&validator);
+        indexer_config.set_validator_p2p_port(&validator);
+        indexer_config.set_validator_controlplane_port(&validator);
         dbg!(&indexer_config);
         let indexer = <I as Process>::launch(indexer_config).await?;
 

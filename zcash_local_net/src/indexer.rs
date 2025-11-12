@@ -10,9 +10,9 @@ use crate::{process::Process, validator::Validator};
 /// Can offer specific functionality shared across configuration for all indexers.
 pub trait IndexerConfig: Default + std::fmt::Debug {
     /// To receive a port to instruct an indexer to listen at.
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>);
+    fn set_validator_controlplane_port<V: Validator>(&mut self, validator: &V);
     /// To receive a port to instruct an indexer to listen at.
-    fn get_p2p_chain_port<V: Validator>(&mut self, validator: &V);
+    fn set_validator_p2p_port<V: Validator>(&mut self, validator: &V);
 }
 
 /// Functionality for indexer/light-node processes.

@@ -104,7 +104,7 @@ pub struct Zebrad {
     /// RPC listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    rpc_listen_port: Port,
+    controlplane_port: Port,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -221,7 +221,7 @@ impl Process for Zebrad {
         let zebrad = Zebrad {
             handle,
             network_listen_port,
-            rpc_listen_port,
+            controlplane_port: rpc_listen_port,
             config_dir,
             logs_dir,
             data_dir,
@@ -380,7 +380,11 @@ impl Validator for Zebrad {
     }
 
     fn get_controlplane_port(&self) -> Port {
-        self.rpc_listen_port()
+        self.controlplane_port()
+    }
+
+    fn get_p2p_port(&self) -> Port {
+        self.network_listen_port()
     }
 }
 

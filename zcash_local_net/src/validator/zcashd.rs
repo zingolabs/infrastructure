@@ -88,7 +88,7 @@ pub struct Zcashd {
     /// RPC port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    port: Port,
+    controlplane_port: Port,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -180,7 +180,7 @@ impl Process for Zcashd {
 
         let zcashd = Zcashd {
             handle,
-            port,
+            controlplane_port: port,
             config_dir,
             logs_dir,
             data_dir,
@@ -298,7 +298,11 @@ impl Validator for Zcashd {
     }
 
     fn get_controlplane_port(&self) -> Port {
-        self.port()
+        self.controlplane_port()
+    }
+
+    fn get_p2p_port(&self) -> Port {
+        todo!()
     }
 }
 

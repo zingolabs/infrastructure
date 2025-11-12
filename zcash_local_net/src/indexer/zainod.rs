@@ -31,8 +31,8 @@ use crate::{
 /// `network` must match the configured network of the validator.
 #[derive(Debug)]
 pub struct ZainodConfig {
-    /// Listen RPC port
-    pub listen_port: Option<Port>,
+    /// Validator controlplane Port
+    pub validator_controlplane_port: Option<Port>,
     /// Validator RPC port
     pub validator_p2p_port: Port,
     /// Chain cache path
@@ -44,7 +44,7 @@ pub struct ZainodConfig {
 impl Default for ZainodConfig {
     fn default() -> Self {
         ZainodConfig {
-            listen_port: None,
+            validator_controlplane_port: None,
             validator_p2p_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -53,12 +53,12 @@ impl Default for ZainodConfig {
 }
 
 impl IndexerConfig for ZainodConfig {
-    fn get_p2p_chain_port<V: crate::validator::Validator>(&mut self, validator: &V) {
+    fn set_validator_p2p_port<V: crate::validator::Validator>(&mut self, validator: &V) {
         self.validator_p2p_port = validator.get_p2p_port();
     }
 
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
-        self.listen_port = indexer_listen_port;
+    fn set_validator_controlplane_port<V: crate::validator::Validator>(&mut self, validator: &V) {
+        self.validator_controlplane_port = validator.get_controlplane_port();
     }
 }
 
@@ -93,7 +93,7 @@ impl Process for Zainod {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        let port = network::pick_unused_port(config.listen_port);
+        let port = network::pick_unused_port(config.validator_controlplane_port);
         let config_dir = tempfile::tempdir().unwrap();
 
         let cache_dir = if let Some(cache) = config.chain_cache.clone() {
