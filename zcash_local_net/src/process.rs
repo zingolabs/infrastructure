@@ -10,7 +10,7 @@ pub trait Process: Sized {
     const PROCESS: ProcessId;
 
     /// A config struct for the process.
-    type Config: Default;
+    type Config: Default + std::fmt::Debug;
 
     /// Launch the process.
     fn launch(config: Self::Config) -> impl Future<Output = Result<Self, LaunchError>> + Send;

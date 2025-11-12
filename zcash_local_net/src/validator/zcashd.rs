@@ -39,6 +39,7 @@ use zingo_common_components::protocol::activation_heights::for_test;
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
+#[derive(Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
@@ -79,7 +80,7 @@ impl ValidatorConfig for ZcashdConfig {
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zcashd {
     /// Child process handle
@@ -135,12 +136,15 @@ impl Process for Zcashd {
             Self::load_chain(cache, data_dir.path().to_path_buf(), NetworkKind::Regtest);
         }
 
+        let configured_activation_heights = &config.configured_activation_heights;
+        tracing::info!("Configuring zcashd to regtest with these activation heights: {configured_activation_heights:?}");
+
         let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zcashd(
             config_dir.path(),
             port,
-            &config.configured_activation_heights,
+            configured_activation_heights,
             config.miner_address,
         )
         .unwrap();

@@ -46,7 +46,7 @@ use zebra_rpc::{
 ///
 /// `network` can be used for testing against cached testnet / mainnet chains where large chains are needed.
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ZebradConfig {
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
@@ -92,7 +92,7 @@ impl ValidatorConfig for ZebradConfig {
 }
 
 /// This struct is used to represent and manage the Zebrad process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zebrad {
     /// Child process handle
