@@ -58,7 +58,7 @@ impl IndexerConfig for ZainodConfig {
     }
 
     fn set_validator_controlplane_port<V: crate::validator::Validator>(&mut self, validator: &V) {
-        self.validator_controlplane_port = validator.get_controlplane_port();
+        self.validator_controlplane_port = Some(validator.get_controlplane_port());
     }
 }
 
