@@ -2,5 +2,5 @@
 fail-fast = false
 
 [profile.ci]
-fail-fast = true
+fail-fast = false
 default-filter = 'not (test(zebra) | test(zaino))'
