@@ -39,7 +39,7 @@ fn parse_activation_heights_from_rpc(
         canopy: get_height("Canopy"),
         nu5: get_height("NU5"),
         nu6: get_height("NU6"),
-        nu6_1: get_height("NU6_1"),
+        nu6_1: get_height("NU6.1"),
         nu7: get_height("NU7"),
     };
     tracing::debug!("regtest validator reports the following activation heights: {configured_activation_heights:?}");
