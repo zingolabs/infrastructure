@@ -3,5 +3,4 @@ fail-fast = false
 
 [profile.ci]
 fail-fast = false
-default-filter = 'test(validate_seeds)'
-# default-filter = 'not (test(zebra) | test(zaino))'
+default-filter = 'not (test(zebra) | test(zaino))'
