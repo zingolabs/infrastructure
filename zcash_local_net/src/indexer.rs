@@ -16,7 +16,7 @@ pub trait IndexerConfig: Default + std::fmt::Debug {
 }
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer: Process<Config: IndexerConfig> {
+pub trait Indexer: Process<Config: IndexerConfig> + std::fmt::Debug {
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 }

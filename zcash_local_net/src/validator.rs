@@ -58,7 +58,7 @@ pub trait ValidatorConfig: Default {
 }
 
 /// Functionality for validator/full-node processes.
-pub trait Validator: Process<Config: ValidatorConfig> {
+pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(

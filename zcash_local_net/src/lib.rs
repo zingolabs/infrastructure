@@ -93,9 +93,9 @@ where
 
 impl<V, I> LocalNet<V, I>
 where
-    V: Validator + LogsToStdoutAndStderr + Send,
+    V: Validator + LogsToStdoutAndStderr + Send + std::fmt::Debug,
     <V as Process>::Config: Send,
-    I: Indexer + LogsToStdoutAndStderr,
+    I: Indexer + LogsToStdoutAndStderr + std::fmt::Debug,
     <I as Process>::Config: Send,
 {
     /// Gets indexer.
@@ -183,9 +183,9 @@ where
 
 impl<V, I> Process for LocalNet<V, I>
 where
-    V: Validator + LogsToStdoutAndStderr + Send,
+    V: Validator + LogsToStdoutAndStderr + Send + std::fmt::Debug,
     <V as Process>::Config: Send,
-    I: Indexer + LogsToStdoutAndStderr,
+    I: Indexer + LogsToStdoutAndStderr + std::fmt::Debug,
     <I as Process>::Config: Send,
 {
     const PROCESS: ProcessId = ProcessId::LocalNet;
@@ -217,9 +217,9 @@ where
 
 impl<V, I> Drop for LocalNet<V, I>
 where
-    V: Validator + LogsToStdoutAndStderr + Send,
+    V: Validator + LogsToStdoutAndStderr + Send + std::fmt::Debug,
     <V as Process>::Config: Send,
-    I: Indexer + LogsToStdoutAndStderr,
+    I: Indexer + LogsToStdoutAndStderr + std::fmt::Debug,
     <I as Process>::Config: Send,
 {
     fn drop(&mut self) {
