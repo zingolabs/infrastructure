@@ -122,6 +122,8 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
         validator_network: NetworkKind,
     ) -> PathBuf;
 
-    /// To reveal a port.
-    fn get_port(&self) -> Port;
+    /// To reveal a controlplane port.
+    fn get_controlplane_port(&self) -> Port;
+    /// To reveal a p2p port.
+    fn get_p2p_port(&self) -> Port;
 }

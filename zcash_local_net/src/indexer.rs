@@ -12,7 +12,7 @@ pub trait IndexerConfig: Default + std::fmt::Debug {
     /// To receive a port to instruct an indexer to listen at.
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>);
     /// To receive a port to instruct an indexer to listen at.
-    fn setup_validator_connection<V: Validator>(&mut self, validator: &V);
+    fn get_p2p_chain_port<V: Validator>(&mut self, validator: &V);
 }
 
 /// Functionality for indexer/light-node processes.

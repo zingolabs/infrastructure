@@ -198,7 +198,10 @@ where
             validator_config,
         } = config;
         let validator = <V as Process>::launch(validator_config).await?;
-        indexer_config.setup_validator_connection(&validator);
+        dbg!(&validator.get_controlplane_port());
+        dbg!(&indexer_config);
+        indexer_config.get_p2p_chain_port(&validator);
+        dbg!(&indexer_config);
         let indexer = <I as Process>::launch(indexer_config).await?;
 
         Ok(LocalNet { indexer, validator })

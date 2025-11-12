@@ -145,6 +145,7 @@ impl Process for Zebrad {
             Self::load_chain(src.clone(), working_cache_dir.clone(), config.network);
         }
 
+        dbg!(&config.rpc_listen_port);
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
@@ -235,6 +236,7 @@ impl Process for Zebrad {
         }
         std::thread::sleep(std::time::Duration::from_secs(5));
 
+        dbg!(&zebrad);
         Ok(zebrad)
     }
 
@@ -377,7 +379,7 @@ impl Validator for Zebrad {
         }
     }
 
-    fn get_port(&self) -> Port {
+    fn get_controlplane_port(&self) -> Port {
         self.rpc_listen_port()
     }
 }

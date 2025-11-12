@@ -297,7 +297,7 @@ impl Validator for Zcashd {
         chain_cache
     }
 
-    fn get_port(&self) -> Port {
+    fn get_controlplane_port(&self) -> Port {
         self.port()
     }
 }

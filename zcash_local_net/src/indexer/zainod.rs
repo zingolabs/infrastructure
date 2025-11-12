@@ -34,7 +34,7 @@ pub struct ZainodConfig {
     /// Listen RPC port
     pub listen_port: Option<Port>,
     /// Validator RPC port
-    pub validator_port: Port,
+    pub validator_p2p_port: Port,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type.
@@ -45,7 +45,7 @@ impl Default for ZainodConfig {
     fn default() -> Self {
         ZainodConfig {
             listen_port: None,
-            validator_port: 0,
+            validator_p2p_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
         }
@@ -53,8 +53,8 @@ impl Default for ZainodConfig {
 }
 
 impl IndexerConfig for ZainodConfig {
-    fn setup_validator_connection<V: crate::validator::Validator>(&mut self, validator: &V) {
-        self.validator_port = validator.get_port();
+    fn get_p2p_chain_port<V: crate::validator::Validator>(&mut self, validator: &V) {
+        self.validator_p2p_port = validator.get_p2p_port();
     }
 
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
@@ -106,7 +106,7 @@ impl Process for Zainod {
             config_dir.path(),
             cache_dir,
             port,
-            config.validator_port,
+            config.validator_p2p_port,
             config.network,
         )
         .unwrap();
