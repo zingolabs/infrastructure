@@ -32,7 +32,7 @@ use crate::{
 #[derive(Debug)]
 pub struct ZainodConfig {
     /// Listen RPC port
-    pub listen_port: Option<Port>,
+    pub g_rpc_listen_port: Option<Port>,
     /// Validator RPC port
     pub validator_rpc_control_port: Port,
     /// Chain cache path
@@ -44,7 +44,7 @@ pub struct ZainodConfig {
 impl Default for ZainodConfig {
     fn default() -> Self {
         ZainodConfig {
-            listen_port: None,
+            g_rpc_listen_port: None,
             validator_rpc_control_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -58,7 +58,7 @@ impl IndexerConfig for ZainodConfig {
     }
 
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
-        self.listen_port = indexer_listen_port;
+        self.g_rpc_listen_port = indexer_listen_port;
     }
 }
 
@@ -93,7 +93,8 @@ impl Process for Zainod {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        let zainod_grpc_control_port = network::pick_unused_port(config.listen_port);
+        dbg!(&config);
+        let grpc_listen_port = network::pick_unused_port(config.g_rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
 
         let cache_dir = if let Some(cache) = config.chain_cache.clone() {
@@ -105,7 +106,7 @@ impl Process for Zainod {
         let config_file_path = config::write_zainod_config(
             config_dir.path(),
             cache_dir,
-            zainod_grpc_control_port,
+            grpc_listen_port,
             config.validator_rpc_control_port,
             config.network,
         )
@@ -122,6 +123,7 @@ impl Process for Zainod {
 
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
         logs::write_logs(&mut handle, &logs_dir);
+        dbg!("About to launch!");
         launch::wait(
             ProcessId::Zainod,
             &mut handle,
@@ -134,7 +136,7 @@ impl Process for Zainod {
 
         Ok(Zainod {
             handle,
-            port: zainod_grpc_control_port,
+            port: grpc_listen_port,
             logs_dir,
             config_dir,
         })

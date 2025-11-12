@@ -199,6 +199,8 @@ where
         } = config;
         let validator = <V as Process>::launch(validator_config).await?;
         indexer_config.setup_validator_connection(&validator);
+        dbg!(&validator);
+        dbg!(&indexer_config);
         let indexer = <I as Process>::launch(indexer_config).await?;
 
         Ok(LocalNet { indexer, validator })

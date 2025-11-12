@@ -231,7 +231,7 @@ NU6 = {nu6_activation_height}
 pub(crate) fn write_zainod_config(
     config_dir: &Path,
     validator_cache_dir: PathBuf,
-    zainod_grpc_control_port: Port,
+    grpc_listen_port: Port,
     validator_rpc_control_port: Port,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
@@ -253,7 +253,7 @@ pub(crate) fn write_zainod_config(
 # Zainod's gRPC server listen address.
 #
 # Must use TLS when connecting to non localhost addresses.
-grpc_listen_address = \"localhost:{zainod_grpc_control_port}\"
+grpc_listen_address = \"localhost:{grpc_listen_port}\"
 
 # Enables TLS for the gRPC server.
 grpc_tls = false
