@@ -8,7 +8,7 @@ use portpicker::Port;
 use crate::{process::Process, validator::Validator};
 
 /// Can offer specific functionality shared across configuration for all indexers.
-pub trait IndexerConfig: Default {
+pub trait IndexerConfig: Default + std::fmt::Debug {
     /// To receive a port to instruct an indexer to listen at.
     fn set_listen_port(&mut self, indexer_listen_port: Option<Port>);
     /// To receive a port to instruct an indexer to listen at.
@@ -16,7 +16,7 @@ pub trait IndexerConfig: Default {
 }
 
 /// Functionality for indexer/light-node processes.
-pub trait Indexer: Process<Config: IndexerConfig> {
+pub trait Indexer: Process<Config: IndexerConfig> + std::fmt::Debug {
     /// Indexer listen port
     fn listen_port(&self) -> Port;
 }
