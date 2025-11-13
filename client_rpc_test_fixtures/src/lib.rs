@@ -1208,11 +1208,11 @@ pub async fn get_block_range_out_of_bounds() {
     assert_eq!(zainod_blocks, lwd_blocks);
     assert_eq!(
         zainod_err_status.message(),
-        "Error: Height out of range [20]. Height requested is greater than the best chain tip [10]."
+        "Error: Height out of range [11]. Height requested is greater than the best chain tip [10]."
     );
-    assert_eq!(lwd_err_status.message(), "-8: Block height out of range");
+    assert_eq!(lwd_err_status.message(), "GetBlock: block 11 is newer than the latest block");
     assert_eq!(zainod_err_status.code(), tonic::Code::OutOfRange);
-    assert_eq!(lwd_err_status.code(), tonic::Code::Unknown);
+    assert_eq!(lwd_err_status.code(), tonic::Code::OutOfRange);
 }
 
 /// GetTransaction RPC test
