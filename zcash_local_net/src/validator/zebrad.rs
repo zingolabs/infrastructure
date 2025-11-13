@@ -46,7 +46,7 @@ use zebra_rpc::{
 ///
 /// `network` can be used for testing against cached testnet / mainnet chains where large chains are needed.
 /// `activation_heights` and `miner_address` will be ignored while not using regtest network.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ZebradConfig {
     /// Zebrad network listen port
     pub network_listen_port: Option<Port>,
@@ -92,7 +92,7 @@ impl ValidatorConfig for ZebradConfig {
 }
 
 /// This struct is used to represent and manage the Zebrad process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zebrad {
     /// Child process handle
@@ -249,8 +249,20 @@ impl Process for Zebrad {
 }
 
 impl Validator for Zebrad {
-    fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.configured_activation_heights.clone()
+    async fn get_activation_heights(&self) -> ConfiguredActivationHeights {
+        let response: serde_json::Value = self
+            .client
+            .json_result_from_call("getblockchaininfo", "[]".to_string())
+            .await
+            .expect("getblockchaininfo should succeed");
+
+        let upgrades = response
+            .get("upgrades")
+            .expect("upgrades field should exist")
+            .as_object()
+            .expect("upgrades should be an object");
+
+        crate::validator::parse_activation_heights_from_rpc(upgrades)
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
@@ -263,18 +275,21 @@ impl Validator for Zebrad {
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = parameters::Network::new_regtest(ConfiguredActivationHeights {
-                before_overwinter: self.configured_activation_heights.before_overwinter,
-                overwinter: self.configured_activation_heights.overwinter,
-                sapling: self.configured_activation_heights.sapling,
-                blossom: self.configured_activation_heights.blossom,
-                heartwood: self.configured_activation_heights.heartwood,
-                canopy: self.configured_activation_heights.canopy,
-                nu5: self.configured_activation_heights.nu5,
-                nu6: self.configured_activation_heights.nu6,
-                nu6_1: self.configured_activation_heights.nu6_1,
-                nu7: self.configured_activation_heights.nu7,
-            });
+            let network = parameters::Network::new_regtest(
+                ConfiguredActivationHeights {
+                    before_overwinter: self.configured_activation_heights.before_overwinter,
+                    overwinter: self.configured_activation_heights.overwinter,
+                    sapling: self.configured_activation_heights.sapling,
+                    blossom: self.configured_activation_heights.blossom,
+                    heartwood: self.configured_activation_heights.heartwood,
+                    canopy: self.configured_activation_heights.canopy,
+                    nu5: self.configured_activation_heights.nu5,
+                    nu6: self.configured_activation_heights.nu6,
+                    nu6_1: self.configured_activation_heights.nu6_1,
+                    nu7: self.configured_activation_heights.nu7,
+                }
+                .into(),
+            );
 
             let block_data = hex::encode(
                 proposal_block_from_template(
@@ -294,15 +309,21 @@ impl Validator for Zebrad {
                 .unwrap();
 
             if !submit_block_response.contains(r#""result":null"#) {
-                dbg!(&submit_block_response);
-                panic!("failed to submit block!");
+                tracing::error!("Failed to submit block: {submit_block_response}");
+                panic!("Failed to submit block!");
             }
         }
         self.poll_chain_height(chain_height + n).await;
 
         Ok(())
     }
-
+    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
+        for _ in 0..blocks {
+            self.generate_blocks(1).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        }
+        Ok(())
+    }
     async fn get_chain_height(&self) -> u32 {
         let response: serde_json::Value = self
             .client

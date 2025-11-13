@@ -12,12 +12,12 @@ zingo_test_vectors = { path = "zingo_test_vectors" }
 zingo_netutils = { git = "https://github.com/zingolabs/zingo-common.git", rev = "b64dfd6d6a2a597a5456d1cc7b2bc9b649328187" }
 
 # zcash
-zcash_protocol = "0.6.1"
+zcash_protocol = "0.7"
 
 # zebra
-zebra-chain = "2.0"
-zebra-node-services = "1.0"
-zebra-rpc = "2.0"
+zebra-chain = "3.0"
+zebra-node-services = "2.0"
+zebra-rpc = "3.0"
 
 # other
 http = "1.1.0"

@@ -13,7 +13,7 @@ use crate::{
 /// Empty configuration
 ///
 /// For use when not launching an Indexer with [`crate::LocalNet::launch`].
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct EmptyConfig {}
 
 impl IndexerConfig for EmptyConfig {
@@ -29,7 +29,7 @@ impl IndexerConfig for EmptyConfig {
 /// This struct is used to represent and manage an empty Indexer process.
 ///
 /// Dirs are created for integration.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Empty {
     /// Logs directory
@@ -40,12 +40,12 @@ pub struct Empty {
 
 impl LogsToStdoutAndStderr for Empty {
     fn print_stdout(&self) {
-        println!("Empty indexer stdout.");
+        tracing::info!("Empty indexer stdout.");
         todo!()
     }
 
     fn print_stderr(&self) {
-        println!("Empty indexer stderr.");
+        tracing::info!("Empty indexer stderr.");
     }
 }
 
@@ -67,7 +67,7 @@ impl Process for Empty {
     fn stop(&mut self) {}
 
     fn print_all(&self) {
-        println!("Empty indexer.");
+        tracing::info!("Empty indexer.");
     }
 }
 

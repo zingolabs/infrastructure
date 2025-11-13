@@ -228,7 +228,7 @@ NU6 = {nu6_activation_height}
 
 /// Writes the Zainod config file to the specified config directory.
 /// Returns the path to the config file.
-pub(crate) fn zainod(
+pub(crate) fn write_zainod_config(
     config_dir: &Path,
     validator_cache_dir: PathBuf,
     listen_port: Port,
@@ -474,7 +474,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
         let zaino_test_dir = zaino_cache_dir.join("zaino");
         let zaino_test_path = zaino_test_dir.to_str().unwrap();
 
-        super::zainod(
+        super::write_zainod_config(
             config_dir.path(),
             zaino_cache_dir,
             1234,

@@ -39,6 +39,7 @@ use zingo_common_components::protocol::activation_heights::for_test;
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
+#[derive(Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
@@ -79,7 +80,7 @@ impl ValidatorConfig for ZcashdConfig {
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Getters, CopyGetters)]
+#[derive(Debug, Getters, CopyGetters)]
 #[getset(get = "pub")]
 pub struct Zcashd {
     /// Child process handle
@@ -94,9 +95,6 @@ pub struct Zcashd {
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
-    /// Network upgrade activation heights
-    #[getset(skip)]
-    activation_heights: ConfiguredActivationHeights,
 }
 
 impl Zcashd {
@@ -136,12 +134,15 @@ impl Process for Zcashd {
             Self::load_chain(cache, data_dir.path().to_path_buf(), NetworkKind::Regtest);
         }
 
+        let configured_activation_heights = &config.configured_activation_heights;
+        tracing::info!("Configuring zcashd to regtest with these activation heights: {configured_activation_heights:?}");
+
         let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::zcashd(
             config_dir.path(),
             port,
-            &config.configured_activation_heights,
+            configured_activation_heights,
             config.miner_address,
         )
         .unwrap();
@@ -184,7 +185,6 @@ impl Process for Zcashd {
             config_dir,
             logs_dir,
             data_dir,
-            activation_heights: config.configured_activation_heights,
         };
 
         if config.chain_cache.is_none() {
@@ -223,14 +223,35 @@ impl Process for Zcashd {
 }
 
 impl Validator for Zcashd {
-    fn get_activation_heights(&self) -> ConfiguredActivationHeights {
-        self.activation_heights.clone()
+    async fn get_activation_heights(&self) -> ConfiguredActivationHeights {
+        let output = self
+            .zcash_cli_command(&["getblockchaininfo"])
+            .expect("getblockchaininfo should succeed");
+
+        let response: serde_json::Value =
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
+                .expect("should parse JSON response");
+
+        let upgrades = response
+            .get("upgrades")
+            .expect("upgrades field should exist")
+            .as_object()
+            .expect("upgrades should be an object");
+
+        crate::validator::parse_activation_heights_from_rpc(upgrades)
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
         self.zcash_cli_command(&["generate", &n.to_string()])?;
         self.poll_chain_height(chain_height + n).await;
 
+        Ok(())
+    }
+    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
+        for _ in 0..blocks {
+            self.generate_blocks(1).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+        }
         Ok(())
     }
 
