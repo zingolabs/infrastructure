@@ -22,35 +22,62 @@
 
 use std::sync::Arc;
 
-use http::{uri::PathAndQuery, Uri};
+use http::{Uri, uri::PathAndQuery};
 use http_body::Body;
-use hyper_util::client::legacy::{connect::{Connect, HttpConnector}, Client};
+use hyper_util::client::legacy::{
+    Client,
+    connect::{Connect, HttpConnector},
+};
 use portpicker::Port;
 
 use tokio::sync::mpsc::unbounded_channel;
-use tokio_rustls::rustls::{pki_types::{Der, TrustAnchor}, ClientConfig, RootCertStore};
+use tokio_rustls::rustls::{
+    ClientConfig, RootCertStore,
+    pki_types::{Der, TrustAnchor},
+};
 use tower::ServiceExt;
-use zcash_client_backend::proto::{compact_formats::CompactBlock, service::{compact_tx_streamer_client::CompactTxStreamerClient, Address, AddressList, BlockId, BlockRange, ChainSpec, Empty, Exclude, GetSubtreeRootsArg, RawTransaction, TransparentAddressBlockFilter, TxFilter}};
+use zcash_client_backend::proto::{
+    compact_formats::CompactBlock,
+    service::{
+        Address, AddressList, BlockId, BlockRange, ChainSpec, Empty, Exclude, GetAddressUtxosArg,
+        GetSubtreeRootsArg, RawTransaction, TransparentAddressBlockFilter, TxFilter,
+        compact_tx_streamer_client::CompactTxStreamerClient,
+    },
+};
 use zcash_primitives::transaction::Transaction;
-use zcash_protocol::{consensus::{BlockHeight, BranchId}, local_consensus::LocalNetwork, PoolType, ShieldedProtocol};
+use zcash_protocol::{
+    PoolType, ShieldedProtocol,
+    consensus::{BlockHeight, BranchId},
+    local_consensus::LocalNetwork,
+};
 use zebra_chain::parameters::{NetworkKind, testnet::ConfiguredActivationHeights};
 use zingo_netutils::UnderlyingService;
 use zingolib::{
-    config::ChainType, lightclient::LightClient, testutils::{
+    config::ChainType,
+    lightclient::LightClient,
+    testutils::{
         lightclient::{from_inputs, get_base_address},
         scenarios::ClientBuilder,
-    }
+    },
 };
 
 use zcash_local_net::{
-    config, indexer::{
+    LocalNet, LocalNetConfig, config,
+    indexer::{
+        Indexer,
         lightwalletd::{Lightwalletd, LightwalletdConfig},
-        zainod::{Zainod, ZainodConfig}, Indexer,
-    }, network, process::Process, utils, validator::{
-        zcashd::{Zcashd, ZcashdConfig}, zebrad::{Zebrad, ZebradConfig}, Validator as _
-    }, LocalNet, LocalNetConfig
+        zainod::{Zainod, ZainodConfig},
+    },
+    network,
+    process::Process,
+    utils,
+    validator::{
+        Validator as _,
+        zcashd::{Zcashd, ZcashdConfig},
+        zebrad::{Zebrad, ZebradConfig},
+    },
 };
-use zingo_test_vectors::{seeds, REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER};
+use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER, seeds};
 
 const DEFAULT_ACTIVATION_HEIGHTS: ConfiguredActivationHeights = ConfiguredActivationHeights {
     before_overwinter: Some(1),
@@ -64,130 +91,124 @@ const DEFAULT_ACTIVATION_HEIGHTS: ConfiguredActivationHeights = ConfiguredActiva
     nu6_1: Some(1),
     nu7: None,
 };
-const DEFAULT_ACTIVATION_HEIGHTS_ZP: LocalNetwork = 
-        LocalNetwork {
-            overwinter: Some(BlockHeight::from_u32(1)),
-            sapling: Some(BlockHeight::from_u32(1)),
-            blossom: Some(BlockHeight::from_u32(1)),
-            heartwood: Some(BlockHeight::from_u32(1)),
-            canopy: Some(BlockHeight::from_u32(1)),
-            nu5: Some(BlockHeight::from_u32(1)),
-            nu6: Some(BlockHeight::from_u32(1)),
-            nu6_1: Some(BlockHeight::from_u32(1)),
-        };
+const DEFAULT_ACTIVATION_HEIGHTS_ZP: LocalNetwork = LocalNetwork {
+    overwinter: Some(BlockHeight::from_u32(1)),
+    sapling: Some(BlockHeight::from_u32(1)),
+    blossom: Some(BlockHeight::from_u32(1)),
+    heartwood: Some(BlockHeight::from_u32(1)),
+    canopy: Some(BlockHeight::from_u32(1)),
+    nu5: Some(BlockHeight::from_u32(1)),
+    nu6: Some(BlockHeight::from_u32(1)),
+    nu6_1: Some(BlockHeight::from_u32(1)),
+};
 
-    // TODO: replace with zingo-netutils version when dep graph is stabilised
-    fn client_from_connector<C, B>(connector: C, http2_only: bool) -> Box<Client<C, B>>
-    where
-        C: Connect + Clone,
-        B: Body + Send,
-        B::Data: Send,
-    {
-        Box::new(
-            Client::builder(hyper_util::rt::TokioExecutor::new())
-                .http2_only(http2_only)
-                .build(connector),
-        )
+// TODO: replace with zingo-netutils version when dep graph is stabilised
+fn client_from_connector<C, B>(connector: C, http2_only: bool) -> Box<Client<C, B>>
+where
+    C: Connect + Clone,
+    B: Body + Send,
+    B::Data: Send,
+{
+    Box::new(
+        Client::builder(hyper_util::rt::TokioExecutor::new())
+            .http2_only(http2_only)
+            .build(connector),
+    )
+}
+// TODO: replace with zingo-netutils version when dep graph is stabilised
+async fn build_grpc_client(uri: http::Uri) -> CompactTxStreamerClient<UnderlyingService> {
+    let uri = Arc::new(uri.clone());
+    let mut http_connector = HttpConnector::new();
+    http_connector.enforce_http(false);
+    let scheme = uri.scheme().unwrap().clone();
+    let authority = uri.authority().unwrap().clone();
+    if uri.scheme_str() == Some("https") {
+        let mut root_store = RootCertStore::empty();
+        //webpki uses a different struct for TrustAnchor
+        root_store.extend(
+            webpki_roots::TLS_SERVER_ROOTS
+                .iter()
+                .map(|anchor_ref| TrustAnchor {
+                    subject: Der::from_slice(anchor_ref.subject),
+                    subject_public_key_info: Der::from_slice(anchor_ref.spki),
+                    name_constraints: anchor_ref.name_constraints.map(Der::from_slice),
+                }),
+        );
+
+        let config = ClientConfig::builder()
+            .with_root_certificates(root_store)
+            .with_no_client_auth();
+
+        let connector = tower::ServiceBuilder::new()
+            .layer_fn(move |s| {
+                let tls = config.clone();
+
+                hyper_rustls::HttpsConnectorBuilder::new()
+                    .with_tls_config(tls)
+                    .https_or_http()
+                    .enable_http2()
+                    .wrap_connector(s)
+            })
+            .service(http_connector);
+        let client = client_from_connector(connector, false);
+        let svc = tower::ServiceBuilder::new()
+            //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
+            .map_request(move |mut request: http::Request<_>| {
+                let path_and_query = request
+                    .uri()
+                    .path_and_query()
+                    .cloned()
+                    .unwrap_or(PathAndQuery::from_static("/"));
+                let uri = Uri::builder()
+                    .scheme(scheme.clone())
+                    .authority(authority.clone())
+                    //here. The Request's uri contains the path to the GRPC server and
+                    //the method being called
+                    .path_and_query(path_and_query)
+                    .build()
+                    .unwrap();
+
+                *request.uri_mut() = uri;
+                request
+            })
+            .service(client);
+
+        CompactTxStreamerClient::new(svc.boxed_clone())
+    } else {
+        let connector = tower::ServiceBuilder::new().service(http_connector);
+        let client = client_from_connector(connector, true);
+        let svc = tower::ServiceBuilder::new()
+            //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
+            .map_request(move |mut request: http::Request<_>| {
+                let path_and_query = request
+                    .uri()
+                    .path_and_query()
+                    .cloned()
+                    .unwrap_or(PathAndQuery::from_static("/"));
+                let uri = Uri::builder()
+                    .scheme(scheme.clone())
+                    .authority(authority.clone())
+                    //here. The Request's uri contains the path to the GRPC server and
+                    //the method being called
+                    .path_and_query(path_and_query)
+                    .build()
+                    .unwrap();
+
+                *request.uri_mut() = uri;
+                request
+            })
+            .service(client);
+
+        CompactTxStreamerClient::new(svc.boxed_clone())
     }
-    // TODO: replace with zingo-netutils version when dep graph is stabilised
-    async fn build_grpc_client(uri: http::Uri
-    ) -> CompactTxStreamerClient<UnderlyingService> {
-        let uri = Arc::new(uri.clone());
-            let mut http_connector = HttpConnector::new();
-            http_connector.enforce_http(false);
-            let scheme = uri.scheme().unwrap().clone();
-            let authority = uri
-                .authority()
-                .unwrap()
-                .clone();
-            if uri.scheme_str() == Some("https") {
-                let mut root_store = RootCertStore::empty();
-                //webpki uses a different struct for TrustAnchor
-                root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().map(|anchor_ref| {
-                    TrustAnchor {
-                        subject: Der::from_slice(anchor_ref.subject),
-                        subject_public_key_info: Der::from_slice(anchor_ref.spki),
-                        name_constraints: anchor_ref.name_constraints.map(Der::from_slice),
-                    }
-                }));
-
-                let config = ClientConfig::builder()
-                    .with_root_certificates(root_store)
-                    .with_no_client_auth();
-
-                let connector = tower::ServiceBuilder::new()
-                    .layer_fn(move |s| {
-                        let tls = config.clone();
-
-                        hyper_rustls::HttpsConnectorBuilder::new()
-                            .with_tls_config(tls)
-                            .https_or_http()
-                            .enable_http2()
-                            .wrap_connector(s)
-                    })
-                    .service(http_connector);
-                let client = client_from_connector(connector, false);
-                let svc = tower::ServiceBuilder::new()
-                    //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
-                    .map_request(move |mut request: http::Request<_>| {
-                        let path_and_query = request
-                            .uri()
-                            .path_and_query()
-                            .cloned()
-                            .unwrap_or(PathAndQuery::from_static("/"));
-                        let uri = Uri::builder()
-                            .scheme(scheme.clone())
-                            .authority(authority.clone())
-                            //here. The Request's uri contains the path to the GRPC server and
-                            //the method being called
-                            .path_and_query(path_and_query)
-                            .build()
-                            .unwrap();
-
-                        *request.uri_mut() = uri;
-                        request
-                    })
-                    .service(client);
-
-                CompactTxStreamerClient::new(svc.boxed_clone())
-            } else {
-                let connector = tower::ServiceBuilder::new().service(http_connector);
-                let client = client_from_connector(connector, true);
-                let svc = tower::ServiceBuilder::new()
-                    //Here, we take all the pieces of our uri, and add in the path from the Requests's uri
-                    .map_request(move |mut request: http::Request<_>| {
-                        let path_and_query = request
-                            .uri()
-                            .path_and_query()
-                            .cloned()
-                            .unwrap_or(PathAndQuery::from_static("/"));
-                        let uri = Uri::builder()
-                            .scheme(scheme.clone())
-                            .authority(authority.clone())
-                            //here. The Request's uri contains the path to the GRPC server and
-                            //the method being called
-                            .path_and_query(path_and_query)
-                            .build()
-                            .unwrap();
-
-                        *request.uri_mut() = uri;
-                        request
-                    })
-                    .service(client);
-
-                CompactTxStreamerClient::new(svc.boxed_clone())
-        }
-    }
+}
 
 /// Builds faucet (miner) and recipient lightclients for local network integration testing
 pub fn build_lightclients(indexer_port: Port) -> (LightClient, LightClient, ClientBuilder) {
     let lightclient_dir = tempfile::tempdir().unwrap();
     let mut client_builder =
         ClientBuilder::new(network::localhost_uri(indexer_port), lightclient_dir);
-    let faucet = client_builder.build_faucet(
-        true,
-        DEFAULT_ACTIVATION_HEIGHTS_ZP,
-    );
+    let faucet = client_builder.build_faucet(true, DEFAULT_ACTIVATION_HEIGHTS_ZP);
     let recipient = client_builder.build_client(
         seeds::HOSPITAL_MUSEUM_SEED.to_string(),
         1,
@@ -443,8 +464,7 @@ pub async fn get_lightd_info() {
 }
 
 /// GetLatestBlock RPC test
-pub async fn get_latest_block(
-) {
+pub async fn get_latest_block() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -504,8 +524,7 @@ pub async fn get_latest_block(
 }
 
 /// GetBlock RPC test
-pub async fn get_block(
-) {
+pub async fn get_block() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -564,8 +583,7 @@ pub async fn get_block(
 }
 
 /// GetBlock RPC test
-pub async fn get_block_out_of_bounds(
-) {
+pub async fn get_block_out_of_bounds() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -620,8 +638,7 @@ pub async fn get_block_out_of_bounds(
 }
 
 /// GetBlockNullifiers RPC test
-pub async fn get_block_nullifiers(
-) {
+pub async fn get_block_nullifiers() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -688,8 +705,7 @@ pub async fn get_block_nullifiers(
 }
 
 /// GetBlockRangeNullifiers RPC test
-pub async fn get_block_range_nullifiers(
-) {
+pub async fn get_block_range_nullifiers() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -770,8 +786,7 @@ pub async fn get_block_range_nullifiers(
 }
 
 /// GetBlockRangeNullifiers RPC test
-pub async fn get_block_range_nullifiers_reverse(
-) {
+pub async fn get_block_range_nullifiers_reverse() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -852,8 +867,7 @@ pub async fn get_block_range_nullifiers_reverse(
 }
 
 /// GetBlockRange RPC test
-pub async fn get_block_range_lower(
-) {
+pub async fn get_block_range_lower() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -934,8 +948,7 @@ pub async fn get_block_range_lower(
 }
 
 /// GetBlockRange RPC test
-pub async fn get_block_range_upper(
-) {
+pub async fn get_block_range_upper() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1015,8 +1028,7 @@ pub async fn get_block_range_upper(
 }
 
 /// GetBlockRange RPC test
-pub async fn get_block_range_reverse(
-) {
+pub async fn get_block_range_reverse() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1097,8 +1109,7 @@ pub async fn get_block_range_reverse(
 }
 
 /// GetBlockRange RPC test
-pub async fn get_block_range_out_of_bounds(
-) {
+pub async fn get_block_range_out_of_bounds() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1205,8 +1216,7 @@ pub async fn get_block_range_out_of_bounds(
 }
 
 /// GetTransaction RPC test
-pub async fn get_transaction(
-) {
+pub async fn get_transaction() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1234,8 +1244,7 @@ pub async fn get_transaction(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // TODO: get txid from chain cache
-    let (mut faucet, recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (mut faucet, recipient, _) = build_lightclients(lightwalletd.port());
     faucet.sync_and_await().await.unwrap();
     let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
     let txids = from_inputs::quick_send(&mut faucet, vec![(&recipient_ua, 100_000, None)])
@@ -1283,8 +1292,7 @@ pub async fn get_transaction(
 /// SendTransaction RPC test
 ///
 /// INCOMPLETE
-pub async fn send_transaction(
-) {
+pub async fn send_transaction() {
     let local_net = LocalNet::<Zcashd, Zainod>::launch(LocalNetConfig {
         validator_config: ZcashdConfig {
             rpc_listen_port: None,
@@ -1300,13 +1308,12 @@ pub async fn send_transaction(
             network: NetworkKind::Regtest,
         },
     })
-    .await.unwrap();
+    .await
+    .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (mut faucet, recipient, _) = build_lightclients(
-        local_net.indexer().port(),
-    );
+    let (mut faucet, recipient, _) = build_lightclients(local_net.indexer().port());
     faucet.sync_and_await().await.unwrap();
     let txids = from_inputs::quick_send(
         &mut faucet,
@@ -1328,7 +1335,8 @@ pub async fn send_transaction(
         hash: txids.first().as_ref().to_vec(),
     };
 
-    let mut zainod_client = build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
+    let mut zainod_client =
+        build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let zainod_response = zainod_client
         .get_transaction(request)
@@ -1355,13 +1363,12 @@ pub async fn send_transaction(
             network: NetworkKind::Regtest,
         },
     })
-    .await.unwrap();
+    .await
+    .unwrap();
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (mut faucet, recipient, _) = build_lightclients(
-        local_net.indexer().port(),
-    );
+    let (mut faucet, recipient, _) = build_lightclients(local_net.indexer().port());
     faucet.sync_and_await().await.unwrap();
     let recipient_ua = get_base_address(&recipient, PoolType::ORCHARD).await;
     let txids = from_inputs::quick_send(&mut faucet, vec![(&recipient_ua, 100_000, None)])
@@ -1377,7 +1384,8 @@ pub async fn send_transaction(
         hash: txids.first().as_ref().to_vec(),
     };
 
-    let mut zainod_client = build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
+    let mut zainod_client =
+        build_grpc_client(network::localhost_uri(local_net.indexer().listen_port())).await;
     let request = tonic::Request::new(tx_filter.clone());
     let lwd_response = zainod_client
         .get_transaction(request)
@@ -1417,8 +1425,7 @@ pub async fn send_transaction(
 }
 
 /// GetTaddressTxids RPC test
-pub async fn get_taddress_txids_all(
-) {
+pub async fn get_taddress_txids_all() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1524,8 +1531,7 @@ pub async fn get_taddress_txids_all(
 }
 
 /// GetTaddressTxids RPC test
-pub async fn get_taddress_txids_lower(
-) {
+pub async fn get_taddress_txids_lower() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1631,8 +1637,7 @@ pub async fn get_taddress_txids_lower(
 }
 
 /// GetTaddressTxids RPC test
-pub async fn get_taddress_txids_upper(
-) {
+pub async fn get_taddress_txids_upper() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1738,8 +1743,7 @@ pub async fn get_taddress_txids_upper(
 }
 
 /// GetTaddressBalance RPC test
-pub async fn get_taddress_balance(
-) {
+pub async fn get_taddress_balance() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1804,8 +1808,7 @@ pub async fn get_taddress_balance(
 }
 
 /// GetTaddressBalanceStream RPC test
-pub async fn get_taddress_balance_stream(
-) {
+pub async fn get_taddress_balance_stream() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1872,8 +1875,7 @@ pub async fn get_taddress_balance_stream(
 }
 
 /// GetMempoolTx RPC test
-pub async fn get_mempool_tx(
-) {
+pub async fn get_mempool_tx() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -1900,8 +1902,7 @@ pub async fn get_mempool_tx(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (mut faucet, mut recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (mut faucet, mut recipient, _) = build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let txids_1 = from_inputs::quick_send(
@@ -2010,8 +2011,7 @@ pub async fn get_mempool_tx(
 }
 
 /// GetMempoolStream RPC test (zingolib mempool monitor)
-pub async fn get_mempool_stream_zingolib_mempool_monitor(
-) {
+pub async fn get_mempool_stream_zingolib_mempool_monitor() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2038,8 +2038,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (mut faucet, mut recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (mut faucet, mut recipient, _) = build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let _txids_1 = from_inputs::quick_send(
@@ -2093,8 +2092,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (_faucet, mut recipient, _) =
-        build_lightclients(zainod.port());
+    let (_faucet, mut recipient, _) = build_lightclients(zainod.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2113,8 +2111,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (_faucet, mut recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (_faucet, mut recipient, _) = build_lightclients(lightwalletd.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2147,10 +2144,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
         println!();
 
         assert_eq!(lwd_tx_summaries[i].txid, zainod_tx_summaries[i].txid);
-        assert_eq!(
-            lwd_tx_summaries[i].status,
-            zainod_tx_summaries[i].status
-        );
+        assert_eq!(lwd_tx_summaries[i].status, zainod_tx_summaries[i].status);
         assert_eq!(
             lwd_tx_summaries[i].blockheight,
             zainod_tx_summaries[i].blockheight
@@ -2199,8 +2193,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor(
 }
 
 /// GetMempoolStream RPC test
-pub async fn get_mempool_stream(
-) {
+pub async fn get_mempool_stream() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2267,8 +2260,7 @@ pub async fn get_mempool_stream(
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // send txs to mempool
-    let (mut faucet, mut recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (mut faucet, mut recipient, _) = build_lightclients(lightwalletd.port());
 
     faucet.sync_and_await().await.unwrap();
     let txids_1 = from_inputs::quick_send(
@@ -2444,8 +2436,7 @@ pub async fn get_mempool_stream(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (_faucet, mut recipient, _) =
-        build_lightclients(zainod.port());
+    let (_faucet, mut recipient, _) = build_lightclients(zainod.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2460,8 +2451,7 @@ pub async fn get_mempool_stream(
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    let (_faucet, mut recipient, _) =
-        build_lightclients(lightwalletd.port());
+    let (_faucet, mut recipient, _) = build_lightclients(lightwalletd.port());
 
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
@@ -2490,10 +2480,7 @@ pub async fn get_mempool_stream(
         println!();
 
         assert_eq!(lwd_tx_summaries[i].txid, zainod_tx_summaries[i].txid);
-        assert_eq!(
-            lwd_tx_summaries[i].status,
-            zainod_tx_summaries[i].status
-        );
+        assert_eq!(lwd_tx_summaries[i].status, zainod_tx_summaries[i].status);
         assert_eq!(
             lwd_tx_summaries[i].blockheight,
             zainod_tx_summaries[i].blockheight
@@ -2542,8 +2529,7 @@ pub async fn get_mempool_stream(
 }
 
 /// GetTreeState RPC test
-pub async fn get_tree_state_by_height(
-) {
+pub async fn get_tree_state_by_height() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2605,8 +2591,7 @@ pub async fn get_tree_state_by_height(
 }
 
 /// GetTreeState RPC test
-pub async fn get_tree_state_by_hash(
-) {
+pub async fn get_tree_state_by_hash() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2678,8 +2663,7 @@ pub async fn get_tree_state_by_hash(
 }
 
 /// GetTreeState RPC test
-pub async fn get_tree_state_out_of_bounds(
-) {
+pub async fn get_tree_state_out_of_bounds() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2742,8 +2726,7 @@ pub async fn get_tree_state_out_of_bounds(
 }
 
 /// GetLatestTreeState RPC test
-pub async fn get_latest_tree_state(
-) {
+pub async fn get_latest_tree_state() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -2815,9 +2798,7 @@ pub async fn get_latest_tree_state(
 ///             ├── 000010.sst
 /// ```
 ///
-pub async fn get_subtree_roots_sapling(
-    network: NetworkKind,
-) {
+pub async fn get_subtree_roots_sapling(network: NetworkKind) {
     if matches!(network, NetworkKind::Regtest) {
         panic!("this test fixture requires testnet or mainnet network!");
     }
@@ -2838,13 +2819,15 @@ pub async fn get_subtree_roots_sapling(
         validator_port: zebrad.rpc_listen_port(),
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
-    }).await
+    })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
         darkside: false,
-    }).await
+    })
+    .await
     .unwrap();
 
     let subtree_roots_arg = GetSubtreeRootsArg {
@@ -2910,22 +2893,16 @@ pub async fn get_subtree_roots_sapling(
 ///             ├── 000010.sst
 /// ```
 ///
-pub async fn get_subtree_roots_orchard(
-    zebrad_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-    network: Network,
-) {
-    if matches!(network, Network::Regtest) {
+pub async fn get_subtree_roots_orchard(network: NetworkKind) {
+    if matches!(network, NetworkKind::Regtest) {
         panic!("this test fixture requires testnet or mainnet network!");
     }
 
     let zebrad = Zebrad::launch(ZebradConfig {
-        zebrad_bin,
         network_listen_port: None,
         rpc_listen_port: None,
         indexer_listen_port: None,
-        activation_heights: default_regtest_heights(),
+        configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
         miner_address: ZEBRAD_DEFAULT_MINER,
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
         network,
@@ -2938,12 +2915,14 @@ pub async fn get_subtree_roots_orchard(
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
         network,
     })
+    .await
     .unwrap();
     let lightwalletd = Lightwalletd::launch(LightwalletdConfig {
         listen_port: None,
         zcashd_conf: zebrad.config_dir().path().join(config::ZCASHD_FILENAME),
         darkside: false,
     })
+    .await
     .unwrap();
 
     let subtree_roots_arg = GetSubtreeRootsArg {
@@ -2952,9 +2931,7 @@ pub async fn get_subtree_roots_orchard(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(subtree_roots_arg);
     let mut zainod_response = zainod_client
         .get_subtree_roots(request)
@@ -2966,9 +2943,7 @@ pub async fn get_subtree_roots_orchard(
         zainod_subtree_roots.push(subtree_root);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(subtree_roots_arg);
     let mut lwd_response = lwd_client
         .get_subtree_roots(request)
@@ -2997,12 +2972,7 @@ pub async fn get_subtree_roots_orchard(
 }
 
 /// GetAddressUtxos RPC test
-pub async fn get_address_utxos_all(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_all() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3038,9 +3008,7 @@ pub async fn get_address_utxos_all(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let zainod_response = zainod_client
         .get_address_utxos(request)
@@ -3048,9 +3016,7 @@ pub async fn get_address_utxos_all(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let lwd_response = lwd_client
         .get_address_utxos(request)
@@ -3073,12 +3039,7 @@ pub async fn get_address_utxos_all(
 }
 
 /// GetAddressUtxos RPC test
-pub async fn get_address_utxos_lower(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_lower() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3114,9 +3075,7 @@ pub async fn get_address_utxos_lower(
         max_entries: 1,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let zainod_response = zainod_client
         .get_address_utxos(request)
@@ -3124,9 +3083,7 @@ pub async fn get_address_utxos_lower(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let lwd_response = lwd_client
         .get_address_utxos(request)
@@ -3150,12 +3107,7 @@ pub async fn get_address_utxos_lower(
 }
 
 /// GetAddressUtxos RPC test
-pub async fn get_address_utxos_upper(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_upper() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3191,9 +3143,7 @@ pub async fn get_address_utxos_upper(
         max_entries: 1,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let zainod_response = zainod_client
         .get_address_utxos(request)
@@ -3201,9 +3151,7 @@ pub async fn get_address_utxos_upper(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let lwd_response = lwd_client
         .get_address_utxos(request)
@@ -3227,12 +3175,7 @@ pub async fn get_address_utxos_upper(
 }
 
 /// GetAddressUtxos RPC test
-pub async fn get_address_utxos_out_of_bounds(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_out_of_bounds() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3268,9 +3211,7 @@ pub async fn get_address_utxos_out_of_bounds(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let zainod_response = zainod_client
         .get_address_utxos(request)
@@ -3278,9 +3219,7 @@ pub async fn get_address_utxos_out_of_bounds(
         .unwrap()
         .into_inner();
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let lwd_response = lwd_client
         .get_address_utxos(request)
@@ -3303,12 +3242,7 @@ pub async fn get_address_utxos_out_of_bounds(
 }
 
 /// GetAddressUtxosStream RPC test
-pub async fn get_address_utxos_stream_all(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_stream_all() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3344,9 +3278,7 @@ pub async fn get_address_utxos_stream_all(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut zainod_response = zainod_client
         .get_address_utxos_stream(request)
@@ -3358,9 +3290,7 @@ pub async fn get_address_utxos_stream_all(
         zainod_address_utxo_replies.push(address_utxo_reply);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut lwd_response = lwd_client
         .get_address_utxos_stream(request)
@@ -3387,12 +3317,7 @@ pub async fn get_address_utxos_stream_all(
 }
 
 /// GetAddressUtxosStream RPC test
-pub async fn get_address_utxos_stream_lower(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_stream_lower() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3428,9 +3353,7 @@ pub async fn get_address_utxos_stream_lower(
         max_entries: 1,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut zainod_response = zainod_client
         .get_address_utxos_stream(request)
@@ -3442,9 +3365,7 @@ pub async fn get_address_utxos_stream_lower(
         zainod_address_utxo_replies.push(address_utxo_reply);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut lwd_response = lwd_client
         .get_address_utxos_stream(request)
@@ -3472,12 +3393,7 @@ pub async fn get_address_utxos_stream_lower(
 }
 
 /// GetAddressUtxosStream RPC test
-pub async fn get_address_utxos_stream_upper(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_stream_upper() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3513,9 +3429,7 @@ pub async fn get_address_utxos_stream_upper(
         max_entries: 1,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut zainod_response = zainod_client
         .get_address_utxos_stream(request)
@@ -3527,9 +3441,7 @@ pub async fn get_address_utxos_stream_upper(
         zainod_address_utxo_replies.push(address_utxo_reply);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut lwd_response = lwd_client
         .get_address_utxos_stream(request)
@@ -3557,12 +3469,7 @@ pub async fn get_address_utxos_stream_upper(
 }
 
 /// GetAddressUtxosStream RPC test
-pub async fn get_address_utxos_stream_out_of_bounds(
-    zcashd_bin: ExecutableLocation,
-    zcash_cli_bin: ExecutableLocation,
-    zainod_bin: ExecutableLocation,
-    lightwalletd_bin: ExecutableLocation,
-) {
+pub async fn get_address_utxos_stream_out_of_bounds() {
     let zcashd = Zcashd::launch(ZcashdConfig {
         rpc_listen_port: None,
         configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
@@ -3598,9 +3505,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         max_entries: 0,
     };
 
-    let mut zainod_client = client::build_client(network::localhost_uri(zainod.port()))
-        .await
-        .unwrap();
+    let mut zainod_client = build_grpc_client(network::localhost_uri(zainod.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut zainod_response = zainod_client
         .get_address_utxos_stream(request)
@@ -3612,9 +3517,7 @@ pub async fn get_address_utxos_stream_out_of_bounds(
         zainod_address_utxo_replies.push(address_utxo_reply);
     }
 
-    let mut lwd_client = client::build_client(network::localhost_uri(lightwalletd.port()))
-        .await
-        .unwrap();
+    let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(address_utxos_arg.clone());
     let mut lwd_response = lwd_client
         .get_address_utxos_stream(request)

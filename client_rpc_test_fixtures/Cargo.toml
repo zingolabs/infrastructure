@@ -9,6 +9,7 @@ portpicker = { workspace = true }
 zip32 = { workspace = true }
 tonic = { workspace = true }
 tokio = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 # GRPC (temporary until `build_grpc_client` can be replaced by zingo-netutils version)
 hyper-util = "0.1"
