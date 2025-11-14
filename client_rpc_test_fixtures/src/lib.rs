@@ -79,6 +79,7 @@ use zcash_local_net::{
 };
 use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER, seeds};
 
+// temporarily setting nu5+ to height 2 until crates are updated to zebra 3.0 due to issues with testing zainos chain index integration
 const DEFAULT_ACTIVATION_HEIGHTS: ConfiguredActivationHeights = ConfiguredActivationHeights {
     before_overwinter: Some(1),
     overwinter: Some(1),
@@ -86,9 +87,9 @@ const DEFAULT_ACTIVATION_HEIGHTS: ConfiguredActivationHeights = ConfiguredActiva
     blossom: Some(1),
     heartwood: Some(1),
     canopy: Some(1),
-    nu5: Some(1),
-    nu6: Some(1),
-    nu6_1: Some(1),
+    nu5: Some(2),
+    nu6: Some(2),
+    nu6_1: Some(2),
     nu7: None,
 };
 const DEFAULT_ACTIVATION_HEIGHTS_ZP: LocalNetwork = LocalNetwork {
@@ -97,9 +98,9 @@ const DEFAULT_ACTIVATION_HEIGHTS_ZP: LocalNetwork = LocalNetwork {
     blossom: Some(BlockHeight::from_u32(1)),
     heartwood: Some(BlockHeight::from_u32(1)),
     canopy: Some(BlockHeight::from_u32(1)),
-    nu5: Some(BlockHeight::from_u32(1)),
-    nu6: Some(BlockHeight::from_u32(1)),
-    nu6_1: Some(BlockHeight::from_u32(1)),
+    nu5: Some(BlockHeight::from_u32(2)),
+    nu6: Some(BlockHeight::from_u32(2)),
+    nu6_1: Some(BlockHeight::from_u32(2)),
 };
 
 // TODO: replace with zingo-netutils version when dep graph is stabilised
@@ -230,9 +231,17 @@ pub fn build_lightclients(indexer_port: Port) -> (LightClient, LightClient, Clie
 
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
-    let mut local_net = LocalNet::<Zebrad, Lightwalletd>::launch_default()
-        .await
-        .unwrap();
+    let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch(LocalNetConfig {
+        validator_config: ZcashdConfig {
+            rpc_listen_port: None,
+            configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            chain_cache: None,
+        },
+        indexer_config: LightwalletdConfig::default(),
+    })
+    .await
+    .expect("Process launching!");
 
     local_net.validator().generate_blocks(150).await.unwrap();
 
@@ -247,9 +256,20 @@ pub async fn generate_zebrad_large_chain_cache() {
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache() {
-    let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch_default()
-        .await
-        .unwrap();
+    let mut local_net = LocalNet::<Zebrad, Lightwalletd>::launch(LocalNetConfig {
+        validator_config: ZebradConfig {
+            network_listen_port: None,
+            rpc_listen_port: None,
+            indexer_listen_port: None,
+            configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
+            miner_address: ZEBRAD_DEFAULT_MINER,
+            chain_cache: None,
+            network: NetworkKind::Regtest,
+        },
+        indexer_config: LightwalletdConfig::default(),
+    })
+    .await
+    .expect("Process launching!");
 
     local_net.validator().generate_blocks(2).await.unwrap();
 
