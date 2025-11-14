@@ -214,16 +214,7 @@ pub fn build_lightclients(indexer_port: Port) -> (LightClient, LightClient, Clie
         seeds::HOSPITAL_MUSEUM_SEED.to_string(),
         1,
         true,
-        zcash_protocol::local_consensus::LocalNetwork {
-            overwinter: Some(1.into()),
-            sapling: Some(1.into()),
-            blossom: Some(1.into()),
-            heartwood: Some(1.into()),
-            canopy: Some(1.into()),
-            nu5: Some(1.into()),
-            nu6: Some(1.into()),
-            nu6_1: Some(1.into()),
-        },
+        DEFAULT_ACTIVATION_HEIGHTS_ZP,
     );
 
     (faucet, recipient, client_builder)
@@ -231,12 +222,15 @@ pub fn build_lightclients(indexer_port: Port) -> (LightClient, LightClient, Clie
 
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
-    let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch(LocalNetConfig {
-        validator_config: ZcashdConfig {
+    let mut local_net = LocalNet::<Zebrad, Lightwalletd>::launch(LocalNetConfig {
+        validator_config: ZebradConfig {
+            network_listen_port: None,
             rpc_listen_port: None,
+            indexer_listen_port: None,
             configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
+            network: NetworkKind::Regtest,
         },
         indexer_config: LightwalletdConfig::default(),
     })
@@ -256,15 +250,12 @@ pub async fn generate_zebrad_large_chain_cache() {
 
 /// Generates zcashd chain cache for client RPC test fixtures
 pub async fn generate_zcashd_chain_cache() {
-    let mut local_net = LocalNet::<Zebrad, Lightwalletd>::launch(LocalNetConfig {
-        validator_config: ZebradConfig {
-            network_listen_port: None,
+    let mut local_net = LocalNet::<Zcashd, Lightwalletd>::launch(LocalNetConfig {
+        validator_config: ZcashdConfig {
             rpc_listen_port: None,
-            indexer_listen_port: None,
             configured_activation_heights: DEFAULT_ACTIVATION_HEIGHTS,
-            miner_address: ZEBRAD_DEFAULT_MINER,
+            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
-            network: NetworkKind::Regtest,
         },
         indexer_config: LightwalletdConfig::default(),
     })
