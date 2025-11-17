@@ -203,7 +203,7 @@ async fn get_subtree_roots_sapling() {
     client_rpc_test_fixtures::get_subtree_roots_sapling(NetworkKind::Testnet).await;
 }
 
-/// This test requires Zebrad mainnet to be already synced to at least 2 sapling shards with the cache at
+/// This test requires Zebrad mainnet to be already synced to at least 2 orchard shards with the cache at
 /// `zcash_local_net/chain_cache/get_subtree_roots_orchard`
 #[tokio::test]
 async fn get_subtree_roots_orchard() {
