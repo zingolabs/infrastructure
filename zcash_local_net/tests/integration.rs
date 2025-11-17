@@ -20,6 +20,46 @@ use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zebra_chain::parameters::NetworkKind;
 use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER};
 
+// TODO: remove after we have fully updated to depend on zebra 3.0.0.
+// temporarily sets nu5+ to a height of 2 due to a zebra bug that has been fixed in 3.0.0
+const TEMP_ZCASHD_CONFIG: ZcashdConfig = ZcashdConfig {
+    rpc_listen_port: None,
+    configured_activation_heights: ConfiguredActivationHeights {
+        before_overwinter: Some(1),
+        overwinter: Some(1),
+        sapling: Some(1),
+        blossom: Some(1),
+        heartwood: Some(1),
+        canopy: Some(1),
+        nu5: Some(2),
+        nu6: Some(2),
+        nu6_1: Some(2),
+        nu7: None,
+    },
+    miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+    chain_cache: None,
+};
+const TEMP_ZEBRAD_CONFIG: ZebradConfig = ZebradConfig {
+    network_listen_port: None,
+    rpc_listen_port: None,
+    indexer_listen_port: None,
+    configured_activation_heights: ConfiguredActivationHeights {
+        before_overwinter: Some(1),
+        overwinter: Some(1),
+        sapling: Some(1),
+        blossom: Some(1),
+        heartwood: Some(1),
+        canopy: Some(1),
+        nu5: Some(2),
+        nu6: Some(2),
+        nu6_1: Some(2),
+        nu7: None,
+    },
+    miner_address: ZEBRAD_DEFAULT_MINER,
+    chain_cache: None,
+    network: NetworkKind::Regtest,
+};
+
 async fn launch_default_and_print_all<P: Process>() {
     let p = P::launch_default().await.expect("Process launching!");
     p.print_all();
@@ -121,28 +161,15 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     zebrad_2.print_all();
 }
 
+// NOTE: the following tests use a temporary validator config to set nu5+ to a height of 2 due to a zebra bug that has been fixed in 3.0.0
+// when we are fully updated to zebra 3.0.0 we can set back to use the launch defaults
+
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
 
     let p = LocalNet::<Zcashd, Zainod>::launch(LocalNetConfig {
-        validator_config: ZcashdConfig {
-            rpc_listen_port: None,
-            configured_activation_heights: ConfiguredActivationHeights {
-                before_overwinter: Some(1),
-                overwinter: Some(1),
-                sapling: Some(1),
-                blossom: Some(1),
-                heartwood: Some(1),
-                canopy: Some(1),
-                nu5: Some(2),
-                nu6: Some(2),
-                nu6_1: Some(2),
-                nu7: None,
-            },
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        validator_config: TEMP_ZCASHD_CONFIG,
         indexer_config: ZainodConfig::default(),
     })
     .await
@@ -156,26 +183,7 @@ async fn launch_localnet_zainod_zebrad() {
     tracing_subscriber::fmt().init();
 
     let p = LocalNet::<Zebrad, Zainod>::launch(LocalNetConfig {
-        validator_config: ZebradConfig {
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            configured_activation_heights: ConfiguredActivationHeights {
-                before_overwinter: Some(1),
-                overwinter: Some(1),
-                sapling: Some(1),
-                blossom: Some(1),
-                heartwood: Some(1),
-                canopy: Some(1),
-                nu5: Some(2),
-                nu6: Some(2),
-                nu6_1: Some(2),
-                nu7: None,
-            },
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: NetworkKind::Regtest,
-        },
+        validator_config: TEMP_ZEBRAD_CONFIG,
         indexer_config: ZainodConfig::default(),
     })
     .await
@@ -189,29 +197,13 @@ async fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
 
     let p = LocalNet::<Zcashd, Lightwalletd>::launch(LocalNetConfig {
-        validator_config: ZcashdConfig {
-            rpc_listen_port: None,
-            configured_activation_heights: ConfiguredActivationHeights {
-                before_overwinter: Some(1),
-                overwinter: Some(1),
-                sapling: Some(1),
-                blossom: Some(1),
-                heartwood: Some(1),
-                canopy: Some(1),
-                nu5: Some(2),
-                nu6: Some(2),
-                nu6_1: Some(2),
-                nu7: None,
-            },
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
-            chain_cache: None,
-        },
+        validator_config: TEMP_ZCASHD_CONFIG,
         indexer_config: LightwalletdConfig::default(),
     })
     .await
     .expect("Process launching!");
     p.print_all();
-    launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
+    // launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
 #[tokio::test]
@@ -219,26 +211,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
     tracing_subscriber::fmt().init();
 
     let p = LocalNet::<Zebrad, Lightwalletd>::launch(LocalNetConfig {
-        validator_config: ZebradConfig {
-            network_listen_port: None,
-            rpc_listen_port: None,
-            indexer_listen_port: None,
-            configured_activation_heights: ConfiguredActivationHeights {
-                before_overwinter: Some(1),
-                overwinter: Some(1),
-                sapling: Some(1),
-                blossom: Some(1),
-                heartwood: Some(1),
-                canopy: Some(1),
-                nu5: Some(2),
-                nu6: Some(2),
-                nu6_1: Some(2),
-                nu7: None,
-            },
-            miner_address: ZEBRAD_DEFAULT_MINER,
-            chain_cache: None,
-            network: NetworkKind::Regtest,
-        },
+        validator_config: TEMP_ZEBRAD_CONFIG,
         indexer_config: LightwalletdConfig::default(),
     })
     .await
