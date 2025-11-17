@@ -52,5 +52,8 @@ jobs:
         uses: ./.github/actions/cargo-hack
         with:
           hack-subcommand: check
+
   test:
     uses: ./.github/workflows/test.yaml
+    with:
+      nextest-flags: "-E 'not package(client_rpc_test_fixtures)'"

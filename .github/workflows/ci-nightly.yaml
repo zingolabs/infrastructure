@@ -6,8 +6,29 @@ on:
     - cron: '30 3 * * *'
 
 jobs:
-  pr-checks:
-    uses: ./.github/workflows/ci-pr.yaml
+  reject-trailing-whitespace:
+    uses: ./.github/workflows/trailing-whitespace.yaml
+
+  cargo-shear:
+    name: Cargo Shear
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ inputs.toolchain }}
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo-shear
+        uses: ./.github/actions/cargo-shear
+
+  cargo-checkmate:
+    uses: ./.github/workflows/cargo-checkmate.yaml
 
   cargo-hack-build:
     name: Cargo Hack Build
@@ -28,3 +49,6 @@ jobs:
         uses: ./.github/actions/cargo-hack
         with:
           hack-subcommand: build
+
+  test:
+    uses: ./.github/workflows/test.yaml
