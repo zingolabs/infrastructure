@@ -512,7 +512,7 @@ pub async fn get_latest_block() {
 
     let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(ChainSpec {});
-    let mut lwd_response = lwd_client
+    let lwd_response = lwd_client
         .get_latest_block(request)
         .await
         .unwrap()
