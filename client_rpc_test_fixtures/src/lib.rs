@@ -64,7 +64,7 @@ use zingolib::{
 use zcash_local_net::{
     config, indexer::{
         lightwalletd::{Lightwalletd, LightwalletdConfig}, zainod::{BackendType, Zainod, ZainodConfig}, Indexer
-    }, logs::LogsToStdoutAndStderr, network, process::Process, utils, validator::{
+    }, network, process::Process, utils, validator::{
         zcashd::{Zcashd, ZcashdConfig}, zebrad::{Zebrad, ZebradConfig}, Validator as _
     }, LocalNet, LocalNetConfig
 };
