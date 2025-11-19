@@ -22,6 +22,15 @@ use crate::{
     ProcessId,
 };
 
+/// Zaino state/fetch service backend type.
+#[derive(Debug)]
+pub enum BackendType {
+    /// State service.
+    State,
+    /// Fetch service.
+    Fetch,
+}
+
 /// Zainod configuration
 ///
 /// If `listen_port` is `None`, a port is picked at random between 15000-25000.
@@ -39,6 +48,8 @@ pub struct ZainodConfig {
     pub chain_cache: Option<PathBuf>,
     /// Network type.
     pub network: NetworkKind,
+    /// Network type.
+    pub backend_type: BackendType,
 }
 
 impl Default for ZainodConfig {
@@ -48,6 +59,7 @@ impl Default for ZainodConfig {
             validator_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
+            backend_type: BackendType::Fetch,
         }
     }
 }
@@ -108,6 +120,7 @@ impl Process for Zainod {
             port,
             config.validator_port,
             config.network,
+            config.backend_type,
         )
         .unwrap();
 

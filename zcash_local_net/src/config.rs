@@ -9,6 +9,8 @@ use portpicker::Port;
 use zebra_chain::parameters::testnet;
 use zebra_chain::parameters::NetworkKind;
 
+use crate::indexer::zainod::BackendType;
+
 /// Convert `NetworkKind` to its config string representation
 fn network_kind_to_string(network: NetworkKind) -> &'static str {
     match network {
@@ -228,13 +230,13 @@ NU6 = {nu6_activation_height}
 
 /// Writes the Zainod config file to the specified config directory.
 /// Returns the path to the config file.
-// TODO: make fetch/state a parameter
 pub(crate) fn write_zainod_config(
     config_dir: &Path,
     validator_cache_dir: PathBuf,
     listen_port: Port,
     validator_port: Port,
     network: NetworkKind,
+    backend_type: BackendType,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -244,10 +246,15 @@ pub(crate) fn write_zainod_config(
 
     let network_string = network_kind_to_string(network);
 
+    let backend_type_str = match backend_type {
+        BackendType::State => "state",
+        BackendType::Fetch => "fetch",
+    };
+
     config_file.write_all(
         format!(
             "\
-backend = \"fetch\"
+backend = \"{backend_type_str}\"
 network = \"{network_string}\"
 
 [grpc_settings]
@@ -304,7 +311,7 @@ mod tests {
     use zebra_chain::parameters::NetworkKind;
     use zingo_common_components::protocol::activation_heights::for_test;
 
-    use crate::logs;
+    use crate::{indexer::zainod::BackendType, logs};
 
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
@@ -392,6 +399,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
             1234,
             18232,
             NetworkKind::Regtest,
+            BackendType::Fetch,
         )
         .unwrap();
 

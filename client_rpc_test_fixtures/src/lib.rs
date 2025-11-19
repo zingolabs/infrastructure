@@ -62,20 +62,11 @@ use zingolib::{
 };
 
 use zcash_local_net::{
-    LocalNet, LocalNetConfig, config,
-    indexer::{
-        Indexer,
-        lightwalletd::{Lightwalletd, LightwalletdConfig},
-        zainod::{Zainod, ZainodConfig},
-    },
-    network,
-    process::Process,
-    utils,
-    validator::{
-        Validator as _,
-        zcashd::{Zcashd, ZcashdConfig},
-        zebrad::{Zebrad, ZebradConfig},
-    },
+    config, indexer::{
+        lightwalletd::{Lightwalletd, LightwalletdConfig}, zainod::{BackendType, Zainod, ZainodConfig}, Indexer
+    }, logs::LogsToStdoutAndStderr, network, process::Process, utils, validator::{
+        zcashd::{Zcashd, ZcashdConfig}, zebrad::{Zebrad, ZebradConfig}, Validator as _
+    }, LocalNet, LocalNetConfig
 };
 use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER, seeds};
 
@@ -391,6 +382,7 @@ pub async fn get_lightd_info() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -489,6 +481,7 @@ pub async fn get_latest_block() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -512,7 +505,7 @@ pub async fn get_latest_block() {
 
     let mut lwd_client = build_grpc_client(network::localhost_uri(lightwalletd.port())).await;
     let request = tonic::Request::new(ChainSpec {});
-    let mut lwd_response = lwd_client
+    let lwd_response = lwd_client
         .get_latest_block(request)
         .await
         .unwrap()
@@ -523,9 +516,6 @@ pub async fn get_latest_block() {
     println!("\nZainod response:");
     println!("block id: {:?}", zainod_response);
 
-    // lwd blockid hash is (wrongly) reversed
-    // this adjustment provides the correct value to test against
-    lwd_response.hash.reverse();
     println!("\nLightwalletd response:");
     println!("block id: {:?}", lwd_response);
 
@@ -549,6 +539,7 @@ pub async fn get_block() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -608,6 +599,7 @@ pub async fn get_block_out_of_bounds() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -663,6 +655,7 @@ pub async fn get_block_nullifiers() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -730,6 +723,7 @@ pub async fn get_block_range_nullifiers() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -811,6 +805,7 @@ pub async fn get_block_range_nullifiers_reverse() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -892,6 +887,7 @@ pub async fn get_block_range_lower() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -973,6 +969,7 @@ pub async fn get_block_range_upper() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1053,6 +1050,7 @@ pub async fn get_block_range_reverse() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1134,6 +1132,7 @@ pub async fn get_block_range_out_of_bounds() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1236,6 +1235,7 @@ pub async fn get_transaction() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1312,6 +1312,7 @@ pub async fn send_transaction() {
             validator_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
+            backend_type: BackendType::Fetch,
         },
     })
     .await
@@ -1367,6 +1368,7 @@ pub async fn send_transaction() {
             validator_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
+            backend_type: BackendType::Fetch,
         },
     })
     .await
@@ -1445,6 +1447,7 @@ pub async fn get_taddress_txids_all() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1551,6 +1554,7 @@ pub async fn get_taddress_txids_lower() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1657,6 +1661,7 @@ pub async fn get_taddress_txids_upper() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1763,6 +1768,7 @@ pub async fn get_taddress_balance() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1828,6 +1834,7 @@ pub async fn get_taddress_balance_stream() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -1895,6 +1902,7 @@ pub async fn get_mempool_tx() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2031,6 +2039,7 @@ pub async fn get_mempool_stream_zingolib_mempool_monitor() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2213,6 +2222,7 @@ pub async fn get_mempool_stream() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2549,6 +2559,7 @@ pub async fn get_tree_state_by_height() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2611,6 +2622,7 @@ pub async fn get_tree_state_by_hash() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2683,6 +2695,7 @@ pub async fn get_tree_state_out_of_bounds() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2746,6 +2759,7 @@ pub async fn get_latest_tree_state() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2825,6 +2839,7 @@ pub async fn get_subtree_roots_sapling(network: NetworkKind) {
         validator_port: zebrad.rpc_listen_port(),
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_sapling")),
         network,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2920,6 +2935,7 @@ pub async fn get_subtree_roots_orchard(network: NetworkKind) {
         validator_port: zebrad.rpc_listen_port(),
         chain_cache: Some(utils::chain_cache_dir().join("get_subtree_roots_orchard")),
         network,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -2992,6 +3008,7 @@ pub async fn get_address_utxos_all() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3059,6 +3076,7 @@ pub async fn get_address_utxos_lower() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3127,6 +3145,7 @@ pub async fn get_address_utxos_upper() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3195,6 +3214,7 @@ pub async fn get_address_utxos_out_of_bounds() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3262,6 +3282,7 @@ pub async fn get_address_utxos_stream_all() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3337,6 +3358,7 @@ pub async fn get_address_utxos_stream_lower() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3413,6 +3435,7 @@ pub async fn get_address_utxos_stream_upper() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
@@ -3489,6 +3512,7 @@ pub async fn get_address_utxos_stream_out_of_bounds() {
         validator_port: zcashd.port(),
         chain_cache: None,
         network: NetworkKind::Regtest,
+        backend_type: BackendType::Fetch,
     })
     .await
     .unwrap();
