@@ -523,9 +523,6 @@ pub async fn get_latest_block() {
     println!("\nZainod response:");
     println!("block id: {:?}", zainod_response);
 
-    // lwd blockid hash is (wrongly) reversed
-    // this adjustment provides the correct value to test against
-    lwd_response.hash.reverse();
     println!("\nLightwalletd response:");
     println!("block id: {:?}", lwd_response);
 
