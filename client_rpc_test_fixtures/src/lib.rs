@@ -30,7 +30,7 @@ use hyper_util::client::legacy::{
 };
 use portpicker::Port;
 
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tokio_rustls::rustls::{
     ClientConfig, RootCertStore,
     pki_types::{Der, TrustAnchor},
@@ -2301,7 +2301,10 @@ pub async fn get_mempool_stream() {
 
     // receive txs from mempool
     let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
-    let collect_mempool_txs = async |receiver: &mut UnboundedReceiver<RawTransaction>, raw_txs: &mut Vec<RawTransaction>, expected_unique_tx_count: usize| -> Vec<Transaction> {  
+    let collect_mempool_txs = async |receiver: &mut UnboundedReceiver<RawTransaction>,
+                                     raw_txs: &mut Vec<RawTransaction>,
+                                     expected_unique_tx_count: usize|
+           -> Vec<Transaction> {
         while let Some(raw_tx) = receiver.recv().await {
             if !raw_txs.contains(&raw_tx) {
                 raw_txs.push(raw_tx);
