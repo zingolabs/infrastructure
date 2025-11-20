@@ -30,7 +30,7 @@ use hyper_util::client::legacy::{
 };
 use portpicker::Port;
 
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 use tokio_rustls::rustls::{
     ClientConfig, RootCertStore,
     pki_types::{Der, TrustAnchor},
@@ -2228,14 +2228,19 @@ pub async fn get_mempool_stream() {
     let zainod_port = zainod.port();
     let _zainod_handle = tokio::spawn(async move {
         let mut zainod_client = build_grpc_client(network::localhost_uri(zainod_port)).await;
-        loop {
+        'main: loop {
             let request = tonic::Request::new(Empty {});
             let mut zainod_response = zainod_client
                 .get_mempool_stream(request)
                 .await
                 .unwrap()
                 .into_inner();
-            while let Some(raw_tx) = zainod_response.message().await.unwrap() {
+            while let Some(raw_tx) = match zainod_response.message().await {
+                Ok(opt_raw_tx) => opt_raw_tx,
+                Err(_) => {
+                    continue 'main;
+                }
+            } {
                 zainod_sender.send(raw_tx).unwrap();
             }
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -2246,14 +2251,19 @@ pub async fn get_mempool_stream() {
     let lwd_port = lightwalletd.port();
     let _lwd_handle = tokio::spawn(async move {
         let mut lwd_client = build_grpc_client(network::localhost_uri(lwd_port)).await;
-        loop {
+        'main: loop {
             let request = tonic::Request::new(Empty {});
             let mut lwd_response = lwd_client
                 .get_mempool_stream(request)
                 .await
                 .unwrap()
                 .into_inner();
-            while let Some(raw_tx) = lwd_response.message().await.unwrap() {
+            while let Some(raw_tx) = match lwd_response.message().await {
+                Ok(opt_raw_tx) => opt_raw_tx,
+                Err(_) => {
+                    continue 'main;
+                }
+            } {
                 lwd_sender.send(raw_tx).unwrap();
             }
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -2291,44 +2301,35 @@ pub async fn get_mempool_stream() {
 
     // receive txs from mempool
     let chain_type = ChainType::Regtest(DEFAULT_ACTIVATION_HEIGHTS_ZP);
+    let collect_mempool_txs = async |receiver: &mut UnboundedReceiver<RawTransaction>, raw_txs: &mut Vec<RawTransaction>, expected_unique_tx_count: usize| -> Vec<Transaction> {  
+        while let Some(raw_tx) = receiver.recv().await {
+            if !raw_txs.contains(&raw_tx) {
+                raw_txs.push(raw_tx);
+            }
+            if raw_txs.len() == expected_unique_tx_count {
+                break;
+            }
+        }
+        let mut txs = raw_txs
+            .iter()
+            .map(|raw_tx| {
+                Transaction::read(
+                    &raw_tx.data[..],
+                    BranchId::for_height(&chain_type, BlockHeight::from_u32(raw_tx.height as u32)),
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        txs.sort_by_key(|a| a.txid());
+
+        txs
+    };
 
     let mut zainod_raw_txs = Vec::new();
-    while let Some(raw_tx) = zainod_receiver.recv().await {
-        zainod_raw_txs.push(raw_tx);
-        if zainod_raw_txs.len() == 2 {
-            break;
-        }
-    }
-    let mut zainod_txs = zainod_raw_txs
-        .iter()
-        .map(|raw_tx| {
-            Transaction::read(
-                &raw_tx.data[..],
-                BranchId::for_height(&chain_type, BlockHeight::from_u32(raw_tx.height as u32)),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    zainod_txs.sort_by_key(|a| a.txid());
+    let zainod_txs = collect_mempool_txs(&mut zainod_receiver, &mut zainod_raw_txs, 2).await;
 
     let mut lwd_raw_txs = Vec::new();
-    while let Some(raw_tx) = lwd_receiver.recv().await {
-        lwd_raw_txs.push(raw_tx);
-        if lwd_raw_txs.len() == 2 {
-            break;
-        }
-    }
-    let mut lwd_txs = lwd_raw_txs
-        .iter()
-        .map(|raw_tx| {
-            Transaction::read(
-                &raw_tx.data[..],
-                BranchId::for_height(&chain_type, BlockHeight::from_u32(raw_tx.height as u32)),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    lwd_txs.sort_by_key(|a| a.txid());
+    let lwd_txs = collect_mempool_txs(&mut lwd_receiver, &mut lwd_raw_txs, 2).await;
 
     println!("Asserting GetMempoolStream responses...");
 
@@ -2377,41 +2378,8 @@ pub async fn get_mempool_stream() {
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
     // receive txs from mempool
-    while let Some(raw_tx) = zainod_receiver.recv().await {
-        zainod_raw_txs.push(raw_tx);
-        if zainod_raw_txs.len() == 4 {
-            break;
-        }
-    }
-    let mut zainod_txs = zainod_raw_txs
-        .iter()
-        .map(|raw_tx| {
-            Transaction::read(
-                &raw_tx.data[..],
-                BranchId::for_height(&chain_type, BlockHeight::from_u32(raw_tx.height as u32)),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    zainod_txs.sort_by_key(|a| a.txid());
-
-    while let Some(raw_tx) = lwd_receiver.recv().await {
-        lwd_raw_txs.push(raw_tx);
-        if lwd_raw_txs.len() == 4 {
-            break;
-        }
-    }
-    let mut lwd_txs = lwd_raw_txs
-        .iter()
-        .map(|raw_tx| {
-            Transaction::read(
-                &raw_tx.data[..],
-                BranchId::for_height(&chain_type, BlockHeight::from_u32(raw_tx.height as u32)),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<_>>();
-    lwd_txs.sort_by_key(|a| a.txid());
+    let zainod_txs = collect_mempool_txs(&mut zainod_receiver, &mut zainod_raw_txs, 4).await;
+    let lwd_txs = collect_mempool_txs(&mut lwd_receiver, &mut lwd_raw_txs, 4).await;
 
     println!("Asserting GetMempoolStream responses (pt2)...");
 
