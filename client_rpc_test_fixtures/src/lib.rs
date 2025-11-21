@@ -1955,7 +1955,7 @@ pub async fn get_mempool_tx() {
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
     let full_txid_2 = txids_2.first().as_ref().to_vec();
-    // the excluded list only accepts truncated txids when they are truncated at the start, not end.
+    // the excluded list only accepts txids truncated in hex-encoded string form. as the bytes are reversed after hex decoding then we must truncate the start instead of the end.
     let mut full_txid_4 = txids_4.first().as_ref().to_vec();
     let truncated_txid_4 = full_txid_4.drain(16..).collect();
 
@@ -1999,15 +1999,15 @@ pub async fn get_mempool_tx() {
 
     println!();
 
-    // the response txid is the reverse of the txid returned from quick send
-    let mut txid_1_rev = txids_1.first().as_ref().to_vec();
-    txid_1_rev.reverse();
-    let mut txid_3_rev = txids_3.first().as_ref().to_vec();
-    txid_3_rev.reverse();
-    let mut txids = [txid_1_rev, txid_3_rev];
+    let txid_1_bytes = txids_1.first().as_ref().to_vec();
+    let txid_3_bytes = txids_3.first().as_ref().to_vec();
+    let mut txids = [txid_1_bytes, txid_3_bytes];
     txids.sort();
 
     assert_eq!(lwd_txs.len(), 2);
+    assert_eq!(zainod_txs.len(), 2);
+    assert_eq!(zainod_txs[0].hash, txids[0]);
+    assert_eq!(zainod_txs[1].hash, txids[1]);
     assert_eq!(lwd_txs[0].hash, txids[0]);
     assert_eq!(lwd_txs[1].hash, txids[1]);
     assert_eq!(zainod_txs, lwd_txs);
