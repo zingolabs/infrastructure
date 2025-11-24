@@ -1,14 +1,18 @@
 use std::{path::PathBuf, process::Command};
 
-/// -Looks for an executable in `TEST_BINARIES_DIR` environment variable-
+/// -Checks to see if an executable is in a directory determined by the `TEST_BINARIES_DIR` environment variable.
 /// or launches directly, hoping it is in path.
-pub fn pick_command(executable_name: &str) -> Command {
+pub(crate) fn pick_command(executable_name: &str) -> Command {
     pick_path(executable_name)
         .map(Command::new)
-        .unwrap_or(Command::new(executable_name))
+        .unwrap_or_else(|| {
+            tracing::warn!("Trying to launch {executable_name} from PATH environment variable.");
+            Command::new(executable_name)
+        })
 }
 
 /// -Checks to see if an executable is in a directory determined by the `TEST_BINARIES_DIR` environment variable.
+/// The part of `pick_command` that is unit-testable.
 fn pick_path(executable_name: &str) -> Option<PathBuf> {
     let environment_variable_path: &str = "TEST_BINARIES_DIR";
 
@@ -16,15 +20,16 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
         Ok(directory) => {
             let path = PathBuf::from(directory).join(executable_name);
             if path.exists() {
-                tracing::info!("Running {executable_name} at {path:?}.");
+                tracing::warn!("Found {executable_name} at {path:?}.");
+                tracing::info!("Ready to launch to launch {executable_name}.");
                 Some(path)
             } else {
-                tracing::warn!("Could not find {executable_name} at {path:?} set by {environment_variable_path}.");
+                tracing::warn!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
                 None
             }
         }
         Err(_err) => {
-            tracing::warn!("{environment_variable_path} environment variable is not set. Will attempt to use {executable_name} from PATH.");
+            tracing::warn!("{environment_variable_path} environment variable is not set.");
             None
         }
     }
