@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::Command};
 pub(crate) fn pick_command(executable_name: &str) -> Command {
     pick_path(executable_name).map_or_else(
         || {
-            tracing::warn!("Trying to launch {executable_name} from PATH environment variable.");
+            tracing::info!("Trying to launch {executable_name} from PATH environment variable.");
             Command::new(executable_name)
         },
         Command::new,
