@@ -42,6 +42,8 @@ pub(crate) const EXPECT_SPAWN: &str = "Failed to spawn command! Test executable 
 
 #[cfg(test)]
 mod tests {
+    use super::pick_path;
+
     #[test]
     fn cargo() {
         let pick_path = pick_path("cargo");
