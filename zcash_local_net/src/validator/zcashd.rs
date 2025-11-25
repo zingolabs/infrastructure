@@ -149,7 +149,11 @@ impl Process for Zcashd {
         )
         .unwrap();
 
-        let mut command = pick_command("zcashd");
+        let executable_name = "zcashd";
+        logs::trace_version(executable_name, "--version");
+        logs::trace_version("zcash-cli", "--version");
+
+        let mut command = pick_command(executable_name);
         command
             .args([
                 "--printtoconsole",
