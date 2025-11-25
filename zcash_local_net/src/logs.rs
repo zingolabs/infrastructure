@@ -13,7 +13,7 @@ pub(crate) fn print_log(log_path: PathBuf) {
     let mut log_file = File::open(log_path).unwrap();
     let mut log = String::new();
     log_file.read_to_string(&mut log).unwrap();
-    tracing::info!("{log}");
+    tracing::trace!("{log}");
 }
 
 /// Write the stdout and stderr log of the `handle` to the `logs_dir`
