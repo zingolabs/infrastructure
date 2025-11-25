@@ -40,6 +40,23 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
 /// Used to `expect` `pick_command`.
 pub(crate) const EXPECT_SPAWN: &str = "Failed to spawn command! Test executable must be set in TEST_BINARIES_DIR environment variable or be in PATH.";
 
+/// Helper to trace the executable version.
+pub fn trace_version(executable_name: &str, version_command: &str) {
+    let mut command = crate::utils::executable_finder::pick_command(executable_name);
+
+    let args = vec![version_command];
+
+    command.args(args);
+
+    let version = command
+        .output()
+        .expect(crate::utils::executable_finder::EXPECT_SPAWN);
+    tracing::info!(
+        "$ {executable_name} {version_command}
+ {version:?}"
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::pick_path;

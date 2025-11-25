@@ -13,6 +13,7 @@ use zingo_test_vectors::{
 };
 
 use crate::logs::LogsToStdoutAndStderr;
+use crate::utils::executable_finder::trace_version;
 use crate::validator::ValidatorConfig;
 use crate::{
     config,
@@ -150,8 +151,8 @@ impl Process for Zcashd {
         .unwrap();
 
         let executable_name = "zcashd";
-        logs::trace_version(executable_name, "--version");
-        logs::trace_version("zcash-cli", "--version");
+        trace_version(executable_name, "--version");
+        trace_version("zcash-cli", "--version");
 
         let mut command = pick_command(executable_name);
         command

@@ -7,7 +7,7 @@ use crate::{
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
+    utils::executable_finder::{pick_command, trace_version, EXPECT_SPAWN},
     validator::{Validator, ValidatorConfig},
     ProcessId,
 };
@@ -170,8 +170,8 @@ impl Process for Zebrad {
         .unwrap();
 
         let executable_name = "zebrad";
-        logs::trace_version(executable_name, "--version");
         let mut command = pick_command(executable_name);
+        trace_version(executable_name, "--version");
         command
             .args([
                 "--config",

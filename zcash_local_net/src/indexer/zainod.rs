@@ -10,6 +10,7 @@ use zebra_chain::parameters::NetworkKind;
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
+use crate::utils::executable_finder::trace_version;
 use crate::{
     config,
     error::LaunchError,
@@ -112,7 +113,7 @@ impl Process for Zainod {
         .unwrap();
 
         let executable_name = "zainod";
-        logs::trace_version(executable_name, "--version");
+        trace_version(executable_name, "--version");
         let mut command = pick_command(executable_name);
         command
             .args([
