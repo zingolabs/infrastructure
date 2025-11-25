@@ -2,10 +2,14 @@ use std::{path::PathBuf, process::Command};
 
 /// -Checks to see if an executable is in a directory determined by the `TEST_BINARIES_DIR` environment variable.
 /// or launches directly, hoping it is in path.
-pub(crate) fn pick_command(executable_name: &str) -> Command {
-    pick_path(executable_name).map_or_else(
+pub(crate) fn pick_command(executable_name: &str, trace_location: bool) -> Command {
+    pick_path(executable_name, trace_location).map_or_else(
         || {
-            tracing::info!("Trying to launch {executable_name} from PATH environment variable.");
+            if trace_location {
+                tracing::info!(
+                    "Trying to launch {executable_name} from PATH environment variable."
+                );
+            }
             Command::new(executable_name)
         },
         Command::new,
@@ -13,23 +17,29 @@ pub(crate) fn pick_command(executable_name: &str) -> Command {
 }
 
 /// The part of `pick_command` that is unit-testable.
-fn pick_path(executable_name: &str) -> Option<PathBuf> {
+fn pick_path(executable_name: &str, trace_location: bool) -> Option<PathBuf> {
     let environment_variable_path: &str = "TEST_BINARIES_DIR";
 
     match std::env::var(environment_variable_path) {
         Ok(directory) => {
             let path = PathBuf::from(directory).join(executable_name);
             if path.exists() {
-                tracing::warn!("Found {executable_name} at {path:?}.");
-                tracing::info!("Ready to launch to launch {executable_name}.");
+                if trace_location {
+                    tracing::warn!("Found {executable_name} at {path:?}.");
+                    tracing::info!("Ready to launch to launch {executable_name}.");
+                }
                 Some(path)
             } else {
-                tracing::warn!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
+                if trace_location {
+                    tracing::warn!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
+                }
                 None
             }
         }
         Err(_err) => {
-            tracing::warn!("{environment_variable_path} environment variable is not set.");
+            if trace_location {
+                tracing::warn!("{environment_variable_path} environment variable is not set.");
+            }
             None
         }
     }
@@ -41,8 +51,8 @@ fn pick_path(executable_name: &str) -> Option<PathBuf> {
 pub(crate) const EXPECT_SPAWN: &str = "Failed to spawn command! Test executable must be set in TEST_BINARIES_DIR environment variable or be in PATH.";
 
 /// Helper to trace the executable version.
-pub fn trace_version(executable_name: &str, version_command: &str) {
-    let mut command = crate::utils::executable_finder::pick_command(executable_name);
+pub fn trace_version_and_location(executable_name: &str, version_command: &str) {
+    let mut command = pick_command(executable_name, true);
 
     let args = vec![version_command];
 
@@ -63,13 +73,13 @@ mod tests {
 
     #[test]
     fn cargo() {
-        let pick_path = pick_path("cargo");
+        let pick_path = pick_path("cargo", true);
         assert_eq!(pick_path, None);
     }
     #[test]
     #[ignore = "Needs TEST_BINARIES_DIR to be set and contain zcashd."]
     fn zcashd() {
-        let pick_path = pick_path("zcashd");
+        let pick_path = pick_path("zcashd", true);
         assert!(pick_path.is_some());
     }
 }

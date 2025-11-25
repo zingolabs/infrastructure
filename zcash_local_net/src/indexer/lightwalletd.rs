@@ -12,7 +12,7 @@ use crate::{
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
     process::Process,
-    utils::executable_finder::{pick_command, trace_version, EXPECT_SPAWN},
+    utils::executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
     ProcessId,
 };
 
@@ -107,8 +107,8 @@ impl Process for Lightwalletd {
         .unwrap();
 
         let lightwalletd_executable_name = "lightwalletd";
-        trace_version(lightwalletd_executable_name, "version");
-        let mut command = pick_command(lightwalletd_executable_name);
+        trace_version_and_location(lightwalletd_executable_name, "version");
+        let mut command = pick_command(lightwalletd_executable_name, false);
         let mut args = vec![
             "--no-tls-very-insecure",
             "--data-dir",
