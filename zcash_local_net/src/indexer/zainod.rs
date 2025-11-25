@@ -111,7 +111,9 @@ impl Process for Zainod {
         )
         .unwrap();
 
-        let mut command = pick_command("zainod");
+        let executable_name = "zainod";
+        logs::trace_version(executable_name, "--version");
+        let mut command = pick_command(executable_name);
         command
             .args([
                 "--config",

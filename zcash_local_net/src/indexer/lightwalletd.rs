@@ -107,9 +107,7 @@ impl Process for Lightwalletd {
         .unwrap();
 
         let lightwalletd_executable_name = "lightwalletd";
-
         logs::trace_version(lightwalletd_executable_name, "version");
-
         let mut command = pick_command(lightwalletd_executable_name);
         let mut args = vec![
             "--no-tls-very-insecure",

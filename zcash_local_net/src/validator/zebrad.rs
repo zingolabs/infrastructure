@@ -169,7 +169,9 @@ impl Process for Zebrad {
         )
         .unwrap();
 
-        let mut command = pick_command("zebrad");
+        let executable_name = "zebrad";
+        logs::trace_version(executable_name, "--version");
+        let mut command = pick_command(executable_name);
         command
             .args([
                 "--config",
