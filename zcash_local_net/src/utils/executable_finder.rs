@@ -25,20 +25,20 @@ fn pick_path(executable_name: &str, trace_location: bool) -> Option<PathBuf> {
             let path = PathBuf::from(directory).join(executable_name);
             if path.exists() {
                 if trace_location {
-                    tracing::warn!("Found {executable_name} at {path:?}.");
+                    tracing::info!("Found {executable_name} at {path:?}.");
                     tracing::info!("Ready to launch to launch {executable_name}.");
                 }
                 Some(path)
             } else {
                 if trace_location {
-                    tracing::warn!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
+                    tracing::info!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
                 }
                 None
             }
         }
         Err(_err) => {
             if trace_location {
-                tracing::warn!("{environment_variable_path} environment variable is not set.");
+                tracing::info!("{environment_variable_path} environment variable is not set.");
             }
             None
         }
