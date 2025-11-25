@@ -56,3 +56,16 @@ impl<T: LogsToDir> LogsToStdoutAndStderr for T {
         print_log(stdout_log_path);
     }
 }
+
+pub fn trace_version(executable_name: &str, version_command: &str) {
+    let mut command = crate::utils::executable_finder::pick_command(executable_name);
+
+    let mut args = vec![version_command];
+
+    command.args(args);
+
+    let version = command
+        .output()
+        .expect(crate::utils::executable_finder::EXPECT_SPAWN);
+    tracing::info!("lightwalletd version {version:?}");
+}
