@@ -57,15 +57,19 @@ impl<T: LogsToDir> LogsToStdoutAndStderr for T {
     }
 }
 
+/// Helper to trace the executable version.
 pub fn trace_version(executable_name: &str, version_command: &str) {
     let mut command = crate::utils::executable_finder::pick_command(executable_name);
 
-    let mut args = vec![version_command];
+    let args = vec![version_command];
 
     command.args(args);
 
     let version = command
         .output()
         .expect(crate::utils::executable_finder::EXPECT_SPAWN);
-    tracing::info!("lightwalletd version {version:?}");
+    tracing::info!(
+        "$ {executable_name} {version_command}
+ {version:?}"
+    );
 }
