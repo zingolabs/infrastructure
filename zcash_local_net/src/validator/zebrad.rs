@@ -106,6 +106,8 @@ pub struct Zebrad {
     #[getset(get_copy = "pub")]
     rpc_listen_port: Port,
     /// gRPC listen port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
     indexer_listen_port: Port,
     /// Config directory
     config_dir: TempDir,
