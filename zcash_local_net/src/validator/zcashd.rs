@@ -13,6 +13,7 @@ use zingo_test_vectors::{
 };
 
 use crate::logs::LogsToStdoutAndStderr;
+use crate::utils::executable_finder::trace_version_and_location;
 use crate::validator::ValidatorConfig;
 use crate::{
     config,
@@ -110,7 +111,7 @@ impl Zcashd {
     /// self.zcash_cli_command(&["generate", "1"]);
     /// ```
     pub fn zcash_cli_command(&self, args: &[&str]) -> std::io::Result<std::process::Output> {
-        let mut command = pick_command("zcash-cli");
+        let mut command = pick_command("zcash-cli", false);
 
         command.arg(format!("-conf={}", self.config_path().to_str().unwrap()));
         command.args(args).output()
@@ -149,7 +150,11 @@ impl Process for Zcashd {
         )
         .unwrap();
 
-        let mut command = pick_command("zcashd");
+        let executable_name = "zcashd";
+        trace_version_and_location(executable_name, "--version");
+        trace_version_and_location("zcash-cli", "--version");
+
+        let mut command = pick_command(executable_name, false);
         command
             .args([
                 "--printtoconsole",
