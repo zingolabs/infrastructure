@@ -21,7 +21,7 @@ jobs:
       RUSTFLAGS: -D warnings
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
 
@@ -55,7 +55,7 @@ jobs:
       options: --security-opt seccomp=unconfined
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: create binaries dir
         run: mkdir -p ./test_binaries/bins
