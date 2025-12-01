@@ -3825,9 +3825,9 @@ dependencies = [
 
 [[package]]
 name = "tower-batch-control"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe651be646060d75570d5819bbdac919478f438fc814c247300f34b38d1bd0e9"
+checksum = "6e6cf52578f98b4da47335c26c4f883f7993b1a9b9d2f5420eb8dbfd5dd19a28"
 dependencies = [
  "futures",
  "futures-core",
@@ -4846,9 +4846,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-consensus"
-version = "3.0.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0193612e78338a596fb35dfce2b6461c2a811b7e77f60243eab4b8cbd158cb46"
+checksum = "770efa97a22262ee80290b0ffa251cddb34d7c50351c4e5255ed80f644d035e0"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -4885,9 +4885,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-network"
-version = "2.0.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "542a036cbd491d2ffbf011cfa5b90d30ff8aacc5a35d8fe9cd7709e719752747"
+checksum = "c3edeb353c33962fb5f9012745ddb44d33ee90acb8c9410669bf54d72488b8cf"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -4922,9 +4922,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-node-services"
-version = "2.0.0"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1a5293d992264b1482ca66d9e4950201927b940013a06bd5f0da3ccdf217b3"
+checksum = "863ddd987ed6373872b20629a471c535ae2ba114a193415227635840ec570ccd"
 dependencies = [
  "color-eyre",
  "jsonrpsee-types",
@@ -4932,14 +4932,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower 0.4.13",
  "zebra-chain",
 ]
 
 [[package]]
 name = "zebra-rpc"
-version = "3.0.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b8e1900e33dcaaad05b0ac5bd35c1bb4e3eb8d96b8cf513ad1399c3f34e8227"
+checksum = "c81f52b33b83f5a7f9b0377981843242c2657027053a406f01b06862dddbf747"
 dependencies = [
  "base64",
  "chrono",
@@ -4987,9 +4988,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-script"
-version = "3.0.0"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c87f361fc4fb831020cf85de879467fac181328d808e21d1b2267264776964c"
+checksum = "11acd2a4f9077e3698bbc51a3f04c247381f7bf7f77aacc408e5760d3246993b"
 dependencies = [
  "libzcash_script",
  "thiserror 2.0.17",
@@ -5000,9 +5001,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-state"
-version = "3.0.0"
+version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f694bf023271dec800a81e999abba66df6828187c094c7bbfa1a128c89864ea5"
+checksum = "b47250eaaa047bebde853a54184ab00ab19f47ed451f35b7c1ae8fe17004d87a"
 dependencies = [
  "bincode",
  "chrono",
@@ -5033,6 +5034,7 @@ dependencies = [
  "tower 0.4.13",
  "tracing",
  "zebra-chain",
+ "zebra-node-services",
 ]
 
 [[package]]
