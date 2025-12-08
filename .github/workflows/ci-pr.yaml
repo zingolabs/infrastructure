@@ -52,5 +52,6 @@ jobs:
         uses: ./.github/actions/cargo-hack
         with:
           hack-subcommand: check
+
   test:
     uses: ./.github/workflows/test.yaml
