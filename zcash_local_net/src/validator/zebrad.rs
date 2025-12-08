@@ -101,10 +101,14 @@ pub struct Zebrad {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     network_listen_port: Port,
-    /// RPC listen port
+    /// json RPC listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     rpc_listen_port: Port,
+    /// gRPC listen port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    indexer_listen_port: Port,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -222,6 +226,7 @@ impl Process for Zebrad {
         let zebrad = Zebrad {
             handle,
             network_listen_port,
+            indexer_listen_port,
             rpc_listen_port,
             config_dir,
             logs_dir,
