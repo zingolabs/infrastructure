@@ -7,7 +7,7 @@ use crate::{
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
+    utils::executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
     validator::{Validator, ValidatorConfig},
     ProcessId,
 };
@@ -101,10 +101,14 @@ pub struct Zebrad {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     network_listen_port: Port,
-    /// RPC listen port
+    /// json RPC listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     rpc_listen_port: Port,
+    /// gRPC listen port
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    indexer_listen_port: Port,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -169,7 +173,9 @@ impl Process for Zebrad {
         )
         .unwrap();
 
-        let mut command = pick_command("zebrad");
+        let executable_name = "zebrad";
+        trace_version_and_location(executable_name, "--version");
+        let mut command = pick_command(executable_name, false);
         command
             .args([
                 "--config",
@@ -220,6 +226,7 @@ impl Process for Zebrad {
         let zebrad = Zebrad {
             handle,
             network_listen_port,
+            indexer_listen_port,
             rpc_listen_port,
             config_dir,
             logs_dir,
