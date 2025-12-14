@@ -12,7 +12,6 @@ use crate::{
     ProcessId,
 };
 use zcash_protocol::PoolType;
-use zingo_common_components::protocol::activation_heights::for_test;
 use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 
 use std::{
@@ -31,6 +30,7 @@ use zebra_rpc::{
     client::{BlockTemplateResponse, BlockTemplateTimeSource},
     proposal_block_from_template,
 };
+
 /// Zebrad configuration
 ///
 /// Use `zebrad_bin` to specify the binary location.
@@ -70,7 +70,18 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            configured_activation_heights: for_test::all_height_one_nus(),
+            configured_activation_heights: ConfiguredActivationHeights {
+                before_overwinter: Some(1),
+                overwinter: Some(1),
+                sapling: Some(1),
+                blossom: Some(1),
+                heartwood: Some(1),
+                canopy: Some(1),
+                nu5: Some(1),
+                nu6: Some(1),
+                nu6_1: Some(1),
+                nu7: None,
+            },
             miner_address: ZEBRAD_DEFAULT_MINER,
             chain_cache: None,
             network: NetworkKind::Regtest,
@@ -153,7 +164,7 @@ impl Process for Zebrad {
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path = config::zebrad(
+        let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),
             working_cache_dir,
             network_listen_port,
@@ -165,7 +176,7 @@ impl Process for Zebrad {
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd
-        config::zcashd(
+        config::write_zcashd_config(
             config_dir.path(),
             rpc_listen_port,
             &config.configured_activation_heights,
@@ -324,6 +335,7 @@ impl Validator for Zebrad {
 
         Ok(())
     }
+
     async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
         for _ in 0..blocks {
             self.generate_blocks(1).await.unwrap();
@@ -331,6 +343,7 @@ impl Validator for Zebrad {
         }
         Ok(())
     }
+
     async fn get_chain_height(&self) -> u32 {
         let response: serde_json::Value = self
             .client

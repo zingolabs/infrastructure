@@ -1,5 +1,5 @@
 [workspace]
-members = ["zcash_local_net", "zingo_test_vectors"]
+members = ["zcash_local_net", "zingo_test_vectors", "regtest-launcher"]
 resolver = "2"
 
 [workspace.dependencies]

@@ -142,7 +142,7 @@ impl Process for Zcashd {
 
         let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path = config::zcashd(
+        let config_file_path = config::write_zcashd_config(
             config_dir.path(),
             port,
             configured_activation_heights,

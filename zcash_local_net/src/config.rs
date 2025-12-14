@@ -26,7 +26,7 @@ pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
-pub(crate) fn zcashd(
+pub(crate) fn write_zcashd_config(
     config_dir: &Path,
     rpc_port: Port,
     test_activation_heights: &testnet::ConfiguredActivationHeights,
@@ -115,27 +115,27 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 ///
 /// Canopy (and all earlier network upgrades) must have an activation height of 1 for zebrad regtest mode
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn zebrad(
-    config_dir: PathBuf,
+pub(crate) fn write_zebrad_config(
+    output_config_dir: PathBuf,
     cache_dir: PathBuf,
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    test_activation_heights: &testnet::ConfiguredActivationHeights,
+    activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: &str,
     network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = config_dir.join(ZEBRAD_FILENAME);
+    let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
 
     assert!(
-        test_activation_heights.canopy.is_some(),
+        activation_heights.canopy.is_some(),
         "canopy must be active for zebrad regtest mode. please set activation height to 1"
     );
 
-    let nu5_activation_height = test_activation_heights.nu5.expect("nu5 activated");
-    let nu6_activation_height = test_activation_heights.nu6.expect("nu6 activated");
-    let nu6_1_activation_height = test_activation_heights.nu6_1.expect("nu6.1 activated");
+    let nu5_activation_height = activation_heights.nu5.expect("nu5 activated");
+    let nu6_activation_height = activation_heights.nu6.expect("nu6 activated");
+    let nu6_1_activation_height = activation_heights.nu6_1.expect("nu6.1 activated");
 
     let chain_cache = cache_dir.to_str().unwrap();
 
@@ -346,7 +346,8 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
         let config_dir = tempfile::tempdir().unwrap();
         let test_activation_heights = for_test::sequential_height_nus();
 
-        super::zcashd(config_dir.path(), 1234, &test_activation_heights, None).unwrap();
+        super::write_zcashd_config(config_dir.path(), 1234, &test_activation_heights, None)
+            .unwrap();
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
@@ -359,7 +360,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
         let config_dir = tempfile::tempdir().unwrap();
         let test_activation_heights = for_test::sequential_height_nus();
 
-        super::zcashd(
+        super::write_zcashd_config(
             config_dir.path(),
             1234,
             &test_activation_heights,
