@@ -17,8 +17,8 @@ inputs:
   hack-flags:
     description: Flags to pass to cargo-hack
     required: false
-    # Default: isolate each crate, try all feature combos, no dev-deps, build lib+bins only
-    default: "--workspace --feature-powerset --lib --bins --tests --target-dir target/hack"
+    # Try all feature combinations, no dev dependencies, build lib & bins
+    default: "--workspace --feature-powerset --tests --target-dir target/hack"
   install_protoc:
     description: Install protobuf-compiler
     required: false

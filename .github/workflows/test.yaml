@@ -70,6 +70,6 @@ jobs:
 
       - name: Run tests
         run: |
-          cargo nextest run --verbose --profile ci --retries 2 --archive-file nextest-archive.tar.zst \
+          cargo nextest run --verbose --profile ci --retries 2 -E 'not binary_id(regtest-launcher::e2e)' --archive-file nextest-archive.tar.zst \
             --workspace-remap ./ ${{ env.NEXTEST-FLAGS }}
 

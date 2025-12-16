@@ -1,0 +1,25 @@
+[package]
+name = "regtest-launcher"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+hex.workspace = true
+local-net = { path = "../zcash_local_net", package = "zcash_local_net" }
+tokio = { workspace = true, features = ["signal"] }
+zebra-node-services = { workspace = true, features = ["rpc-client"] }
+zebra-rpc.workspace = true
+
+[dev-dependencies]
+anyhow = "1.0.100"
+assert_cmd = "2.1.1"
+insta = "1.44.3"
+nix = { version = "0.30.1", features = ["signal", "process"] }
+regex = "1.12.2"
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+    "time",
+    "io-util",
+    "process",
+] }
