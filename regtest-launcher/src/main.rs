@@ -65,21 +65,21 @@ async fn main() {
 
     let seconds_per_block = 5u64;
 
-    println!("");
-    println!("");
+    println!();
+    println!();
 
     println!("{}:", "Mnemonic".red().bold());
     println!("{}", mnemonic.bold());
-    println!("");
+    println!();
 
     println!("{}:", "Secret Key".red().bold());
     println!("{}", sk.display_secret().bold());
-    println!("");
+    println!();
 
     println!("Transparent Address: {}", taddr_str.bright_green().bold());
 
-    println!("");
-    println!("");
+    println!();
+    println!();
 
     tokio::spawn(async move {
         let mut tick = interval(Duration::from_secs(seconds_per_block));

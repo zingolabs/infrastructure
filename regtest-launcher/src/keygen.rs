@@ -13,7 +13,7 @@ use zip32::AccountId;
 
 fn hash160(data: &[u8]) -> [u8; 20] {
     let sha = Sha256::digest(data);
-    let ripe = Ripemd160::digest(&sha);
+    let ripe = Ripemd160::digest(sha);
     let mut out = [0u8; 20];
     out.copy_from_slice(&ripe);
     out

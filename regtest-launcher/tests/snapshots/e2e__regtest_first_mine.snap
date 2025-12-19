@@ -1,6 +1,17 @@
 ---
 source: regtest-launcher/tests/e2e.rs
-expression: scrubbed
+expression: normalized_stdout
 ---
 Indexer running at: 127.0.0.1:<PORT>
+
+
+Mnemonic:
+<MNEMONIC>
+
+Secret Key:
+<SECRET_KEY>
+
+Transparent Address: <ADDR>
+
+
 mined: submitted=<HASH> new_tip=<HASH>
