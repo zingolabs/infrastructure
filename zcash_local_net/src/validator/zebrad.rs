@@ -57,7 +57,7 @@ pub struct ZebradConfig {
     /// Local network upgrade activation heights
     pub configured_activation_heights: ConfiguredActivationHeights,
     /// Miner address
-    pub miner_address: &'static str,
+    pub miner_address: String,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type
@@ -82,10 +82,18 @@ impl Default for ZebradConfig {
                 nu6_1: Some(1),
                 nu7: None,
             },
-            miner_address: ZEBRAD_DEFAULT_MINER,
+            miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
             network: NetworkKind::Regtest,
         }
+    }
+}
+
+impl ZebradConfig {
+    /// Sets the miner address.
+    pub fn with_miner_address(mut self, miner_address: String) -> Self {
+        self.miner_address = miner_address;
+        self
     }
 }
 
@@ -171,7 +179,7 @@ impl Process for Zebrad {
             rpc_listen_port,
             indexer_listen_port,
             &config.configured_activation_heights,
-            config.miner_address,
+            &config.miner_address,
             config.network,
         )
         .unwrap();
