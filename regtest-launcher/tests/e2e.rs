@@ -17,13 +17,16 @@ fn normalized_dynamic_values(s: &str) -> String {
     let regex_ansi = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
 
     let regex_localhost_port = Regex::new(r"(127\.0\.0\.1:)\d+").unwrap();
-    let regex_hash64 = Regex::new(r"\b[0-9a-f]{64}\b").unwrap();
-    let regex_height = Regex::new(r"(chain height at:\s*)\d+").unwrap();
 
     let regex_mnemonic_line = Regex::new(r"(?m)(^Mnemonic:\s*$\n)([^\n]+)").unwrap();
     let regex_secret_key_line = Regex::new(r"(?m)(^Secret Key:\s*$\n)([^\n]+)").unwrap();
     let regex_taddr_inline =
         Regex::new(r"(Transparent Address:\s*)([1-9A-HJ-NP-Za-km-z]{20,})").unwrap();
+
+    let regex_mined_up_to = Regex::new(r"(Mined up to chain height\s+)\d+").unwrap();
+    let regex_height_inline = Regex::new(r"(height=)\d+").unwrap();
+
+    let regex_hash64 = Regex::new(r"\b[0-9a-f]{64}\b").unwrap();
 
     let text = regex_ansi.replace_all(s, "");
     let text = regex_localhost_port.replace_all(&text, "$1<PORT>");
@@ -32,8 +35,10 @@ fn normalized_dynamic_values(s: &str) -> String {
     let text = regex_secret_key_line.replace_all(&text, "$1<SECRET_KEY>");
     let text = regex_taddr_inline.replace_all(&text, "$1<ADDR>");
 
+    let text = regex_mined_up_to.replace_all(&text, "$1<HEIGHT>");
+    let text = regex_height_inline.replace_all(&text, "$1<HEIGHT>");
+
     let text = regex_hash64.replace_all(&text, "<HASH>");
-    let text = regex_height.replace_all(&text, "$1<HEIGHT>");
 
     text.to_string()
 }
@@ -76,7 +81,9 @@ async fn mines_once_then_exits_on_ctrlc() -> anyhow::Result<()> {
             if line.contains("Indexer running at: 127.0.0.1:") {
                 saw_indexer = true;
             }
-            if line.contains("mined: submitted=") {
+
+            // mined new_tip=<hash> height=<num>
+            if line.contains("mined new_tip=") {
                 saw_mined = true;
                 break;
             }
