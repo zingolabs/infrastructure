@@ -95,6 +95,13 @@ impl ZebradConfig {
         self.miner_address = miner_address;
         self
     }
+
+    /// Sets the validator to run in regtest mode, with the specified activation heights.
+    pub fn with_regtest_enabled(mut self, activation_heights: ConfiguredActivationHeights) -> Self {
+        self.network = NetworkKind::Regtest;
+        self.configured_activation_heights = activation_heights;
+        self
+    }
 }
 
 impl ValidatorConfig for ZebradConfig {

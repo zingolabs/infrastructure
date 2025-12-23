@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bip0039 = "0.12.0"
+clap = { version = "4.5.53", features = ["derive"] }
 hex.workspace = true
 local-net = { path = "../zcash_local_net", package = "zcash_local_net" }
 owo-colors = "4.2.3"
