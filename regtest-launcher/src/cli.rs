@@ -7,7 +7,7 @@ pub struct Cli {
     /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu7=off"
     ///
     /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all
-    /// Values: <u32> or off|none|disable
+    /// Values: u32 or off|none|disable
     #[arg(
         long,
         value_parser = parse_activation_heights,
