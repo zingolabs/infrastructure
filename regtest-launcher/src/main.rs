@@ -44,7 +44,7 @@ use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let heights = cli.activation_heights.clone();
+    let heights = cli.activation_heights;
 
     let transparent_result = generate_regtest_transparent_keypair();
     let mnemonic = transparent_result.0;
@@ -53,7 +53,7 @@ async fn main() {
 
     let zebrad_config = ZebradConfig::default()
         .with_miner_address(taddr_str.clone())
-        .with_regtest_enabled(heights.clone());
+        .with_regtest_enabled(heights);
     let network =
         LocalNet::<Zebrad, Zainod>::launch_from_two_configs(zebrad_config, Default::default())
             .await
@@ -83,7 +83,7 @@ async fn main() {
     let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
 
     let regtest_network = Network::Testnet(Arc::new(Parameters::new_regtest(RegtestParameters {
-        activation_heights: heights.clone(),
+        activation_heights: heights,
         funding_streams: None,
         lockbox_disbursements: None,
         checkpoints: None,
