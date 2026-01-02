@@ -14,6 +14,88 @@ pub struct Cli {
         default_value = "all=1,nu7=off"
     )]
     pub activation_heights: ConfiguredActivationHeights,
+
+    /// Optional miner address for receiving block rewards.
+    #[arg(long)]
+    pub miner_address: Option<String>,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum UpgradeKey {
+    BeforeOverwinter,
+    Overwinter,
+    Sapling,
+    Blossom,
+    Heartwood,
+    Canopy,
+    Nu5,
+    Nu6,
+    Nu6_1,
+    Nu7,
+}
+
+const UPGRADE_ORDER: [UpgradeKey; 10] = [
+    UpgradeKey::BeforeOverwinter,
+    UpgradeKey::Overwinter,
+    UpgradeKey::Sapling,
+    UpgradeKey::Blossom,
+    UpgradeKey::Heartwood,
+    UpgradeKey::Canopy,
+    UpgradeKey::Nu5,
+    UpgradeKey::Nu6,
+    UpgradeKey::Nu6_1,
+    UpgradeKey::Nu7,
+];
+
+fn parse_key(k: &str) -> Option<UpgradeKey> {
+    match k {
+        "before_overwinter" | "pre_overwinter" | "beforeoverwinter" => {
+            Some(UpgradeKey::BeforeOverwinter)
+        }
+        "overwinter" => Some(UpgradeKey::Overwinter),
+        "sapling" => Some(UpgradeKey::Sapling),
+        "blossom" => Some(UpgradeKey::Blossom),
+        "heartwood" => Some(UpgradeKey::Heartwood),
+        "canopy" => Some(UpgradeKey::Canopy),
+        "nu5" => Some(UpgradeKey::Nu5),
+        "nu6" => Some(UpgradeKey::Nu6),
+        "nu6_1" | "nu6.1" | "nu61" => Some(UpgradeKey::Nu6_1),
+        "nu7" => Some(UpgradeKey::Nu7),
+        _ => None,
+    }
+}
+
+fn set_field(cfg: &mut ConfiguredActivationHeights, key: UpgradeKey, val: Option<u32>) {
+    match key {
+        UpgradeKey::BeforeOverwinter => cfg.before_overwinter = val,
+        UpgradeKey::Overwinter => cfg.overwinter = val,
+        UpgradeKey::Sapling => cfg.sapling = val,
+        UpgradeKey::Blossom => cfg.blossom = val,
+        UpgradeKey::Heartwood => cfg.heartwood = val,
+        UpgradeKey::Canopy => cfg.canopy = val,
+        UpgradeKey::Nu5 => cfg.nu5 = val,
+        UpgradeKey::Nu6 => cfg.nu6 = val,
+        UpgradeKey::Nu6_1 => cfg.nu6_1 = val,
+        UpgradeKey::Nu7 => cfg.nu7 = val,
+    }
+}
+
+fn set_all(cfg: &mut ConfiguredActivationHeights, val: Option<u32>) {
+    for k in UPGRADE_ORDER {
+        set_field(cfg, k, val);
+    }
+}
+
+fn cascade_from(cfg: &mut ConfiguredActivationHeights, from: UpgradeKey, val: Option<u32>) {
+    let mut apply = false;
+    for k in UPGRADE_ORDER {
+        if k == from {
+            apply = true;
+        }
+        if apply {
+            set_field(cfg, k, val);
+        }
+    }
 }
 
 fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, String> {
@@ -30,6 +112,10 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu7: None,
     };
 
+    // Matches clap's default behaviour. Is there a better way to do this?
+    set_all(&mut cfg, Some(1));
+    cfg.nu7 = None;
+
     for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {
         let (k, v) = part
             .split_once('=')
@@ -38,32 +124,19 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         let key = k.trim().to_ascii_lowercase();
         let val = parse_val(v)?;
 
-        match key.as_str() {
-            "all" => set_all(&mut cfg, val),
-
-            "before_overwinter" | "pre_overwinter" | "beforeoverwinter" => {
-                cfg.before_overwinter = val
-            }
-            "overwinter" => cfg.overwinter = val,
-            "sapling" => cfg.sapling = val,
-            "blossom" => cfg.blossom = val,
-            "heartwood" => cfg.heartwood = val,
-            "canopy" => cfg.canopy = val,
-
-            "nu5" => cfg.nu5 = val,
-            "nu6" => cfg.nu6 = val,
-
-            "nu6_1" | "nu6.1" | "nu61" => cfg.nu6_1 = val,
-
-            "nu7" => cfg.nu7 = val,
-
-            _ => {
-                return Err(format!(
-                    "Unknown activation key '{k}'. Valid keys: \
-                     before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all"
-                ));
-            }
+        if key == "all" {
+            set_all(&mut cfg, val);
+            continue;
         }
+
+        let from = parse_key(&key).ok_or_else(|| {
+            format!(
+                "Unknown activation key '{k}'. Valid keys: \
+before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all"
+            )
+        })?;
+
+        cascade_from(&mut cfg, from, val);
     }
 
     Ok(cfg)
@@ -80,19 +153,6 @@ fn parse_val(v: &str) -> Result<Option<u32>, String> {
             .map_err(|_| format!("Invalid height '{v}': expected u32 or off|none|disable"))?;
         Ok(Some(n))
     }
-}
-
-fn set_all(cfg: &mut ConfiguredActivationHeights, val: Option<u32>) {
-    cfg.before_overwinter = val;
-    cfg.overwinter = val;
-    cfg.sapling = val;
-    cfg.blossom = val;
-    cfg.heartwood = val;
-    cfg.canopy = val;
-    cfg.nu5 = val;
-    cfg.nu6 = val;
-    cfg.nu6_1 = val;
-    cfg.nu7 = val;
 }
 
 #[cfg(test)]
@@ -126,27 +186,36 @@ mod tests {
     }
 
     #[test]
-    fn parse_activation_heights_empty_is_all_none() {
+    fn parse_activation_heights_empty_uses_seeded_defaults() {
         let cfg = parse_activation_heights("").unwrap();
-        assert_eq!(cfg.before_overwinter, None);
-        assert_eq!(cfg.overwinter, None);
-        assert_eq!(cfg.sapling, None);
-        assert_eq!(cfg.blossom, None);
-        assert_eq!(cfg.heartwood, None);
-        assert_eq!(cfg.canopy, None);
-        assert_eq!(cfg.nu5, None);
-        assert_eq!(cfg.nu6, None);
-        assert_eq!(cfg.nu6_1, None);
+
+        assert_eq!(cfg.before_overwinter, Some(1));
+        assert_eq!(cfg.overwinter, Some(1));
+        assert_eq!(cfg.sapling, Some(1));
+        assert_eq!(cfg.blossom, Some(1));
+        assert_eq!(cfg.heartwood, Some(1));
+        assert_eq!(cfg.canopy, Some(1));
+        assert_eq!(cfg.nu5, Some(1));
+        assert_eq!(cfg.nu6, Some(1));
+        assert_eq!(cfg.nu6_1, Some(1));
         assert_eq!(cfg.nu7, None);
     }
 
     #[test]
     fn parse_activation_heights_ignores_extra_commas_and_whitespace() {
         let cfg = parse_activation_heights(" , , nu5=1 , , ").unwrap();
+
+        assert_eq!(cfg.before_overwinter, Some(1));
+        assert_eq!(cfg.overwinter, Some(1));
+        assert_eq!(cfg.sapling, Some(1));
+        assert_eq!(cfg.blossom, Some(1));
+        assert_eq!(cfg.heartwood, Some(1));
+        assert_eq!(cfg.canopy, Some(1));
+
         assert_eq!(cfg.nu5, Some(1));
-        // others remain None
-        assert_eq!(cfg.nu6, None);
-        assert_eq!(cfg.nu7, None);
+        assert_eq!(cfg.nu6, Some(1));
+        assert_eq!(cfg.nu6_1, Some(1));
+        assert_eq!(cfg.nu7, Some(1));
     }
 
     #[test]
@@ -259,5 +328,14 @@ mod tests {
     fn parse_activation_heights_trims_key_and_value() {
         let cfg = parse_activation_heights(" nu5 =  42 ").unwrap();
         assert_eq!(cfg.nu5, Some(42));
+    }
+
+    #[test]
+    fn parse_activation_heights_cascades_and_overrides() {
+        let cfg = parse_activation_heights("nu5=1,nu7=off").unwrap();
+        assert_eq!(cfg.nu5, Some(1));
+        assert_eq!(cfg.nu6, Some(1));
+        assert_eq!(cfg.nu6_1, Some(1));
+        assert_eq!(cfg.nu7, None);
     }
 }
