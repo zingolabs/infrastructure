@@ -46,10 +46,13 @@ async fn main() {
     let cli = Cli::parse();
     let heights = cli.activation_heights;
 
-    let transparent_result = generate_regtest_transparent_keypair();
-    let mnemonic = transparent_result.0;
-    let sk = transparent_result.1;
-    let taddr_str = transparent_result.2;
+    let (mnemonic_opt, sk_opt, taddr_str) = match cli.miner_address.as_deref() {
+        Some(addr) => (None, None, addr.to_string()),
+        None => {
+            let (mnemonic, sk, taddr) = generate_regtest_transparent_keypair();
+            (Some(mnemonic), Some(sk), taddr)
+        }
+    };
 
     let zebrad_config = ZebradConfig::default()
         .with_miner_address(taddr_str.clone())
@@ -63,15 +66,22 @@ async fn main() {
 
     println!();
 
-    println!("{}:", "Mnemonic".red().bold());
-    println!("{}", mnemonic.bold());
-    println!();
+    if let (Some(mnemonic), Some(sk)) = (mnemonic_opt.as_ref(), sk_opt.as_ref()) {
+        println!("{}:", "Mnemonic".red().bold());
+        println!("{}", mnemonic.bold());
+        println!();
 
-    println!("{}:", "Secret Key".red().bold());
-    println!("{}", sk.display_secret().bold());
-    println!();
+        println!("{}:", "Secret Key".red().bold());
+        println!("{}", sk.display_secret().bold());
+        println!();
 
-    println!("Transparent Address: {}", taddr_str.bright_green().bold());
+        println!("Transparent Address: {}", taddr_str.bright_green().bold());
+    } else {
+        println!(
+            "Using provided miner address: {}",
+            taddr_str.bright_green().bold()
+        );
+    }
 
     println!();
     println!();
