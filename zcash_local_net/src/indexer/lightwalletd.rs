@@ -98,7 +98,7 @@ impl Process for Lightwalletd {
 
         let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
-        let config_file_path = config::lightwalletd(
+        let config_file_path = config::write_lightwalletd_config(
             config_dir.path(),
             port,
             lwd_log_file_path.clone(),

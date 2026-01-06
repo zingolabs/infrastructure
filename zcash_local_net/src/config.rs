@@ -299,7 +299,7 @@ database.path = \"{chain_cache}\""
 /// Writes the Lightwalletd config file to the specified config directory.
 /// Returns the path to the config file.
 #[allow(dead_code)]
-pub(crate) fn lightwalletd(
+pub(crate) fn write_lightwalletd_config(
     config_dir: &Path,
     grpc_bind_addr_port: Port,
     log_file: PathBuf,
@@ -452,7 +452,7 @@ database.path = \"{zaino_test_path}\""
         let logs_dir = tempfile::tempdir().unwrap();
         let log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
 
-        super::lightwalletd(
+        super::write_lightwalletd_config(
             config_dir.path(),
             1234,
             log_file_path.clone(),
