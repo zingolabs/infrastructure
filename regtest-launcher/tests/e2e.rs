@@ -13,13 +13,28 @@ use nix::{
 };
 
 fn normalized_dynamic_values(s: &str) -> String {
+    // Strip ANSI escape sequences
+    let regex_ansi = Regex::new(r"\x1b\[[0-9;]*m").unwrap();
+
     let regex_localhost_port = Regex::new(r"(127\.0\.0\.1:)\d+").unwrap();
-    let regex_hash = Regex::new(r"\b[0-9a-f]{64}\b").unwrap();
+    let regex_hash64 = Regex::new(r"\b[0-9a-f]{64}\b").unwrap();
     let regex_height = Regex::new(r"(chain height at:\s*)\d+").unwrap();
 
-    let text = regex_localhost_port.replace_all(s, "$1<PORT>");
-    let text = regex_hash.replace_all(&text, "<HASH>");
+    let regex_mnemonic_line = Regex::new(r"(?m)(^Mnemonic:\s*$\n)([^\n]+)").unwrap();
+    let regex_secret_key_line = Regex::new(r"(?m)(^Secret Key:\s*$\n)([^\n]+)").unwrap();
+    let regex_taddr_inline =
+        Regex::new(r"(Transparent Address:\s*)([1-9A-HJ-NP-Za-km-z]{20,})").unwrap();
+
+    let text = regex_ansi.replace_all(s, "");
+    let text = regex_localhost_port.replace_all(&text, "$1<PORT>");
+
+    let text = regex_mnemonic_line.replace_all(&text, "$1<MNEMONIC>");
+    let text = regex_secret_key_line.replace_all(&text, "$1<SECRET_KEY>");
+    let text = regex_taddr_inline.replace_all(&text, "$1<ADDR>");
+
+    let text = regex_hash64.replace_all(&text, "<HASH>");
     let text = regex_height.replace_all(&text, "$1<HEIGHT>");
+
     text.to_string()
 }
 
@@ -28,6 +43,7 @@ async fn mines_once_then_exits_on_ctrlc() -> anyhow::Result<()> {
     let executable_path = assert_cmd::cargo::cargo_bin!();
 
     let mut child_process = Command::new(executable_path)
+        .env("NO_COLOR", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

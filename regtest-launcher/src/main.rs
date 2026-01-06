@@ -1,3 +1,5 @@
+mod keygen;
+
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     str::FromStr,
@@ -11,10 +13,15 @@ use std::{
 use local_net::{
     LocalNet,
     indexer::zainod::Zainod,
-    process::Process,
-    validator::{Validator, zebrad::Zebrad},
+    validator::{
+        Validator,
+        zebrad::{Zebrad, ZebradConfig},
+    },
 };
+use owo_colors::OwoColorize;
+
 use tokio::{signal::ctrl_c, time::interval};
+
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
     client::{
@@ -30,9 +37,20 @@ use zebra_rpc::{
     proposal_block_from_template,
 };
 
+use crate::keygen::generate_regtest_transparent_keypair;
+
 #[tokio::main]
 async fn main() {
-    let network = LocalNet::<Zebrad, Zainod>::launch_default().await.unwrap();
+    let transparent_result = generate_regtest_transparent_keypair();
+    let mnemonic = transparent_result.0;
+    let sk = transparent_result.1;
+    let taddr_str = transparent_result.2;
+
+    let zebrad_config = ZebradConfig::default().with_miner_address(taddr_str.clone());
+    let network =
+        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(zebrad_config, Default::default())
+            .await
+            .unwrap();
 
     println!("Indexer running at: 127.0.0.1:{}", network.indexer().port());
 
@@ -46,6 +64,22 @@ async fn main() {
     let running_miner = running.clone();
 
     let seconds_per_block = 5u64;
+
+    println!();
+    println!();
+
+    println!("{}:", "Mnemonic".red().bold());
+    println!("{}", mnemonic.bold());
+    println!();
+
+    println!("{}:", "Secret Key".red().bold());
+    println!("{}", sk.display_secret().bold());
+    println!();
+
+    println!("Transparent Address: {}", taddr_str.bright_green().bold());
+
+    println!();
+    println!();
 
     tokio::spawn(async move {
         let mut tick = interval(Duration::from_secs(seconds_per_block));

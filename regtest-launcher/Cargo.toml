@@ -4,11 +4,20 @@ version = "0.0.0"
 edition = "2024"
 
 [dependencies]
+bip0039 = "0.12.0"
 hex.workspace = true
 local-net = { path = "../zcash_local_net", package = "zcash_local_net" }
+owo-colors = "4.2.3"
+ripemd = "0.1.3"
+secp256k1 = "0.29.1"
+sha2 = "0.10.9"
 tokio = { workspace = true, features = ["signal"] }
+zcash_keys = "0.12.0"
+zcash_protocol = "0.7.2"
+zcash_transparent = "0.6.3"
 zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc.workspace = true
+zip32 = "0.2.1"
 
 [dev-dependencies]
 anyhow = "1.0.100"
