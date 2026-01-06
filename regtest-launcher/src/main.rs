@@ -1,3 +1,4 @@
+mod cli;
 mod keygen;
 
 use std::{
@@ -10,6 +11,7 @@ use std::{
     time::Duration,
 };
 
+use clap::Parser;
 use local_net::{
     LocalNet,
     indexer::zainod::Zainod,
@@ -29,7 +31,7 @@ use zebra_rpc::{
         zebra_chain::{
             parameters::{
                 Network,
-                testnet::{ConfiguredActivationHeights, Parameters, RegtestParameters},
+                testnet::{Parameters, RegtestParameters},
             },
             serialization::ZcashSerialize,
         },
@@ -37,16 +39,21 @@ use zebra_rpc::{
     proposal_block_from_template,
 };
 
-use crate::keygen::generate_regtest_transparent_keypair;
+use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 
 #[tokio::main]
 async fn main() {
+    let cli = Cli::parse();
+    let heights = cli.activation_heights;
+
     let transparent_result = generate_regtest_transparent_keypair();
     let mnemonic = transparent_result.0;
     let sk = transparent_result.1;
     let taddr_str = transparent_result.2;
 
-    let zebrad_config = ZebradConfig::default().with_miner_address(taddr_str.clone());
+    let zebrad_config = ZebradConfig::default()
+        .with_miner_address(taddr_str.clone())
+        .with_regtest_enabled(heights);
     let network =
         LocalNet::<Zebrad, Zainod>::launch_from_two_configs(zebrad_config, Default::default())
             .await
@@ -54,18 +61,6 @@ async fn main() {
 
     println!("Indexer running at: 127.0.0.1:{}", network.indexer().port());
 
-    let rpc_addr = SocketAddr::new(
-        IpAddr::V4(Ipv4Addr::LOCALHOST),
-        network.validator().rpc_listen_port(),
-    );
-    let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
-
-    let running = Arc::new(AtomicBool::new(true));
-    let running_miner = running.clone();
-
-    let seconds_per_block = 5u64;
-
-    println!();
     println!();
 
     println!("{}:", "Mnemonic".red().bold());
@@ -80,6 +75,62 @@ async fn main() {
 
     println!();
     println!();
+
+    let rpc_addr = SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::LOCALHOST),
+        network.validator().rpc_listen_port(),
+    );
+    let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
+
+    let regtest_network = Network::Testnet(Arc::new(Parameters::new_regtest(RegtestParameters {
+        activation_heights: heights,
+        funding_streams: None,
+        lockbox_disbursements: None,
+        checkpoints: None,
+        extend_funding_stream_addresses_as_required: None,
+    })));
+
+    let running = Arc::new(AtomicBool::new(true));
+    let running_miner = running.clone();
+
+    let seconds_per_block = 5u64;
+
+    let target_height = 101u32;
+    loop {
+        let cur_height = network.validator().get_chain_height().await;
+        if cur_height >= target_height {
+            println!("Mined up to chain height {}\n", cur_height);
+            break;
+        }
+
+        let tpl: GetBlockTemplateResponse = client
+            .json_result_from_call("getblocktemplate", "[]".to_string())
+            .await
+            .expect("getblocktemplate failed");
+
+        let tpl_resp = tpl.try_into_template().unwrap();
+        let block = proposal_block_from_template(
+            &tpl_resp,
+            BlockTemplateTimeSource::default(),
+            &regtest_network,
+        )
+        .expect("proposal_block_from_template failed");
+
+        let submitted_hash = block.hash();
+        let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
+        let submit_response = client
+            .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
+            .await
+            .expect("submitblock failed");
+
+        let ok = submit_response.contains(r#""result":null"#);
+        if !ok {
+            eprintln!(
+                "bootstrap submitblock rejected. submitted={submitted_hash} resp={submit_response}"
+            );
+            continue;
+        }
+    }
 
     tokio::spawn(async move {
         let mut tick = interval(Duration::from_secs(seconds_per_block));
@@ -97,24 +148,7 @@ async fn main() {
             let block = proposal_block_from_template(
                 &tpl_resp,
                 BlockTemplateTimeSource::default(),
-                &Network::Testnet(Arc::new(Parameters::new_regtest(RegtestParameters {
-                    activation_heights: ConfiguredActivationHeights {
-                        before_overwinter: Some(1),
-                        overwinter: Some(1),
-                        sapling: Some(1),
-                        blossom: Some(1),
-                        heartwood: Some(1),
-                        canopy: Some(1),
-                        nu5: Some(1),
-                        nu6: Some(1),
-                        nu6_1: Some(1),
-                        nu7: None,
-                    },
-                    funding_streams: None,
-                    lockbox_disbursements: None,
-                    checkpoints: None,
-                    extend_funding_stream_addresses_as_required: None,
-                }))),
+                &regtest_network,
             )
             .expect("proposal_block_from_template failed");
 
@@ -140,11 +174,8 @@ async fn main() {
                 .expect("getbestblockhash failed");
 
             if last_tip.as_deref() != Some(&tip) {
-                println!("mined: submitted={submitted_hash} new_tip={tip}");
-                println!(
-                    "chain height at: {}\n",
-                    network.validator().get_chain_height().await
-                );
+                println!("mined new_tip={tip} height={}", tpl_resp.height());
+
                 last_tip = Some(tip);
             }
         }

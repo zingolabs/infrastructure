@@ -4,7 +4,6 @@ expression: normalized_stdout
 ---
 Indexer running at: 127.0.0.1:<PORT>
 
-
 Mnemonic:
 <MNEMONIC>
 
@@ -14,4 +13,6 @@ Secret Key:
 Transparent Address: <ADDR>
 
 
-mined: submitted=<HASH> new_tip=<HASH>
+Mined up to chain height <HEIGHT>
+
+mined new_tip=<HASH> height=<HEIGHT>

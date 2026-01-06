@@ -1,7 +1,7 @@
 //! Module for configuring processes and writing configuration files
 
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use portpicker::Port;
@@ -33,10 +33,11 @@ pub(crate) fn write_zcashd_config(
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
+    let file = File::create(config_file_path.clone())?;
+    let mut config_file = BufWriter::new(file);
 
     let testnet::ConfiguredActivationHeights {
-        before_overwinter: _,  // Skip pre-overwinter as noted
+        before_overwinter: _, // Skip pre-overwinter as noted
         overwinter,
         sapling,
         blossom,
@@ -44,9 +45,8 @@ pub(crate) fn write_zcashd_config(
         canopy,
         nu5,
         nu6,
-        #[allow(unused_variables)]
         nu6_1,
-        ..  // Ignore any future fields like nu7
+        .. // Ignore any future fields like nu7
     } = test_activation_heights;
 
     let overwinter_activation_height =
@@ -57,10 +57,19 @@ pub(crate) fn write_zcashd_config(
         heartwood.expect("heartwood activation height must be specified");
     let canopy_activation_height = canopy.expect("canopy activation height must be specified");
     let nu5_activation_height = nu5.expect("nu5 activation height must be specified");
-    let nu6_activation_height = nu6.expect("nu6 activation height must be specified");
-    let nu6_1_activation_height = nu6_1.expect("nu6_1 activation height must be specified");
 
-    config_file.write_all(format!("\
+    let nu6_activation_height = *nu6;
+    let nu6_1_activation_height = *nu6_1;
+
+    if nu6_activation_height.is_none() && nu6_1_activation_height.is_some() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1",
+        ));
+    }
+
+    let mut cfg = format!(
+        "\
 ### Blockchain Configuration
 regtest=1
 nuparams=5ba81b19:{overwinter_activation_height} # Overwinter
@@ -68,10 +77,20 @@ nuparams=76b809bb:{sapling_activation_height} # Sapling
 nuparams=2bb40e60:{blossom_activation_height} # Blossom
 nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
-nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
-nuparams=c8e71055:{nu6_activation_height} # NU6
-nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)"
+    );
 
+    if let Some(h) = nu6_activation_height {
+        cfg.push_str(&format!("\nnuparams=c8e71055:{h} # NU6"));
+    }
+    if let Some(h) = nu6_1_activation_height {
+        cfg.push_str(&format!(
+            "\nnuparams=4dec4df0:{h} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment"
+        ));
+    }
+
+    cfg.push_str(&format!(
+        "\n\n\
 ### MetaData Storage and Retrieval
 # txindex:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#miscellaneous-options
@@ -94,18 +113,19 @@ rpcallowip=127.0.0.1
 listen=0
 
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1"
-            ).as_bytes())?;
+    ));
 
     if let Some(addr) = miner_address {
-        config_file.write_all(
-
-                format!("\n\n\
+        cfg.push_str(&format!(
+            "\n\n\
 ### Zcashd Help provides documentation of the following:
 mineraddress={addr}
 minetolocalwallet=0 # This is set to false so that we can mine to a wallet, other than the zcashd wallet."
-                ).as_bytes()
-        )?;
+        ));
     }
+
+    config_file.write_all(cfg.as_bytes())?;
+    config_file.flush()?;
 
     Ok(config_file_path)
 }
@@ -134,16 +154,22 @@ pub(crate) fn write_zebrad_config(
     );
 
     let nu5_activation_height = activation_heights.nu5.expect("nu5 activated");
-    let nu6_activation_height = activation_heights.nu6.expect("nu6 activated");
-    let nu6_1_activation_height = activation_heights.nu6_1.expect("nu6.1 activated");
+
+    let nu6_activation_height = activation_heights.nu6;
+    let nu6_1_activation_height = activation_heights.nu6_1;
+
+    // Ordering is correct
+    assert!(
+        !(nu6_activation_height.is_none() && nu6_1_activation_height.is_some()),
+        "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1"
+    );
 
     let chain_cache = cache_dir.to_str().unwrap();
 
     let network_string = network_kind_to_string(network);
 
-    config_file.write_all(
-        format!(
-            "\
+    let mut cfg = format!(
+        "\
 [consensus]
 checkpoint_sync = true
 
@@ -198,15 +224,12 @@ force_use_color = false
 use_color = true
 #log_file = \"/home/aloe/.zebradtemplogfile\"
 filter = \"debug\"
-use_journald = false"
-        )
-        .as_bytes(),
-    )?;
+use_journald = false",
+    );
 
     if matches!(network, NetworkKind::Regtest) {
-        config_file.write_all(
-            format!(
-                "\n\n\
+        cfg.push_str(&format!(
+            "\n\n\
 [mining]
 miner_address = \"{miner_address}\"
 
@@ -215,13 +238,19 @@ miner_address = \"{miner_address}\"
 # block height 0 is reserved for the Genesis network upgrade in Zebra
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
 Canopy = 1
-NU5 = {nu5_activation_height}
-NU6 = {nu6_activation_height}
-\"NU6.1\" = {nu6_1_activation_height}"
-            )
-            .as_bytes(),
-        )?;
+NU5 = {nu5_activation_height}"
+        ));
+
+        if let Some(nu6) = nu6_activation_height {
+            cfg.push_str(&format!("\nNU6 = {nu6}"));
+        }
+        if let Some(nu6_1) = nu6_1_activation_height {
+            cfg.push_str(&format!("\n\"NU6.1\" = {nu6_1}"));
+        }
     }
+
+    config_file.write_all(cfg.as_bytes())?;
+    config_file.flush()?;
 
     Ok(config_file_path)
 }
