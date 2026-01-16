@@ -5418,7 +5418,7 @@ dependencies = [
 [[package]]
 name = "zingo_common_components"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingo-common.git?branch=dev#4b8a4c01d86edf67f45c9b3d87e63222d0048512"
+source = "git+https://github.com/zingolabs/zingo-common.git?branch=dev#bec229a0bcc47b1d1430649f316be79dcc51a956"
 dependencies = [
  "zebra-chain",
 ]
