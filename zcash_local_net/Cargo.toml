@@ -2,7 +2,7 @@
 name = "zcash_local_net"
 version = "0.1.0"
 edition = "2021"
-license = "MIT License"
+license = "MIT"
 
 [badges]
 github = { repository = "zingolabs/infrastructure/services" }
@@ -10,13 +10,13 @@ github = { repository = "zingolabs/infrastructure/services" }
 [dependencies]
 
 # zingo
-zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", branch = "dev", features = [ "for_test" ]}
+zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", branch = "dev", features = [
+    "for_test",
+] }
 zingo_test_vectors = { workspace = true }
 
 # zcash
-zcash_protocol = { version = "0.7", features = [
-    "local-consensus",
-] }
+zcash_protocol = { version = "0.7", features = ["local-consensus"] }
 
 # zebra
 zebra-node-services = { workspace = true }

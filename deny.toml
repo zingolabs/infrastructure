@@ -2,6 +2,8 @@
 targets = []
 all-features = false
 no-default-features = false
+exclude = ["bincode", "json"]
+
 
 [bans]
 multiple-versions = "warn"
@@ -14,4 +16,21 @@ deny = [
     { crate = "openssl-sys", reason = "Use rustls or other pure-Rust TLS implementations instead" },
     { crate = "boring", reason = "Use rustls or other pure-Rust TLS implementations instead" },
     { crate = "boring-sys", reason = "Use rustls or other pure-Rust TLS implementations instead" },
+]
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "Unicode-3.0",
+    "ISC",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "Unlicense",
+    "MPL-2.0",
+    "Zlib",
 ]
