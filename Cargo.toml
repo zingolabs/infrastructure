@@ -8,9 +8,9 @@ resolver = "2"
 zingo_test_vectors = { path = "zingo_test_vectors" }
 
 # zebra
-zebra-chain = "3.0"
+zebra-chain = "4.0"
 zebra-node-services = "2.0"
-zebra-rpc = "3.0"
+zebra-rpc = "4.0"
 
 # other
 http = "1.1.0"
