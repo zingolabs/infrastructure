@@ -92,13 +92,16 @@ async fn main() {
     );
     let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
 
-    let regtest_network = Network::Testnet(Arc::new(Parameters::new_regtest(RegtestParameters {
-        activation_heights: heights,
-        funding_streams: None,
-        lockbox_disbursements: None,
-        checkpoints: None,
-        extend_funding_stream_addresses_as_required: None,
-    })));
+    let regtest_network = Network::Testnet(Arc::new(
+        Parameters::new_regtest(RegtestParameters {
+            activation_heights: heights,
+            funding_streams: None,
+            lockbox_disbursements: None,
+            checkpoints: None,
+            extend_funding_stream_addresses_as_required: None,
+        })
+        .unwrap(),
+    ));
 
     let running = Arc::new(AtomicBool::new(true));
     let running_miner = running.clone();
