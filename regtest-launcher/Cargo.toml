@@ -2,6 +2,7 @@
 name = "regtest-launcher"
 version = "0.0.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 bip0039 = "0.12.0"
