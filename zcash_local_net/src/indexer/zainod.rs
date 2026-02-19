@@ -6,7 +6,7 @@ use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
 
-use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
@@ -39,7 +39,7 @@ pub struct ZainodConfig {
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type.
-    pub network: NetworkKind,
+    pub network: NetworkType,
 }
 
 impl Default for ZainodConfig {
@@ -48,7 +48,7 @@ impl Default for ZainodConfig {
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
-            network: NetworkKind::Regtest,
+            network: NetworkType::Regtest(ActivationHeights::default()),
         }
     }
 }

@@ -5,9 +5,10 @@ use std::{path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
+
 use zcash_protocol::PoolType;
-use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
-use zebra_chain::parameters::NetworkKind;
+
+use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 use zingo_test_vectors::{
     REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
 };
@@ -26,7 +27,6 @@ use crate::{
     validator::Validator,
     ProcessId,
 };
-use zingo_common_components::protocol::activation_heights::for_test;
 
 /// Zcashd configuration
 ///
@@ -45,7 +45,7 @@ pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<Port>,
     /// Local network upgrade activation heights
-    pub configured_activation_heights: ConfiguredActivationHeights,
+    pub activation_heights: ActivationHeights,
     /// Miner address
     pub miner_address: Option<&'static str>,
     /// Chain cache path
@@ -56,7 +56,7 @@ impl Default for ZcashdConfig {
     fn default() -> Self {
         Self {
             rpc_listen_port: None,
-            configured_activation_heights: for_test::all_height_one_nus(),
+            activation_heights: ActivationHeights::default(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }
@@ -67,7 +67,7 @@ impl ValidatorConfig for ZcashdConfig {
     fn set_test_parameters(
         &mut self,
         mine_to_pool: PoolType,
-        configured_activation_heights: ConfiguredActivationHeights,
+        activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         self.miner_address = Some(match mine_to_pool {
@@ -75,7 +75,7 @@ impl ValidatorConfig for ZcashdConfig {
             PoolType::SAPLING => REG_Z_ADDR_FROM_ABANDONART,
             PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
         });
-        self.configured_activation_heights = configured_activation_heights;
+        self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;
     }
 }
@@ -134,18 +134,24 @@ impl Process for Zcashd {
         let data_dir = tempfile::tempdir().unwrap();
 
         if let Some(cache) = config.chain_cache.clone() {
-            Self::load_chain(cache, data_dir.path().to_path_buf(), NetworkKind::Regtest);
+            Self::load_chain(
+                cache,
+                data_dir.path().to_path_buf(),
+                NetworkType::Regtest(ActivationHeights::default()),
+            );
         }
 
-        let configured_activation_heights = &config.configured_activation_heights;
-        tracing::info!("Configuring zcashd to regtest with these activation heights: {configured_activation_heights:?}");
+        let activation_heights = config.activation_heights;
+        tracing::info!(
+            "Configuring zcashd to regtest with these activation heights: {activation_heights:?}"
+        );
 
         let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zcashd_config(
             config_dir.path(),
             port,
-            configured_activation_heights,
+            activation_heights,
             config.miner_address,
         )
         .unwrap();
@@ -230,7 +236,7 @@ impl Process for Zcashd {
 }
 
 impl Validator for Zcashd {
-    async fn get_activation_heights(&self) -> ConfiguredActivationHeights {
+    async fn get_activation_heights(&self) -> ActivationHeights {
         let output = self
             .zcash_cli_command(&["getblockchaininfo"])
             .expect("getblockchaininfo should succeed");
@@ -284,14 +290,14 @@ impl Validator for Zcashd {
         self.config_dir.path().join(config::ZCASHD_FILENAME)
     }
 
-    fn network(&self) -> NetworkKind {
+    fn network(&self) -> NetworkType {
         unimplemented!();
     }
 
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        _validator_network: NetworkKind,
+        _validator_network: NetworkType,
     ) -> PathBuf {
         let regtest_dir = chain_cache.clone().join("regtest");
         assert!(regtest_dir.exists(), "regtest directory not found!");

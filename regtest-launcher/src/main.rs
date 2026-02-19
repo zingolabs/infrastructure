@@ -38,13 +38,24 @@ use zebra_rpc::{
     },
     proposal_block_from_template,
 };
+use zingo_common_components::protocol::ActivationHeights;
 
 use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let heights = cli.activation_heights;
+    let heights = ActivationHeights::builder()
+        .set_overwinter(cli.activation_heights.overwinter)
+        .set_sapling(cli.activation_heights.sapling)
+        .set_blossom(cli.activation_heights.blossom)
+        .set_heartwood(cli.activation_heights.heartwood)
+        .set_canopy(cli.activation_heights.canopy)
+        .set_nu5(cli.activation_heights.nu5)
+        .set_nu6(cli.activation_heights.nu6)
+        .set_nu6_1(cli.activation_heights.nu6_1)
+        .set_nu7(cli.activation_heights.nu7)
+        .build();
 
     let (mnemonic_opt, sk_opt, taddr_str) = match cli.miner_address.as_deref() {
         Some(addr) => (None, None, addr.to_string()),
@@ -94,7 +105,7 @@ async fn main() {
 
     let regtest_network = Network::Testnet(Arc::new(
         Parameters::new_regtest(RegtestParameters {
-            activation_heights: heights,
+            activation_heights: cli.activation_heights,
             funding_streams: None,
             lockbox_disbursements: None,
             checkpoints: None,

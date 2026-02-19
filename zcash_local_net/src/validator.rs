@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use portpicker::Port;
 use tempfile::TempDir;
 use zcash_protocol::PoolType;
-use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
-use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
 use crate::process::Process;
 
@@ -15,7 +14,7 @@ pub mod zebrad;
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,
-) -> ConfiguredActivationHeights {
+) -> ActivationHeights {
     // Helper function to extract activation height for a network upgrade by name
     let get_height = |name: &str| -> Option<u32> {
         upgrades.values().find_map(|upgrade| {
@@ -30,19 +29,19 @@ fn parse_activation_heights_from_rpc(
         })
     };
 
-    let configured_activation_heights = ConfiguredActivationHeights {
-        before_overwinter: get_height("BeforeOverwinter"),
-        overwinter: get_height("Overwinter"),
-        sapling: get_height("Sapling"),
-        blossom: get_height("Blossom"),
-        heartwood: get_height("Heartwood"),
-        canopy: get_height("Canopy"),
-        nu5: get_height("NU5"),
-        nu6: get_height("NU6"),
-        nu6_1: get_height("NU6.1"),
-        nu7: get_height("NU7"),
-    };
+    let configured_activation_heights = ActivationHeights::builder()
+        .set_overwinter(get_height("Overwinter"))
+        .set_sapling(get_height("Sapling"))
+        .set_blossom(get_height("Blossom"))
+        .set_heartwood(get_height("Heartwood"))
+        .set_canopy(get_height("Canopy"))
+        .set_nu5(get_height("NU5"))
+        .set_nu6(get_height("NU6"))
+        .set_nu6_1(get_height("NU6.1"))
+        .set_nu7(get_height("NU7"))
+        .build();
     tracing::debug!("regtest validator reports the following activation heights: {configured_activation_heights:?}");
+
     configured_activation_heights
 }
 
@@ -52,7 +51,7 @@ pub trait ValidatorConfig: Default {
     fn set_test_parameters(
         &mut self,
         mine_to_pool: PoolType,
-        configured_activation_heights: ConfiguredActivationHeights,
+        activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     );
 }
@@ -61,9 +60,8 @@ pub trait ValidatorConfig: Default {
 pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
-    fn get_activation_heights(
-        &self,
-    ) -> impl std::future::Future<Output = ConfiguredActivationHeights> + Send;
+    fn get_activation_heights(&self)
+        -> impl std::future::Future<Output = ActivationHeights> + Send;
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
@@ -94,7 +92,7 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     fn get_zcashd_conf_path(&self) -> PathBuf;
 
     /// Network type
-    fn network(&self) -> NetworkKind;
+    fn network(&self) -> NetworkType;
 
     /// Caches chain. This stops the zcashd process.
     fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
@@ -119,7 +117,7 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        validator_network: NetworkKind,
+        validator_network: NetworkType,
     ) -> PathBuf;
 
     /// To reveal a port.

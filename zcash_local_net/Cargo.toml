@@ -10,9 +10,7 @@ github = { repository = "zingolabs/infrastructure/services" }
 [dependencies]
 
 # zingo
-zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", branch = "dev", features = [
-    "for_test",
-] }
+zingo_common_components = { git = "https://github.com/Oscar-Pepper/zingo-common.git", branch = "remove_zebra_from_public_api" }
 zingo_test_vectors = { workspace = true }
 
 # zcash

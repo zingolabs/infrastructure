@@ -6,15 +6,14 @@ use std::path::{Path, PathBuf};
 
 use portpicker::Port;
 
-use zebra_chain::parameters::testnet;
-use zebra_chain::parameters::NetworkKind;
+use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
 /// Convert `NetworkKind` to its config string representation
-fn network_kind_to_string(network: NetworkKind) -> &'static str {
+fn network_type_to_string(network: NetworkType) -> &'static str {
     match network {
-        NetworkKind::Mainnet => "Mainnet",
-        NetworkKind::Testnet => "Testnet",
-        NetworkKind::Regtest => "Regtest",
+        NetworkType::Mainnet => "Mainnet",
+        NetworkType::Testnet => "Testnet",
+        NetworkType::Regtest(_) => "Regtest",
     }
 }
 
@@ -29,44 +28,37 @@ pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 pub(crate) fn write_zcashd_config(
     config_dir: &Path,
     rpc_port: Port,
-    test_activation_heights: &testnet::ConfiguredActivationHeights,
+    activation_heights: ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZCASHD_FILENAME);
     let file = File::create(config_file_path.clone())?;
     let mut config_file = BufWriter::new(file);
 
-    let testnet::ConfiguredActivationHeights {
-        before_overwinter: _, // Skip pre-overwinter as noted
-        overwinter,
-        sapling,
-        blossom,
-        heartwood,
-        canopy,
-        nu5,
-        nu6,
-        nu6_1,
-        .. // Ignore any future fields like nu7
-    } = test_activation_heights;
-
-    let overwinter_activation_height =
-        overwinter.expect("overwinter activation height must be specified");
-    let sapling_activation_height = sapling.expect("sapling activation height must be specified");
-    let blossom_activation_height = blossom.expect("blossom activation height must be specified");
-    let heartwood_activation_height =
-        heartwood.expect("heartwood activation height must be specified");
-    let canopy_activation_height = canopy.expect("canopy activation height must be specified");
-    let nu5_activation_height = nu5.expect("nu5 activation height must be specified");
-
-    let nu6_activation_height = *nu6;
-    let nu6_1_activation_height = *nu6_1;
-
-    if nu6_activation_height.is_none() && nu6_1_activation_height.is_some() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1",
-        ));
-    }
+    let overwinter_activation_height = activation_heights
+        .overwinter()
+        .expect("overwinter activation height must be specified");
+    let sapling_activation_height = activation_heights
+        .sapling()
+        .expect("sapling activation height must be specified");
+    let blossom_activation_height = activation_heights
+        .blossom()
+        .expect("blossom activation height must be specified");
+    let heartwood_activation_height = activation_heights
+        .heartwood()
+        .expect("heartwood activation height must be specified");
+    let canopy_activation_height = activation_heights
+        .canopy()
+        .expect("canopy activation height must be specified");
+    let nu5_activation_height = activation_heights
+        .nu5()
+        .expect("nu5 activation height must be specified");
+    let nu6_activation_height = activation_heights
+        .nu6()
+        .expect("nu6 activation height must be specified");
+    let nu6_1_activation_height = activation_heights
+        .nu6_1()
+        .expect("nu6.1 activation height must be specified");
 
     let mut cfg = format!(
         "\
@@ -77,20 +69,10 @@ nuparams=76b809bb:{sapling_activation_height} # Sapling
 nuparams=2bb40e60:{blossom_activation_height} # Blossom
 nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
-nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)"
-    );
+nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
+nuparams=c8e71055:{nu6_activation_height} # NU6
+nuparams=4dec4df0:{nu6_1_activation_height} # NU6.1
 
-    if let Some(h) = nu6_activation_height {
-        cfg.push_str(&format!("\nnuparams=c8e71055:{h} # NU6"));
-    }
-    if let Some(h) = nu6_1_activation_height {
-        cfg.push_str(&format!(
-            "\nnuparams=4dec4df0:{h} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment"
-        ));
-    }
-
-    cfg.push_str(&format!(
-        "\n\n\
 ### MetaData Storage and Retrieval
 # txindex:
 # https://zcash.readthedocs.io/en/latest/rtd_pages/zcash_conf_guide.html#miscellaneous-options
@@ -113,7 +95,7 @@ rpcallowip=127.0.0.1
 listen=0
 
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1"
-    ));
+    );
 
     if let Some(addr) = miner_address {
         cfg.push_str(&format!(
@@ -141,32 +123,13 @@ pub(crate) fn write_zebrad_config(
     network_listen_port: Port,
     rpc_listen_port: Port,
     indexer_listen_port: Port,
-    activation_heights: &testnet::ConfiguredActivationHeights,
     miner_address: &str,
-    network: NetworkKind,
+    network: NetworkType,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
-
-    assert!(
-        activation_heights.canopy.is_some(),
-        "canopy must be active for zebrad regtest mode. please set activation height to 1"
-    );
-
-    let nu5_activation_height = activation_heights.nu5.expect("nu5 activated");
-
-    let nu6_activation_height = activation_heights.nu6;
-    let nu6_1_activation_height = activation_heights.nu6_1;
-
-    // Ordering is correct
-    assert!(
-        !(nu6_activation_height.is_none() && nu6_1_activation_height.is_some()),
-        "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1"
-    );
-
     let chain_cache = cache_dir.to_str().unwrap();
-
-    let network_string = network_kind_to_string(network);
+    let network_string = network_type_to_string(network);
 
     let mut cfg = format!(
         "\
@@ -227,7 +190,22 @@ filter = \"debug\"
 use_journald = false",
     );
 
-    if matches!(network, NetworkKind::Regtest) {
+    if let NetworkType::Regtest(activation_heights) = network {
+        assert!(
+            activation_heights.canopy().is_some(),
+            "canopy must be active for zebrad regtest mode. please set activation height to 1"
+        );
+
+        let nu5_activation_height = activation_heights
+            .nu5()
+            .expect("nu5 activation height must be specified");
+        let nu6_activation_height = activation_heights
+            .nu6()
+            .expect("nu6 activation height must be specified");
+        let nu6_1_activation_height = activation_heights
+            .nu6_1()
+            .expect("nu6.1 activation height must be specified");
+
         cfg.push_str(&format!(
             "\n\n\
 [mining]
@@ -238,15 +216,10 @@ miner_address = \"{miner_address}\"
 # block height 0 is reserved for the Genesis network upgrade in Zebra
 # pre-nu5 activation heights of greater than 1 are not currently supported for regtest mode
 Canopy = 1
-NU5 = {nu5_activation_height}"
+NU5 = {nu5_activation_height}
+NU6 = {nu6_activation_height}
+\"NU6.1\" = {nu6_1_activation_height}"
         ));
-
-        if let Some(nu6) = nu6_activation_height {
-            cfg.push_str(&format!("\nNU6 = {nu6}"));
-        }
-        if let Some(nu6_1) = nu6_1_activation_height {
-            cfg.push_str(&format!("\n\"NU6.1\" = {nu6_1}"));
-        }
     }
 
     config_file.write_all(cfg.as_bytes())?;
@@ -263,7 +236,7 @@ pub(crate) fn write_zainod_config(
     validator_cache_dir: PathBuf,
     listen_port: Port,
     validator_port: Port,
-    network: NetworkKind,
+    network: NetworkType,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -271,7 +244,7 @@ pub(crate) fn write_zainod_config(
     let zaino_cache_dir = validator_cache_dir.join("zaino");
     let chain_cache = zaino_cache_dir.to_str().unwrap();
 
-    let network_string = network_kind_to_string(network);
+    let network_string = network_type_to_string(network);
 
     config_file.write_all(
         format!(
@@ -330,8 +303,7 @@ zcash-conf-path: {zcashd_conf}"
 mod tests {
     use std::path::PathBuf;
 
-    use zebra_chain::parameters::NetworkKind;
-    use zingo_common_components::protocol::activation_heights::for_test;
+    use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
     use crate::logs;
 
@@ -370,13 +342,26 @@ listen=0
 
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
 
+    fn sequential_activation_heights() -> ActivationHeights {
+        ActivationHeights::builder()
+            .set_overwinter(Some(1))
+            .set_sapling(Some(2))
+            .set_blossom(Some(3))
+            .set_heartwood(Some(4))
+            .set_canopy(Some(5))
+            .set_nu5(Some(6))
+            .set_nu6(Some(7))
+            .set_nu6_1(Some(8))
+            .set_nu7(Some(9))
+            .build()
+    }
+
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
-        let test_activation_heights = for_test::sequential_height_nus();
+        let test_activation_heights = sequential_activation_heights();
 
-        super::write_zcashd_config(config_dir.path(), 1234, &test_activation_heights, None)
-            .unwrap();
+        super::write_zcashd_config(config_dir.path(), 1234, test_activation_heights, None).unwrap();
 
         assert_eq!(
             std::fs::read_to_string(config_dir.path().join(super::ZCASHD_FILENAME)).unwrap(),
@@ -387,12 +372,12 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
-        let test_activation_heights = for_test::sequential_height_nus();
+        let test_activation_heights = sequential_activation_heights();
 
         super::write_zcashd_config(
             config_dir.path(),
             1234,
-            &test_activation_heights,
+            test_activation_heights,
             Some("test_addr_1234"),
         )
         .unwrap();
@@ -421,7 +406,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
             zaino_cache_dir,
             1234,
             18232,
-            NetworkKind::Regtest,
+            NetworkType::Regtest(ActivationHeights::default()),
         )
         .unwrap();
 

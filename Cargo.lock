@@ -3141,6 +3141,7 @@ dependencies = [
  "zcash_transparent",
  "zebra-node-services",
  "zebra-rpc",
+ "zingo_common_components",
  "zip32",
 ]
 
@@ -5409,10 +5410,7 @@ dependencies = [
 [[package]]
 name = "zingo_common_components"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingo-common.git?branch=dev#096a79e2b3eb8b12d642e3380044bac00e7c855d"
-dependencies = [
- "zebra-chain",
-]
+source = "git+https://github.com/Oscar-Pepper/zingo-common.git?branch=remove_zebra_from_public_api#2daae0e722ff1c140e895bdb923c86d7e2763dad"
 
 [[package]]
 name = "zingo_test_vectors"
