@@ -71,7 +71,7 @@ nuparams=f5b9230b:{heartwood_activation_height} # Heartwood
 nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
-nuparams=4dec4df0:{nu6_1_activation_height} # NU6.1
+nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -344,15 +344,15 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
 
     fn sequential_activation_heights() -> ActivationHeights {
         ActivationHeights::builder()
-            .set_overwinter(Some(1))
-            .set_sapling(Some(2))
-            .set_blossom(Some(3))
-            .set_heartwood(Some(4))
-            .set_canopy(Some(5))
-            .set_nu5(Some(6))
-            .set_nu6(Some(7))
-            .set_nu6_1(Some(8))
-            .set_nu7(Some(9))
+            .set_overwinter(Some(2))
+            .set_sapling(Some(3))
+            .set_blossom(Some(4))
+            .set_heartwood(Some(5))
+            .set_canopy(Some(6))
+            .set_nu5(Some(7))
+            .set_nu6(Some(8))
+            .set_nu6_1(Some(9))
+            .set_nu7(None)
             .build()
     }
 
