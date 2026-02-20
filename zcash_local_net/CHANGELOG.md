@@ -25,10 +25,10 @@ zingo_common_components type.
 zebra-chain type from the public API and replacing with new zingo_common_components type.
   - `with_regtest_enabled` method: now takes `ActivationHeights` instead of `ConfiguredActivationHeights`.
   - `set_test_parameters` method: now takes `ActivationHeights` instead of `ConfiguredActivationHeights`.
- 
+
 ### Removed
 - `validator::zebrad::ZebradConfig`: removed `configured_activation_heights: ConfiguredActivationHeights` field removing the
-zebra-chain type from the public API. Replaced by new `network_type` field which includes activation heights. 
+zebra-chain type from the public API. Replaced by new `network_type` field which includes activation heights.
 
-## [0.1.0] 
+## [0.1.0]
 
