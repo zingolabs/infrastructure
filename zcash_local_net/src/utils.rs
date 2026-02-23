@@ -4,6 +4,7 @@ use std::{env, path::PathBuf};
 
 /// Functions for picking executables from env variables in the global runtime.
 pub mod executable_finder;
+pub(crate) mod type_conversions;
 
 /// Returns path to cargo manifest directory (project root)
 pub(crate) fn cargo_manifest_dir() -> PathBuf {

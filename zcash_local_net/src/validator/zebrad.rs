@@ -7,11 +7,15 @@ use crate::{
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
+    utils::{
+        executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
+        type_conversions::zingo_to_zebra_activation_heights,
+    },
     validator::{Validator, ValidatorConfig},
     ProcessId,
 };
 use zcash_protocol::PoolType;
+use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
 
 use std::{
@@ -23,7 +27,6 @@ use std::{
 use getset::{CopyGetters, Getters};
 use portpicker::Port;
 use tempfile::TempDir;
-use zebra_chain::parameters::{self, testnet::ConfiguredActivationHeights, NetworkKind};
 use zebra_chain::serialization::ZcashSerialize as _;
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
@@ -54,14 +57,12 @@ pub struct ZebradConfig {
     pub rpc_listen_port: Option<Port>,
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<Port>,
-    /// Local network upgrade activation heights
-    pub configured_activation_heights: ConfiguredActivationHeights,
     /// Miner address
     pub miner_address: String,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type
-    pub network: NetworkKind,
+    pub network_type: NetworkType,
 }
 
 impl Default for ZebradConfig {
@@ -70,21 +71,9 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
-            configured_activation_heights: ConfiguredActivationHeights {
-                before_overwinter: Some(1),
-                overwinter: Some(1),
-                sapling: Some(1),
-                blossom: Some(1),
-                heartwood: Some(1),
-                canopy: Some(1),
-                nu5: Some(1),
-                nu6: Some(1),
-                nu6_1: Some(1),
-                nu7: None,
-            },
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
-            network: NetworkKind::Regtest,
+            network_type: NetworkType::Regtest(ActivationHeights::default()),
         }
     }
 }
@@ -97,9 +86,8 @@ impl ZebradConfig {
     }
 
     /// Sets the validator to run in regtest mode, with the specified activation heights.
-    pub fn with_regtest_enabled(mut self, activation_heights: ConfiguredActivationHeights) -> Self {
-        self.network = NetworkKind::Regtest;
-        self.configured_activation_heights = activation_heights;
+    pub fn with_regtest_enabled(mut self, activation_heights: ActivationHeights) -> Self {
+        self.network_type = NetworkType::Regtest(activation_heights);
         self
     }
 }
@@ -108,11 +96,11 @@ impl ValidatorConfig for ZebradConfig {
     fn set_test_parameters(
         &mut self,
         mine_to_pool: PoolType,
-        configured_activation_heights: ConfiguredActivationHeights,
+        activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         assert_eq!(mine_to_pool, PoolType::Transparent, "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}");
-        self.configured_activation_heights = configured_activation_heights;
+        self.network_type = NetworkType::Regtest(activation_heights);
         self.chain_cache = chain_cache;
     }
 }
@@ -141,13 +129,10 @@ pub struct Zebrad {
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
-    /// Network upgrade activation heights
-    #[getset(skip)]
-    configured_activation_heights: ConfiguredActivationHeights,
     /// RPC request client
     client: RpcRequestClient,
     /// Network type
-    network: NetworkKind,
+    network: NetworkType,
 }
 
 impl LogsToDir for Zebrad {
@@ -165,14 +150,14 @@ impl Process for Zebrad {
         let data_dir = tempfile::tempdir().unwrap();
 
         assert!(
-            matches!(config.network, NetworkKind::Regtest) || config.chain_cache.is_some(),
+            matches!(config.network_type, NetworkType::Regtest(_)) || config.chain_cache.is_some(),
             "chain cache must be specified when not using a regtest network!"
         );
 
         let working_cache_dir = data_dir.path().to_path_buf();
 
         if let Some(src) = config.chain_cache.as_ref() {
-            Self::load_chain(src.clone(), working_cache_dir.clone(), config.network);
+            Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type);
         }
 
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
@@ -185,16 +170,19 @@ impl Process for Zebrad {
             network_listen_port,
             rpc_listen_port,
             indexer_listen_port,
-            &config.configured_activation_heights,
             &config.miner_address,
-            config.network,
+            config.network_type,
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd
         config::write_zcashd_config(
             config_dir.path(),
             rpc_listen_port,
-            &config.configured_activation_heights,
+            if let NetworkType::Regtest(activation_heights) = config.network_type {
+                activation_heights
+            } else {
+                ActivationHeights::default()
+            },
             None,
         )
         .unwrap();
@@ -257,12 +245,11 @@ impl Process for Zebrad {
             config_dir,
             logs_dir,
             data_dir,
-            configured_activation_heights: config.configured_activation_heights,
             client,
-            network: config.network,
+            network: config.network_type,
         };
 
-        if config.chain_cache.is_none() && matches!(config.network, NetworkKind::Regtest) {
+        if config.chain_cache.is_none() && matches!(config.network_type, NetworkType::Regtest(_)) {
             // generate genesis block
             zebrad.generate_blocks(1).await.unwrap();
         }
@@ -282,7 +269,7 @@ impl Process for Zebrad {
 }
 
 impl Validator for Zebrad {
-    async fn get_activation_heights(&self) -> ConfiguredActivationHeights {
+    async fn get_activation_heights(&self) -> ActivationHeights {
         let response: serde_json::Value = self
             .client
             .json_result_from_call("getblockchaininfo", "[]".to_string())
@@ -300,6 +287,9 @@ impl Validator for Zebrad {
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
+        let NetworkType::Regtest(activation_heights) = self.network() else {
+            panic!("Can only generate blocks on regtest networks!");
+        };
 
         for _ in 0..n {
             let block_template: BlockTemplateResponse = self
@@ -308,20 +298,8 @@ impl Validator for Zebrad {
                 .await
                 .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = parameters::Network::new_regtest(
-                ConfiguredActivationHeights {
-                    before_overwinter: self.configured_activation_heights.before_overwinter,
-                    overwinter: self.configured_activation_heights.overwinter,
-                    sapling: self.configured_activation_heights.sapling,
-                    blossom: self.configured_activation_heights.blossom,
-                    heartwood: self.configured_activation_heights.heartwood,
-                    canopy: self.configured_activation_heights.canopy,
-                    nu5: self.configured_activation_heights.nu5,
-                    nu6: self.configured_activation_heights.nu6,
-                    nu6_1: self.configured_activation_heights.nu6_1,
-                    nu7: self.configured_activation_heights.nu7,
-                }
-                .into(),
+            let network = zebra_chain::parameters::Network::new_regtest(
+                zingo_to_zebra_activation_heights(*activation_heights).into(),
             );
 
             let block_data = hex::encode(
@@ -387,19 +365,19 @@ impl Validator for Zebrad {
         self.config_dir.path().join(config::ZCASHD_FILENAME)
     }
 
-    fn network(&self) -> NetworkKind {
+    fn network(&self) -> NetworkType {
         self.network
     }
 
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
-        validator_network: NetworkKind,
+        validator_network: NetworkType,
     ) -> PathBuf {
         let state_dir = chain_cache.clone().join("state");
         assert!(state_dir.exists(), "state directory not found!");
 
-        if matches!(validator_network, NetworkKind::Regtest) {
+        if matches!(validator_network, NetworkType::Regtest(_)) {
             std::process::Command::new("cp")
                 .arg("-r")
                 .arg(state_dir)
