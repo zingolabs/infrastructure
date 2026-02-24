@@ -13,7 +13,6 @@ zebra-node-services = "3.0.0"
 zebra-rpc = "5.0.0"
 
 # other
-http = "1.1.0"
 getset = "0.1.3"
 hex = "0.4.3"
 json = "0.12.4"

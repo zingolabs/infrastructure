@@ -1,5 +1,4 @@
 use getset::{CopyGetters, Getters};
-use portpicker::Port;
 use tempfile::TempDir;
 
 use crate::{
@@ -21,7 +20,7 @@ impl IndexerConfig for EmptyConfig {
         tracing::info!("Empty Validator cannot accept a port!");
     }
 
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
+    fn set_listen_port(&mut self, indexer_listen_port: Option<u16>) {
         panic!("Empty validator cannot listen on port! {indexer_listen_port:?}");
     }
 }
@@ -78,7 +77,7 @@ impl Drop for Empty {
 }
 
 impl Indexer for Empty {
-    fn listen_port(&self) -> Port {
+    fn listen_port(&self) -> u16 {
         0
     }
 }

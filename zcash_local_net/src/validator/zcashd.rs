@@ -3,7 +3,6 @@
 use std::{path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};
-use portpicker::Port;
 use tempfile::TempDir;
 
 use zcash_protocol::PoolType;
@@ -43,7 +42,7 @@ use crate::{
 #[derive(Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
-    pub rpc_listen_port: Option<Port>,
+    pub rpc_listen_port: Option<u16>,
     /// Local network upgrade activation heights
     pub activation_heights: ActivationHeights,
     /// Miner address
@@ -89,7 +88,7 @@ pub struct Zcashd {
     /// RPC port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    port: Port,
+    port: u16,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -311,7 +310,7 @@ impl Validator for Zcashd {
         chain_cache
     }
 
-    fn get_port(&self) -> Port {
+    fn get_port(&self) -> u16 {
         self.port()
     }
 }

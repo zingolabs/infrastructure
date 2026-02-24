@@ -24,7 +24,6 @@ zebra-chain = { workspace = true }
 # Community
 tempfile = { workspace = true }
 portpicker = { workspace = true }
-http = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 getset = { workspace = true }
@@ -39,3 +38,12 @@ tracing-subscriber = { workspace = true }
 [build-dependencies]
 hex = { workspace = true }
 tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
+
+[package.metadata.cargo_check_external_types]
+allowed_external_types = [
+    "tempfile::dir::TempDir",
+    "zcash_protocol::PoolType",
+    "zingo_common_components::protocol::ActivationHeights",
+    "zingo_common_components::protocol::NetworkType",
+    "zebra_node_services::rpc_client::RpcRequestClient",
+]

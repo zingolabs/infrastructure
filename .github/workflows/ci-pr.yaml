@@ -29,6 +29,34 @@ jobs:
         with:
           command: check
 
+  external-types:
+    name: External Types (public API)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pinned nightly
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly-2025-10-18
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-binstall
+
+      - name: Install cargo-check-external-types
+        run: cargo binstall cargo-check-external-types -y
+
+      - name: Run checks
+        run: just check-external-types
+
   reject-trailing-whitespace:
     uses: ./.github/workflows/trailing-whitespace.yaml
 

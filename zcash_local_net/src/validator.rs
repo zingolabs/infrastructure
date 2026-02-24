@@ -1,7 +1,6 @@
 //! Module for the structs that represent and manage the validator/full-node processes i.e. Zebrad.
 use std::path::PathBuf;
 
-use portpicker::Port;
 use tempfile::TempDir;
 use zcash_protocol::PoolType;
 use zingo_common_components::protocol::{ActivationHeights, NetworkType};
@@ -121,5 +120,5 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     ) -> PathBuf;
 
     /// To reveal a port.
-    fn get_port(&self) -> Port;
+    fn get_port(&self) -> u16;
 }
