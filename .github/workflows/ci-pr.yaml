@@ -52,7 +52,7 @@ jobs:
           tool: cargo-binstall
 
       - name: Install cargo-check-external-types
-        run: cargo binstall cargo-check-external-types -y
+        run: cargo binstall cargo-check-external-types -y --force
 
       - name: Run checks
         run: just check-external-types
