@@ -45,17 +45,17 @@ use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    let heights = ActivationHeights::builder()
-        .set_overwinter(cli.activation_heights.overwinter)
-        .set_sapling(cli.activation_heights.sapling)
-        .set_blossom(cli.activation_heights.blossom)
-        .set_heartwood(cli.activation_heights.heartwood)
-        .set_canopy(cli.activation_heights.canopy)
-        .set_nu5(cli.activation_heights.nu5)
-        .set_nu6(cli.activation_heights.nu6)
-        .set_nu6_1(cli.activation_heights.nu6_1)
-        .set_nu7(cli.activation_heights.nu7)
-        .build();
+    let heights = ActivationHeights {
+        overwinter: cli.activation_heights.overwinter,
+        sapling: cli.activation_heights.sapling,
+        blossom: cli.activation_heights.blossom,
+        heartwood: cli.activation_heights.heartwood,
+        canopy: cli.activation_heights.canopy,
+        nu5: cli.activation_heights.nu5,
+        nu6: cli.activation_heights.nu6,
+        nu6_1: cli.activation_heights.nu6_1,
+        nu7: cli.activation_heights.nu7,
+    };
 
     let (mnemonic_opt, sk_opt, taddr_str) = match cli.miner_address.as_deref() {
         Some(addr) => (None, None, addr.to_string()),
