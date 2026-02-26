@@ -4,8 +4,6 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use portpicker::Port;
-
 use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
 /// Convert `NetworkKind` to its config string representation
@@ -27,7 +25,7 @@ pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 /// Returns the path to the config file.
 pub(crate) fn write_zcashd_config(
     config_dir: &Path,
-    rpc_port: Port,
+    rpc_port: u16,
     activation_heights: ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
@@ -120,9 +118,9 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
 pub(crate) fn write_zebrad_config(
     output_config_dir: PathBuf,
     cache_dir: PathBuf,
-    network_listen_port: Port,
-    rpc_listen_port: Port,
-    indexer_listen_port: Port,
+    network_listen_port: u16,
+    rpc_listen_port: u16,
+    indexer_listen_port: u16,
     miner_address: &str,
     network: NetworkType,
 ) -> std::io::Result<PathBuf> {
@@ -234,8 +232,8 @@ NU6 = {nu6_activation_height}
 pub(crate) fn write_zainod_config(
     config_dir: &Path,
     validator_cache_dir: PathBuf,
-    listen_port: Port,
-    validator_port: Port,
+    listen_port: u16,
+    validator_port: u16,
     network: NetworkType,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = config_dir.join(ZAINOD_FILENAME);
@@ -274,7 +272,7 @@ database.path = \"{chain_cache}\""
 #[allow(dead_code)]
 pub(crate) fn write_lightwalletd_config(
     config_dir: &Path,
-    grpc_bind_addr_port: Port,
+    grpc_bind_addr_port: u16,
     log_file: PathBuf,
     zcashd_conf: PathBuf,
 ) -> std::io::Result<PathBuf> {

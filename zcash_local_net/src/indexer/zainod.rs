@@ -3,7 +3,6 @@
 use std::{path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};
-use portpicker::Port;
 use tempfile::TempDir;
 
 use zingo_common_components::protocol::{ActivationHeights, NetworkType};
@@ -33,9 +32,9 @@ use crate::{
 #[derive(Debug)]
 pub struct ZainodConfig {
     /// Listen RPC port
-    pub listen_port: Option<Port>,
+    pub listen_port: Option<u16>,
     /// Validator RPC port
-    pub validator_port: Port,
+    pub validator_port: u16,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type.
@@ -58,7 +57,7 @@ impl IndexerConfig for ZainodConfig {
         self.validator_port = validator.get_port();
     }
 
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
+    fn set_listen_port(&mut self, indexer_listen_port: Option<u16>) {
         self.listen_port = indexer_listen_port;
     }
 }
@@ -72,7 +71,7 @@ pub struct Zainod {
     /// RPC port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    port: Port,
+    port: u16,
     /// Logs directory
     logs_dir: TempDir,
     /// Config directory
@@ -154,7 +153,7 @@ impl Process for Zainod {
 }
 
 impl Indexer for Zainod {
-    fn listen_port(&self) -> Port {
+    fn listen_port(&self) -> u16 {
         self.port
     }
 }

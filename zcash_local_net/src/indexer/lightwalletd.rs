@@ -1,7 +1,6 @@
 use std::{fs::File, path::PathBuf, process::Child};
 
 use getset::{CopyGetters, Getters};
-use portpicker::Port;
 use tempfile::TempDir;
 
 use crate::{
@@ -26,7 +25,7 @@ use crate::{
 #[derive(Debug)]
 pub struct LightwalletdConfig {
     /// Listen RPC port
-    pub listen_port: Option<Port>,
+    pub listen_port: Option<u16>,
     /// Zcashd configuration file location. Required even when running non-Zcashd validators.
     pub zcashd_conf: PathBuf,
     /// Enables darkside
@@ -48,7 +47,7 @@ impl IndexerConfig for LightwalletdConfig {
         self.zcashd_conf = validator.get_zcashd_conf_path();
     }
 
-    fn set_listen_port(&mut self, indexer_listen_port: Option<Port>) {
+    fn set_listen_port(&mut self, indexer_listen_port: Option<u16>) {
         self.listen_port = indexer_listen_port;
     }
 }
@@ -61,7 +60,7 @@ pub struct Lightwalletd {
     /// RPC Port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    port: Port,
+    port: u16,
     /// Data directory
     _data_dir: TempDir,
     /// Logs directory
@@ -163,7 +162,7 @@ impl Process for Lightwalletd {
 }
 
 impl Indexer for Lightwalletd {
-    fn listen_port(&self) -> Port {
+    fn listen_port(&self) -> u16 {
         self.port
     }
 }

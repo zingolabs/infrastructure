@@ -25,7 +25,6 @@ use std::{
 };
 
 use getset::{CopyGetters, Getters};
-use portpicker::Port;
 use tempfile::TempDir;
 use zebra_chain::serialization::ZcashSerialize as _;
 use zebra_node_services::rpc_client::RpcRequestClient;
@@ -52,11 +51,11 @@ use zebra_rpc::{
 #[derive(Clone, Debug)]
 pub struct ZebradConfig {
     /// Zebrad network listen port
-    pub network_listen_port: Option<Port>,
+    pub network_listen_port: Option<u16>,
     /// Zebrad JSON-RPC listen port
-    pub rpc_listen_port: Option<Port>,
+    pub rpc_listen_port: Option<u16>,
     /// Zebrad gRPC listen port
-    pub indexer_listen_port: Option<Port>,
+    pub indexer_listen_port: Option<u16>,
     /// Miner address
     pub miner_address: String,
     /// Chain cache path
@@ -114,15 +113,15 @@ pub struct Zebrad {
     /// network listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    network_listen_port: Port,
+    network_listen_port: u16,
     /// json RPC listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    rpc_listen_port: Port,
+    rpc_listen_port: u16,
     /// gRPC listen port
     #[getset(skip)]
     #[getset(get_copy = "pub")]
-    indexer_listen_port: Port,
+    indexer_listen_port: u16,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -390,7 +389,7 @@ impl Validator for Zebrad {
         }
     }
 
-    fn get_port(&self) -> Port {
+    fn get_port(&self) -> u16 {
         self.rpc_listen_port()
     }
 }
