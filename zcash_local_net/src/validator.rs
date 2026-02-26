@@ -28,17 +28,18 @@ fn parse_activation_heights_from_rpc(
         })
     };
 
-    let configured_activation_heights = ActivationHeights::builder()
-        .set_overwinter(get_height("Overwinter"))
-        .set_sapling(get_height("Sapling"))
-        .set_blossom(get_height("Blossom"))
-        .set_heartwood(get_height("Heartwood"))
-        .set_canopy(get_height("Canopy"))
-        .set_nu5(get_height("NU5"))
-        .set_nu6(get_height("NU6"))
-        .set_nu6_1(get_height("NU6.1"))
-        .set_nu7(get_height("NU7"))
-        .build();
+    let configured_activation_heights = ActivationHeights {
+        overwinter: get_height("Overwinter"),
+        sapling: get_height("Sapling"),
+        blossom: get_height("Blossom"),
+        heartwood: get_height("Heartwood"),
+        canopy: get_height("Canopy"),
+        nu5: get_height("NU5"),
+        nu6: get_height("NU6"),
+        nu6_1: get_height("NU6.1"),
+        nu7: get_height("NU7"),
+    };
+
     tracing::debug!("regtest validator reports the following activation heights: {configured_activation_heights:?}");
 
     configured_activation_heights
