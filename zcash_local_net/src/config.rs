@@ -341,17 +341,17 @@ listen=0
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
 
     fn sequential_activation_heights() -> ActivationHeights {
-        ActivationHeights {
-            overwinter: Some(2),
-            sapling: Some(3),
-            blossom: Some(4),
-            heartwood: Some(5),
-            canopy: Some(6),
-            nu5: Some(7),
-            nu6: Some(8),
-            nu6_1: Some(9),
-            nu7: None,
-        }
+        ActivationHeights::builder()
+            .set_overwinter(Some(2))
+            .set_sapling(Some(3))
+            .set_blossom(Some(4))
+            .set_heartwood(Some(5))
+            .set_canopy(Some(6))
+            .set_nu5(Some(7))
+            .set_nu6(Some(8))
+            .set_nu6_1(Some(9))
+            .set_nu7(None)
+            .build()
     }
 
     #[test]
