@@ -5409,7 +5409,8 @@ dependencies = [
 [[package]]
 name = "zingo_common_components"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingo-common.git?branch=dev#096a79e2b3eb8b12d642e3380044bac00e7c855d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b842ab061189fd4277f8773af2134b4949b82db8623deb86c315cb97bdfdcb"
 dependencies = [
  "zebra-chain",
 ]
