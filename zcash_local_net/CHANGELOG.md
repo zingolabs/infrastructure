@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+## [0.4.0] - 2026-02-28
+
+### Deprecated
+
+### Added
+
 - Added `zcash_local_net::protocol` module to provide a stable, crate-owned path for protocol-related types exposed in the public API:
   - Re-exported `PoolType`, `ActivationHeights`, `NetworkType`, and `RpcRequestClient`.
 - Added `zcash_local_net::external` module to provide a stable, crate-owned path for external helper types exposed in the public API:
@@ -45,4 +55,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `validator::zebrad::ZebradConfig`: removed `configured_activation_heights: ConfiguredActivationHeights` field removing the
   zebra-chain type from the public API. Replaced by new `network_type` field which includes activation heights.
 
-## [0.1.0]
+## [0.3.0]

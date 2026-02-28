@@ -1,6 +1,6 @@
 [package]
 name = "zcash_local_net"
-version = "0.1.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT"
 
@@ -10,7 +10,7 @@ github = { repository = "zingolabs/infrastructure/services" }
 [dependencies]
 
 # zingo
-zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", branch = "dev" }
+zingo_common_components = { workspace = true }
 zingo_test_vectors = { workspace = true }
 
 # zcash

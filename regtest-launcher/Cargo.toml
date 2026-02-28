@@ -20,7 +20,7 @@ zcash_transparent = "0.6.3"
 zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc.workspace = true
 zip32 = "0.2.1"
-zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", branch = "dev" }
+zingo_common_components = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.100"
