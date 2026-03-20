@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+## [0.5.0] - 2026-03-20
+
+### Deprecated
+
+### Added
+
+### Changed
+- updated underlying zebra versions:
+  - zebra-node-services v4.0.0
+  - zebra-chain v6.0.0
+  - zebra-rpc v6.0.0
+- `validator::zebrad::Zebrad`: `client` field updated `RpcRequestClient` type to zebra-node-services v4.0.0
+
+### Removed
+
 ## [0.4.0] - 2026-02-28
 
 ### Deprecated
