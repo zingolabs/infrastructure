@@ -45,4 +45,5 @@ allowed_external_types = [
     "zcash_protocol::PoolType",
     "zingo_common_components::protocol::ActivationHeights",
     "zingo_common_components::protocol::NetworkType",
+    "zebra_node_services::rpc_client::RpcRequestClient",
 ]
