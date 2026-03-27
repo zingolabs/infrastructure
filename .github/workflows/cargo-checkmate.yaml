@@ -36,7 +36,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run cargo-checkmate
-        uses: ./.github/actions/cargo-checkmate
+        uses: zingolabs/infrastructure/.github/actions/cargo-checkmate@672fe8ac9504239e35fa8fa13da7175af88c0b9f
         with:
           toolchain: ${{ inputs.toolchain }}
           rustflags: ${{ inputs.rustflags }}
