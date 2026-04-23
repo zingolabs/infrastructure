@@ -11,6 +11,10 @@ on:
         description: RUSTFLAGS passed via env
         type: string
         default: "-D warnings"
+      doc-all-features:
+        description: Run cargo doc with --all-features instead of cargo-checkmate doc
+        type: string
+        default: 'false'
 
 jobs:
   cargo-checkmate:
@@ -32,8 +36,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run cargo-checkmate
-        uses: ./.github/actions/cargo-checkmate
+        uses: zingolabs/infrastructure/.github/actions/cargo-checkmate@672fe8ac9504239e35fa8fa13da7175af88c0b9f
         with:
           toolchain: ${{ inputs.toolchain }}
           rustflags: ${{ inputs.rustflags }}
           phase: ${{ matrix.phase }}
+          doc-all-features: ${{ inputs.doc-all-features }}

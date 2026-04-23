@@ -13,6 +13,10 @@ inputs:
   phase:
     description: Checkmate phase to run (build, check, clippy, doc, format)
     required: true
+  doc-all-features:
+    description: Run cargo doc with --all-features instead of cargo-checkmate doc
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -26,4 +30,9 @@ runs:
       shell: bash
       env:
         RUSTFLAGS: ${{ inputs.rustflags }}
-      run: cargo-checkmate run ${{ inputs.phase }}
+      run: |
+        if [ "${{ inputs.phase }}" = "doc" ] && [ "${{ inputs.doc-all-features }}" = "true" ]; then
+          RUSTDOCFLAGS="-D warnings" cargo doc --all-features --document-private-items
+        else
+          cargo-checkmate run ${{ inputs.phase }}
+        fi

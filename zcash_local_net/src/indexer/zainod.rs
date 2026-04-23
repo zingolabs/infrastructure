@@ -116,6 +116,7 @@ impl Process for Zainod {
         let mut command = pick_command(executable_name, false);
         command
             .args([
+                "start",
                 "--config",
                 config_file_path.to_str().expect("should be valid UTF-8"),
             ])
