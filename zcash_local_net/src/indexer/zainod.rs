@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_common_components::protocol::NetworkType;
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
@@ -47,7 +47,7 @@ impl Default for ZainodConfig {
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
-            network: NetworkType::Regtest(ActivationHeights::default()),
+            network: NetworkType::Regtest(crate::validator::regtest_test_activation_heights()),
         }
     }
 }

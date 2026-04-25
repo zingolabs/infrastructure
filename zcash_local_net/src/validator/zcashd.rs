@@ -55,7 +55,7 @@ impl Default for ZcashdConfig {
     fn default() -> Self {
         Self {
             rpc_listen_port: None,
-            activation_heights: ActivationHeights::default(),
+            activation_heights: crate::validator::regtest_test_activation_heights(),
             miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }

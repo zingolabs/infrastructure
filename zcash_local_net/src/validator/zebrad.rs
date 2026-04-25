@@ -72,7 +72,9 @@ impl Default for ZebradConfig {
             indexer_listen_port: None,
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
-            network_type: NetworkType::Regtest(ActivationHeights::default()),
+            network_type: NetworkType::Regtest(
+                crate::validator::regtest_test_activation_heights(),
+            ),
         }
     }
 }
@@ -231,10 +233,15 @@ impl Process for Zebrad {
             "warning: some trace filter directives would enable traces that are disabled statically",
         ],
     )?;
-        std::thread::sleep(std::time::Duration::from_secs(5));
 
         let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
         let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+
+        // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
+        // confirmed via stdout that the RPC listener bound; this confirms it
+        // actually answers, which is the readiness signal every caller needs.
+        // Cost in the happy path is one RPC round-trip (~ms), not 5s.
+        wait_for_rpc_ready(&client, rpc_address, std::time::Duration::from_secs(30)).await?;
 
         let zebrad = Zebrad {
             handle,
@@ -249,10 +256,13 @@ impl Process for Zebrad {
         };
 
         if config.chain_cache.is_none() && matches!(config.network_type, NetworkType::Regtest(_)) {
-            // generate genesis block
+            // Generate genesis block. `generate_blocks` calls `poll_chain_height`
+            // to the new tip, so by the time it returns the RPC has answered
+            // multiple times AND the genesis block is observable. The previously
+            // unconditional `sleep(5s)` after this point had no documented
+            // rationale and no successor predicate — deleted.
             zebrad.generate_blocks(1).await.unwrap();
         }
-        std::thread::sleep(std::time::Duration::from_secs(5));
 
         Ok(zebrad)
     }
@@ -264,6 +274,42 @@ impl Process for Zebrad {
     fn print_all(&self) {
         self.print_stdout();
         self.print_stderr();
+    }
+}
+
+/// Polls Zebrad's RPC endpoint until `getblocktemplate` returns success, or
+/// the timeout elapses. Replaces a fixed `std::thread::sleep` previously used
+/// in `Zebrad::launch` as a paper-over for RPC bind→mining-service-ready
+/// latency. `getblocktemplate` is used (not `getblockchaininfo`) because the
+/// first thing every caller does after launch is generate a genesis block via
+/// `generate_blocks`, which needs the mining service. `getblockchaininfo`
+/// answers as soon as the listener binds, well before the mining service is
+/// up — exactly the gap the old sleep was masking.
+async fn wait_for_rpc_ready(
+    client: &RpcRequestClient,
+    address: SocketAddr,
+    timeout: std::time::Duration,
+) -> Result<(), LaunchError> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        match client
+            .json_result_from_call::<serde_json::Value>("getblocktemplate", "[]".to_string())
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                let last_error = format!("{e:?}");
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(LaunchError::RpcReadinessTimeout {
+                        process_name: ProcessId::Zebrad.to_string(),
+                        address,
+                        timeout,
+                        last_error,
+                    });
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        }
     }
 }
 
@@ -289,37 +335,58 @@ impl Validator for Zebrad {
         let NetworkType::Regtest(activation_heights) = self.network() else {
             panic!("Can only generate blocks on regtest networks!");
         };
+        let network = zebra_chain::parameters::Network::new_regtest(
+            zingo_to_zebra_activation_heights(*activation_heights).into(),
+        );
 
         for _ in 0..n {
-            let block_template: BlockTemplateResponse = self
-                .client
-                .json_result_from_call("getblocktemplate", "[]".to_string())
-                .await
-                .expect("response should be success output with a serialized `GetBlockTemplate`");
+            // Retry on transient rejection. Right after launch, zebrad's
+            // mining/validation services can take a few hundred ms to fully
+            // accept submissions even after `getblocktemplate` answers.
+            // Bounded so a real consensus rejection still surfaces — when
+            // the consensus error is deterministic on block content (e.g.
+            // a missing NU6.1 lockbox disbursement) every retry produces
+            // the same rejection and the loop exits with a clear panic.
+            const MAX_ATTEMPTS: u32 = 30;
+            const ATTEMPT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+            let mut last_response = String::new();
+            let mut accepted = false;
+            for _ in 0..MAX_ATTEMPTS {
+                let block_template: BlockTemplateResponse = self
+                    .client
+                    .json_result_from_call("getblocktemplate", "[]".to_string())
+                    .await
+                    .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = zebra_chain::parameters::Network::new_regtest(
-                zingo_to_zebra_activation_heights(*activation_heights).into(),
-            );
+                let block_data = hex::encode(
+                    proposal_block_from_template(
+                        &block_template,
+                        BlockTemplateTimeSource::default(),
+                        &network,
+                    )
+                    .unwrap()
+                    .zcash_serialize_to_vec()
+                    .unwrap(),
+                );
 
-            let block_data = hex::encode(
-                proposal_block_from_template(
-                    &block_template,
-                    BlockTemplateTimeSource::default(),
-                    &network,
-                )
-                .unwrap()
-                .zcash_serialize_to_vec()
-                .unwrap(),
-            );
+                let submit_block_response = self
+                    .client
+                    .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
+                    .await
+                    .unwrap();
 
-            let submit_block_response = self
-                .client
-                .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-                .await
-                .unwrap();
+                if submit_block_response.contains(r#""result":null"#) {
+                    accepted = true;
+                    break;
+                }
+                last_response = submit_block_response;
+                tokio::time::sleep(ATTEMPT_INTERVAL).await;
+            }
 
-            if !submit_block_response.contains(r#""result":null"#) {
-                tracing::error!("Failed to submit block: {submit_block_response}");
+            if !accepted {
+                tracing::error!(
+                    "Failed to submit block after {MAX_ATTEMPTS} attempts: {last_response}"
+                );
                 panic!("Failed to submit block!");
             }
         }

@@ -10,6 +10,46 @@ use crate::process::Process;
 pub mod zcashd;
 pub mod zebrad;
 
+/// Default activation heights for regtest test fixtures across this crate.
+///
+/// **Why this exists, and why these specific heights**:
+///
+/// - `ActivationHeights::default()` from `zingo_common_components` puts
+///   every upgrade including NU6.1 at height 1, which makes the
+///   genesis-mining block the NU6.1 activation block. zebrad rejects
+///   the proposal because it lacks the NU6.1 lockbox disbursements
+///   that `proposal_block_from_template` does not generate (consensus
+///   error: "missing lockbox disbursements for NU6.1 activation
+///   block"). See zingolabs/infrastructure#241.
+///
+/// - When zainod is launched as a subprocess, it reads only
+///   `network = "Regtest"` from its TOML config. Activation heights
+///   are *not* propagated through the TOML — zainod falls back to
+///   `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`, which sets
+///   nu5/nu6 at height 2 and nu6_1 at height 1000.
+///
+/// If zebrad's view of activation heights differs from zainod's, the
+/// chain-index sync loop fails with
+/// `InvalidData("Block commitment could not be computed")` because
+/// `block.commitment(network)` evaluates the wrong commitment scheme
+/// for that block height. We must therefore align this helper exactly
+/// with `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` so that all
+/// fixture configs (validator + indexer) agree on what regtest looks
+/// like.
+pub(crate) fn regtest_test_activation_heights() -> ActivationHeights {
+    ActivationHeights::builder()
+        .set_overwinter(Some(1))
+        .set_sapling(Some(1))
+        .set_blossom(Some(1))
+        .set_heartwood(Some(1))
+        .set_canopy(Some(1))
+        .set_nu5(Some(2))
+        .set_nu6(Some(2))
+        .set_nu6_1(Some(1000))
+        .set_nu7(None)
+        .build()
+}
+
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,

@@ -17,4 +17,18 @@ pub enum LaunchError {
         /// Stderr log
         stderr: String,
     },
+    /// RPC endpoint did not respond within the readiness budget
+    #[error(
+        "{process_name} RPC endpoint at {address} did not respond within {timeout:?}: {last_error}"
+    )]
+    RpcReadinessTimeout {
+        /// Process name
+        process_name: String,
+        /// RPC address polled
+        address: std::net::SocketAddr,
+        /// Timeout that elapsed
+        timeout: std::time::Duration,
+        /// Last error returned by the RPC client
+        last_error: String,
+    },
 }

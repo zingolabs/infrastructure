@@ -8,10 +8,17 @@ pub struct Cli {
     ///
     /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all
     /// Values: u32 or off|none|disable
+    // Default must agree with `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`
+    // and `zcash_local_net::validator::regtest_test_activation_heights`.
+    // - NU6.1 at height 1 triggers the "missing lockbox disbursements"
+    //   rejection in the proposal builder (see zingolabs/infrastructure#241).
+    // - zainod's view of regtest, when only `network = "Regtest"` is in the
+    //   TOML, is nu5=2, nu6=2, nu6_1=1000, nu7=None — this default mirrors
+    //   that so validator and indexer agree.
     #[arg(
         long,
         value_parser = parse_activation_heights,
-        default_value = "all=1,nu7=off"
+        default_value = "all=1,nu5=2,nu6=2,nu6_1=1000,nu7=off"
     )]
     pub activation_heights: ConfiguredActivationHeights,
 
