@@ -1,4 +1,5 @@
 use clap::Parser;
+use local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING;
 use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 
 #[derive(Parser, Debug)]
@@ -8,17 +9,17 @@ pub struct Cli {
     ///
     /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all
     /// Values: u32 or off|none|disable
-    // Default must agree with `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`
-    // and `zcash_local_net::validator::regtest_test_activation_heights`.
-    // - NU6.1 at height 1 triggers the "missing lockbox disbursements"
-    //   rejection in the proposal builder (see zingolabs/infrastructure#241).
-    // - zainod's view of regtest, when only `network = "Regtest"` is in the
-    //   TOML, is nu5=2, nu6=2, nu6_1=1000, nu7=None — this default mirrors
-    //   that so validator and indexer agree.
+    ///
+    /// Default comes from
+    /// [`local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING`] —
+    /// the single source of truth for regtest fixture activation heights
+    /// across this repo. See `regtest_test_activation_heights` for why
+    /// these specific values matter (NU6.1 lockbox / zainod commitment
+    /// computation).
     #[arg(
         long,
         value_parser = parse_activation_heights,
-        default_value = "all=1,nu5=2,nu6=2,nu6_1=1000,nu7=off"
+        default_value = REGTEST_FIXTURE_HEIGHTS_CLI_STRING
     )]
     pub activation_heights: ConfiguredActivationHeights,
 
@@ -344,5 +345,43 @@ mod tests {
         assert_eq!(cfg.nu6, Some(1));
         assert_eq!(cfg.nu6_1, Some(1));
         assert_eq!(cfg.nu7, None);
+    }
+
+    /// Drift-detection: the CLI default string and the in-code fixture
+    /// helper must produce identical values. If this test fails, one
+    /// of them was edited without updating the other — the bug it
+    /// guards against is exactly the one that surfaced when the infras
+    /// pin was bumped (zainod and validator disagreed on regtest
+    /// activation heights, producing
+    /// `Block commitment could not be computed`).
+    #[test]
+    fn cli_default_matches_fixture_helper() {
+        use local_net::validator::{
+            regtest_test_activation_heights, REGTEST_FIXTURE_HEIGHTS_CLI_STRING,
+        };
+        let parsed = parse_activation_heights(REGTEST_FIXTURE_HEIGHTS_CLI_STRING)
+            .expect("CLI default string must parse");
+
+        // Mirror the field-by-field conversion done in
+        // regtest-launcher::main: ConfiguredActivationHeights ->
+        // zingo_common_components::ActivationHeights. `before_overwinter`
+        // exists on the former but not the latter and is dropped.
+        let from_cli = zingo_common_components::protocol::ActivationHeights::builder()
+            .set_overwinter(parsed.overwinter)
+            .set_sapling(parsed.sapling)
+            .set_blossom(parsed.blossom)
+            .set_heartwood(parsed.heartwood)
+            .set_canopy(parsed.canopy)
+            .set_nu5(parsed.nu5)
+            .set_nu6(parsed.nu6)
+            .set_nu6_1(parsed.nu6_1)
+            .set_nu7(parsed.nu7)
+            .build();
+
+        assert_eq!(
+            from_cli,
+            regtest_test_activation_heights(),
+            "CLI default string drifted from regtest_test_activation_heights"
+        );
     }
 }

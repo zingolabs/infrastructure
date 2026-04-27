@@ -10,7 +10,10 @@ use crate::process::Process;
 pub mod zcashd;
 pub mod zebrad;
 
-/// Default activation heights for regtest test fixtures across this crate.
+/// **Single source of truth** for regtest fixture activation heights
+/// across this whole repo (`zcash_local_net` validators + indexer
+/// `Default` impls, plus `regtest-launcher`'s CLI default — see
+/// [`REGTEST_FIXTURE_HEIGHTS_CLI_STRING`] for the matching string form).
 ///
 /// **Why this exists, and why these specific heights**:
 ///
@@ -36,7 +39,7 @@ pub mod zebrad;
 /// with `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` so that all
 /// fixture configs (validator + indexer) agree on what regtest looks
 /// like.
-pub(crate) fn regtest_test_activation_heights() -> ActivationHeights {
+pub fn regtest_test_activation_heights() -> ActivationHeights {
     ActivationHeights::builder()
         .set_overwinter(Some(1))
         .set_sapling(Some(1))
@@ -49,6 +52,16 @@ pub(crate) fn regtest_test_activation_heights() -> ActivationHeights {
         .set_nu7(None)
         .build()
 }
+
+/// CLI string form of [`regtest_test_activation_heights`] for use as
+/// `clap`'s `default_value` (which requires a `&'static str`).
+///
+/// **Drift between this string and the helper above is enforced by a
+/// unit test in `regtest-launcher::cli::tests`** — the test parses
+/// this string and verifies the result, after the same conversion
+/// that `regtest-launcher::main` applies, equals the helper output.
+pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
+    "all=1,nu5=2,nu6=2,nu6_1=1000,nu7=off";
 
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
