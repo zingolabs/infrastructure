@@ -69,6 +69,13 @@ pub struct ZebradConfig {
     /// populate this with at least one entry, otherwise zebrad's
     /// `subsidy_is_valid` rejects the activation block.
     pub lockbox_disbursements: Vec<crate::validator::LockboxDisbursement>,
+    /// Post-NU6 funding streams written into Zebra's regtest
+    /// `[network.testnet_parameters.post_nu6_funding_streams]` block.
+    /// `None` by default. To make the chain mineable past NU6.1,
+    /// populate this *and* `lockbox_disbursements` together — the
+    /// stream deposits into Zebra's `Deferred` value pool, which
+    /// the disbursements draw from.
+    pub post_nu6_funding_streams: Option<crate::validator::FundingStreams>,
 }
 
 impl Default for ZebradConfig {
@@ -83,6 +90,7 @@ impl Default for ZebradConfig {
                 crate::validator::regtest_test_activation_heights(),
             ),
             lockbox_disbursements: Vec::new(),
+            post_nu6_funding_streams: None,
         }
     }
 }
@@ -182,6 +190,7 @@ impl Process for Zebrad {
             &config.miner_address,
             config.network_type,
             &config.lockbox_disbursements,
+            config.post_nu6_funding_streams.as_ref(),
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd

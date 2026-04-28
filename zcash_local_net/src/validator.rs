@@ -124,6 +124,101 @@ pub fn regtest_test_lockbox_disbursements() -> Vec<LockboxDisbursement> {
     vec![LockboxDisbursement::dummy()]
 }
 
+/// Funding-stream receiver category — mirrors Zebra's
+/// `FundingStreamReceiver` (`zebra-chain/src/parameters/network/subsidy.rs`).
+///
+/// Serialized form matches Zebra's `Serialize` derive: PascalCase for
+/// most variants, except [`Self::Ecc`] which is renamed to `"ECC"`
+/// upstream.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FundingStreamReceiver {
+    /// Electric Coin Company. Serialized as `"ECC"`.
+    Ecc,
+    /// Zcash Foundation.
+    ZcashFoundation,
+    /// Zcash Community Grants.
+    MajorGrants,
+    /// Deferred / lockbox pool. Subsidy directed to this receiver
+    /// accumulates in zebra's `deferred` value pool, where one-time
+    /// disbursements at NU6.1 activation are drawn from. See ZIP-1015
+    /// and ZIP-271.
+    Deferred,
+}
+
+impl FundingStreamReceiver {
+    /// Returns the receiver name as it appears in Zebra's
+    /// `[[network.testnet_parameters.…funding_streams.recipients]]` TOML
+    /// (matching the upstream `serde::Serialize` derive).
+    pub(crate) fn as_toml(&self) -> &'static str {
+        match self {
+            Self::Ecc => "ECC",
+            Self::ZcashFoundation => "ZcashFoundation",
+            Self::MajorGrants => "MajorGrants",
+            Self::Deferred => "Deferred",
+        }
+    }
+}
+
+/// One recipient of a funding stream — mirrors Zebra's
+/// `ConfiguredFundingStreamRecipient`.
+#[derive(Clone, Debug)]
+pub struct FundingStreamRecipient {
+    /// Receiver category.
+    pub receiver: FundingStreamReceiver,
+    /// Numerator of the fraction of block subsidy this recipient
+    /// receives. The denominator is `100`
+    /// (`FUNDING_STREAM_RECEIVER_DENOMINATOR` in Zebra) per ZIP-1015 —
+    /// so `numerator: 1` means 1% of block subsidy.
+    pub numerator: u64,
+    /// Addresses for non-`Deferred` recipients. Ignored / `None` for
+    /// `Deferred` (the lockbox is keyed by the deferred pool, not by
+    /// addresses).
+    pub addresses: Option<Vec<String>>,
+}
+
+/// Funding-stream configuration — mirrors Zebra's
+/// `ConfiguredFundingStreams`. Written into Zebra's regtest TOML at
+/// `[network.testnet_parameters.<post_nu6_>funding_streams]`.
+#[derive(Clone, Debug)]
+pub struct FundingStreams {
+    /// Inclusive start height for the stream.
+    pub start_height: u32,
+    /// Exclusive end height for the stream.
+    pub end_height: u32,
+    /// Per-recipient configuration.
+    pub recipients: Vec<FundingStreamRecipient>,
+}
+
+/// **Single source of truth** for the regtest fixture's post-NU6
+/// funding streams.
+///
+/// Without an active funding stream depositing into the `Deferred`
+/// pool, zebrad's `subsidy_is_valid` rejects the NU6.1 activation
+/// block: any non-zero disbursement drives the post-block deferred
+/// balance negative (the `Deferred(Constraint { value: -1, range:
+/// 0..=2_100_000_000_000_000 })` failure mode). Returning a
+/// non-empty stream here lets test fixtures cross NU6.1 once the
+/// configured `regtest_test_activation_heights` puts NU6.1 at least
+/// one block after NU6.
+///
+/// Default shape: a single `Deferred` recipient drawing 1% of the
+/// block subsidy, active from height 2 (the `regtest_test_activation_heights`
+/// NU6 height) through a far-future end. With the post-Blossom
+/// regtest subsidy at 6.25 ZEC, this deposits roughly 6.25M zatoshis
+/// per block into the lockbox — sufficient to cover any small test
+/// disbursement after even a single NU6 block.
+pub fn regtest_test_post_nu6_funding_streams() -> FundingStreams {
+    FundingStreams {
+        start_height: 2,
+        end_height: 1_000_000,
+        recipients: vec![FundingStreamRecipient {
+            receiver: FundingStreamReceiver::Deferred,
+            numerator: 1,
+            addresses: None,
+        }],
+    }
+}
+
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,

@@ -124,6 +124,7 @@ pub(crate) fn write_zebrad_config(
     miner_address: &str,
     network: NetworkType,
     lockbox_disbursements: &[crate::validator::LockboxDisbursement],
+    post_nu6_funding_streams: Option<&crate::validator::FundingStreams>,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -233,6 +234,41 @@ NU6 = {nu6_activation_height}
                 address = d.address,
                 amount = d.amount_zats,
             ));
+        }
+
+        // Post-NU6 funding streams (ZIP-1015). Required to deposit
+        // into Zebra's `Deferred` value pool ahead of any NU6.1
+        // disbursement; without it, `subsidy_is_valid` rejects the
+        // activation block on a Deferred value-pool constraint.
+        // Schema matches Zebra's `ConfiguredFundingStreams` in
+        // `zebra-chain/src/parameters/network/testnet.rs`.
+        if let Some(streams) = post_nu6_funding_streams {
+            cfg.push_str(&format!(
+                "\n\n[network.testnet_parameters.post_nu6_funding_streams.height_range]\n\
+                 start = {start}\n\
+                 end = {end}",
+                start = streams.start_height,
+                end = streams.end_height,
+            ));
+            for r in &streams.recipients {
+                cfg.push_str(&format!(
+                    "\n\n[[network.testnet_parameters.post_nu6_funding_streams.recipients]]\n\
+                     receiver = \"{receiver}\"\n\
+                     numerator = {numerator}",
+                    receiver = r.receiver.as_toml(),
+                    numerator = r.numerator,
+                ));
+                if let Some(addresses) = &r.addresses {
+                    if !addresses.is_empty() {
+                        let quoted: Vec<String> =
+                            addresses.iter().map(|a| format!("\"{a}\"")).collect();
+                        cfg.push_str(&format!(
+                            "\naddresses = [{}]",
+                            quoted.join(", ")
+                        ));
+                    }
+                }
+            }
         }
     }
 

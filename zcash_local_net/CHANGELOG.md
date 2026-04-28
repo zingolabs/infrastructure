@@ -46,6 +46,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to a non-empty list (typically
   `regtest_test_lockbox_disbursements()`) to make the chain mineable
   past the NU6.1 activation block.
+- `validator::FundingStreamReceiver` (`pub enum`),
+  `validator::FundingStreamRecipient` (`pub struct`),
+  `validator::FundingStreams` (`pub struct`): mirror Zebra's
+  `ConfiguredFundingStreams{,Recipient}` and
+  `FundingStreamReceiver`. Drive the funding-stream side of the
+  NU6.1 plumbing: a `Deferred` recipient deposits a fraction of
+  block subsidy into Zebra's deferred value pool, which NU6.1
+  disbursements draw from.
+- `validator::regtest_test_post_nu6_funding_streams` (`pub fn`):
+  single source of truth for the regtest fixture's post-NU6
+  funding streams. Returns one `Deferred` recipient drawing 1% of
+  block subsidy across heights 2..1_000_000 — enough lockbox
+  accumulation for any small NU6.1 disbursement test.
+- `ZebradConfig.post_nu6_funding_streams` (`pub field`,
+  `Option<FundingStreams>`): caller-supplied stream config,
+  serialized into Zebra's regtest TOML at
+  `[network.testnet_parameters.post_nu6_funding_streams]` when
+  Some. Default `None` preserves prior behavior. Tests that cross
+  NU6.1 must populate this *and* `lockbox_disbursements`
+  together — the stream feeds the deferred pool, the disbursements
+  draw from it.
 
 ### Changed
 

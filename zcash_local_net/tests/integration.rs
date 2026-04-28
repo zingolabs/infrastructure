@@ -270,6 +270,58 @@ async fn zebrad_passes_informal_readiness_conjunction() {
 /// streams with a `Deferred` recipient (so the lockbox accumulates
 /// before NU6.1 activates). Tracked in zingolabs/infrastructure#244
 /// (and possibly a follow-up sub-issue once that lands).
+/// With NU6 at height 2, NU6.1 at height 5, a `Deferred` post-NU6
+/// funding stream populating the lockbox each block, and a single
+/// dummy disbursement, the activation block satisfies all three
+/// consensus checks and the chain mines past it.
+///
+/// This is the proof-of-life test for the full NU6.1 plumbing:
+/// `LockboxDisbursement` (P2SH address + amount) plus
+/// `FundingStreams` (Deferred recipient depositing into the
+/// `Deferred` value pool). Run on a regtest fixture aligned to
+/// require all three checks to pass.
+#[tokio::test]
+async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_streams() {
+    tracing_subscriber::fmt().init();
+
+    let activation_heights = ActivationHeights::builder()
+        .set_overwinter(Some(1))
+        .set_sapling(Some(1))
+        .set_blossom(Some(1))
+        .set_heartwood(Some(1))
+        .set_canopy(Some(1))
+        .set_nu5(Some(2))
+        .set_nu6(Some(2))
+        // NU6.1 a few blocks after NU6 so the `Deferred` value pool
+        // accumulates enough subsidy fraction to cover the
+        // disbursement total.
+        .set_nu6_1(Some(5))
+        .set_nu7(None)
+        .build();
+
+    let mut config = ZebradConfig::default();
+    config.set_test_parameters(PoolType::Transparent, activation_heights, None);
+    config.lockbox_disbursements =
+        zcash_local_net::validator::regtest_test_lockbox_disbursements();
+    config.post_nu6_funding_streams =
+        Some(zcash_local_net::validator::regtest_test_post_nu6_funding_streams());
+
+    let zebrad = Zebrad::launch(config)
+        .await
+        .expect("zebrad launch with disbursements + post-NU6 funding streams");
+
+    zebrad
+        .generate_blocks(8)
+        .await
+        .expect("generate_blocks past NU6.1 activation");
+
+    let final_height = zebrad.get_chain_height().await;
+    assert!(
+        final_height >= 9,
+        "expected chain to advance past NU6.1 (5) + buffer; got height {final_height}"
+    );
+}
+
 #[ignore = "blocked: deferred-pool empty without NU6 funding streams; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
