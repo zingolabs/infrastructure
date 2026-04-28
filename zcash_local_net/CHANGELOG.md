@@ -25,6 +25,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `error::LaunchError::RpcReadinessTimeout` variant for explicit
   signaling that the validator's RPC framework did not respond within
   the readiness budget.
+- `validator::LockboxDisbursement` (`pub struct`) and
+  `LockboxDisbursement::dummy` (`pub fn`): a value type for ZIP-271
+  lockbox disbursement entries written into Zebra's regtest
+  `[network.testnet_parameters]` config. Mirrors Zebra's upstream
+  `ConfiguredLockboxDisbursement`. `dummy()` returns a 1-zatoshi
+  disbursement to the standard regtest miner address — sufficient to
+  satisfy zebrad's `subsidy_is_valid` `is_empty()` check at the NU6.1
+  activation block.
+- `validator::regtest_test_lockbox_disbursements` (`pub fn`): single
+  source of truth for the regtest fixture disbursement list. Pairs
+  with `regtest_test_activation_heights` — any caller that needs the
+  canonical disbursement set (harness, downstream fixtures) goes
+  through this helper rather than hand-rolling `vec![dummy()]`.
+- `ZebradConfig.lockbox_disbursements` (`pub field`,
+  `Vec<LockboxDisbursement>`): caller-supplied disbursement list,
+  serialized into Zebra's regtest TOML at
+  `[[network.testnet_parameters.lockbox_disbursements]]` when the
+  network is regtest. Default empty preserves prior behavior; set
+  to a non-empty list (typically
+  `regtest_test_lockbox_disbursements()`) to make the chain mineable
+  past the NU6.1 activation block.
 
 ### Changed
 

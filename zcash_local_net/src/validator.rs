@@ -97,6 +97,23 @@ impl LockboxDisbursement {
     }
 }
 
+/// **Single source of truth** for the regtest fixture lockbox
+/// disbursement list. Mirrors [`regtest_test_activation_heights`]:
+/// any caller that needs the canonical regtest disbursement set
+/// (the harness's own `ZebradConfig`, downstream test fixtures, etc.)
+/// goes through this helper rather than hand-rolling the same
+/// `vec![dummy()]` literal.
+///
+/// Today this returns a single [`LockboxDisbursement::dummy`] —
+/// enough to satisfy zebrad's `is_empty()` gate at the NU6.1
+/// activation block. If the activation-block validation rule grows
+/// stricter (e.g. requires multiple disbursements summing to a
+/// specific total, or matching coinbase outputs), this helper is the
+/// one place to update.
+pub fn regtest_test_lockbox_disbursements() -> Vec<LockboxDisbursement> {
+    vec![LockboxDisbursement::dummy()]
+}
+
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,
