@@ -11,7 +11,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `validator::regtest_test_activation_heights` (`pub fn`): single
+  source of truth for regtest fixture activation heights across the
+  crate. Used by the `Default` impls of `ZebradConfig`, `ZcashdConfig`,
+  and `ZainodConfig` so all fixture configs agree on activation
+  heights — values aligned with
+  `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` (nu5=2, nu6=2,
+  nu6_1=1000, nu7=None, all earlier=1).
+- `validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING` (`pub const`):
+  serialized form of the helper for use as clap's `default_value`
+  (which requires `&'static str`). Drift between the two is enforced
+  by a unit test in `regtest-launcher::cli::tests`.
+- `error::LaunchError::RpcReadinessTimeout` variant for explicit
+  signaling that the validator's RPC framework did not respond within
+  the readiness budget.
+
 ### Changed
+
+- `Zebrad::launch` no longer carries two unconditional
+  `std::thread::sleep(5s)` calls — saves ~10s per launch and stops
+  parking the tokio worker thread (`std::thread::sleep` was being
+  used inside an async fn). Specifically:
+  - The pre-genesis-mine sleep is replaced by a poll-based
+    `wait_for_rpc_ready` helper hitting `getblocktemplate` every 50ms
+    with a 30s ceiling.
+  - The post-genesis-mine sleep is removed entirely;
+    `generate_blocks` already calls `poll_chain_height` internally,
+    which is a stricter signal — RPC liveness AND the new tip are
+    both observable by the time it returns.
+- `Zebrad::generate_blocks` retries the
+  (`getblocktemplate` → build proposal → `submitblock`) sequence on
+  rejection (30 attempts × 100ms). Right after launch some validation
+  services need a few hundred ms to accept submissions even though
+  the RPC framework already answers; retries re-read the template
+  each pass. Deterministic consensus failures still surface with a
+  clear panic listing the last response.
+- `ZebradConfig`, `ZcashdConfig`, and `ZainodConfig` `Default` impls
+  now consume `validator::regtest_test_activation_heights` instead of
+  inheriting `zingo_common_components::ActivationHeights::default()`.
+  The old default activated NU6.1 at height 1, which made the
+  genesis-mining block the NU6.1 activation block and triggered the
+  `"missing lockbox disbursements for NU6.1 activation block"`
+  consensus rejection (see zingolabs/infrastructure#241).
+- `regtest-launcher` CLI `--activation-heights` default now references
+  `REGTEST_FIXTURE_HEIGHTS_CLI_STRING` rather than carrying its own
+  hand-typed copy of the same values.
 
 ### Removed
 
