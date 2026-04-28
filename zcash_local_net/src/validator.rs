@@ -15,30 +15,40 @@ pub mod zebrad;
 /// `Default` impls, plus `regtest-launcher`'s CLI default — see
 /// [`REGTEST_FIXTURE_HEIGHTS_CLI_STRING`] for the matching string form).
 ///
-/// **Why this exists, and why these specific heights**:
+/// **Why these specific heights**:
 ///
-/// - `ActivationHeights::default()` from `zingo_common_components` puts
-///   every upgrade including NU6.1 at height 1, which makes the
-///   genesis-mining block the NU6.1 activation block. zebrad rejects
-///   the proposal because it lacks the NU6.1 lockbox disbursements
-///   that `proposal_block_from_template` does not generate (consensus
-///   error: "missing lockbox disbursements for NU6.1 activation
-///   block"). See zingolabs/infrastructure#241.
+/// - Pre-NU5 upgrades all activate at height 1: the genesis-mining
+///   block is the first chain block, and putting Sapling/Blossom/etc.
+///   here matches mainnet's eventual deep-history shape.
+/// - NU5/NU6 at height 2: the first post-genesis block. NU5 needs
+///   to be active before NU6 since NU6 builds on the NU5 commitment
+///   scheme.
+/// - **NU6.1 at height 5**: keeps NU6.1 reachable in normal regtest
+///   mining (any test that mines ≥ 5 blocks crosses the activation
+///   block) while leaving 3 NU6 blocks for [`regtest_test_post_nu6_funding_streams`]
+///   to deposit into Zebra's `Deferred` value pool. zebrad's
+///   `subsidy_is_valid` rejects the activation block if either the
+///   `lockbox_disbursements` list is empty, the address is not
+///   P2SH, or the post-block deferred-pool balance goes negative
+///   (zingolabs/infrastructure#244 walks through all three checks).
 ///
-/// - When zainod is launched as a subprocess, it reads only
-///   `network = "Regtest"` from its TOML config. Activation heights
-///   are *not* propagated through the TOML — zainod falls back to
-///   `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`, which sets
-///   nu5/nu6 at height 2 and nu6_1 at height 1000.
+/// **Companion config required for any caller that mines past
+/// height 5**: pair this with [`regtest_test_lockbox_disbursements`]
+/// and [`regtest_test_post_nu6_funding_streams`]. The default
+/// `ZebradConfig` impl wires both automatically; ad-hoc callers must
+/// set `lockbox_disbursements` and `post_nu6_funding_streams`
+/// explicitly or the activation block will be rejected.
 ///
-/// If zebrad's view of activation heights differs from zainod's, the
+/// **Cross-repo alignment** — when zainod is launched as a subprocess,
+/// it reads only `network = "Regtest"` from its TOML config.
+/// Activation heights are *not* propagated through the TOML; zainod
+/// falls back to `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`. If
+/// zebrad's view of activation heights differs from zainod's, the
 /// chain-index sync loop fails with
-/// `InvalidData("Block commitment could not be computed")` because
-/// `block.commitment(network)` evaluates the wrong commitment scheme
-/// for that block height. We must therefore align this helper exactly
-/// with `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` so that all
-/// fixture configs (validator + indexer) agree on what regtest looks
-/// like.
+/// `InvalidData("Block commitment could not be computed")`. The same
+/// (NU5=2, NU6=2, NU6.1=5) tuple must therefore be set in
+/// `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`. Tracked in
+/// zingolabs/zaino#1076.
 pub fn regtest_test_activation_heights() -> ActivationHeights {
     ActivationHeights::builder()
         .set_overwinter(Some(1))
@@ -48,7 +58,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
         .set_canopy(Some(1))
         .set_nu5(Some(2))
         .set_nu6(Some(2))
-        .set_nu6_1(Some(1000))
+        .set_nu6_1(Some(5))
         .set_nu7(None)
         .build()
 }
@@ -61,7 +71,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
 pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
-    "all=1,nu5=2,nu6=2,nu6_1=1000,nu7=off";
+    "all=1,nu5=2,nu6=2,nu6_1=5,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.

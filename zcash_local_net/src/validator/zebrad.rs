@@ -80,6 +80,12 @@ pub struct ZebradConfig {
 
 impl Default for ZebradConfig {
     fn default() -> Self {
+        // The default fixture activates NU6.1 at height 5 (see
+        // `regtest_test_activation_heights`), so the matching
+        // `lockbox_disbursements` and post-NU6 funding stream are
+        // both required for any test that mines past block 4. We
+        // populate them here so callers don't have to remember the
+        // pairing.
         Self {
             network_listen_port: None,
             rpc_listen_port: None,
@@ -89,8 +95,10 @@ impl Default for ZebradConfig {
             network_type: NetworkType::Regtest(
                 crate::validator::regtest_test_activation_heights(),
             ),
-            lockbox_disbursements: Vec::new(),
-            post_nu6_funding_streams: None,
+            lockbox_disbursements: crate::validator::regtest_test_lockbox_disbursements(),
+            post_nu6_funding_streams: Some(
+                crate::validator::regtest_test_post_nu6_funding_streams(),
+            ),
         }
     }
 }

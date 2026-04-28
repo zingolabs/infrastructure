@@ -70,6 +70,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Regtest fixture default now activates NU6.1 at height 5.**
+  `validator::regtest_test_activation_heights` returns
+  `nu6_1: Some(5)` (was `Some(1000)`); the matching
+  `REGTEST_FIXTURE_HEIGHTS_CLI_STRING` is
+  `"all=1,nu5=2,nu6=2,nu6_1=5,nu7=off"`. Any regtest test that mines
+  ≥ 5 blocks now exercises the NU6.1 activation block — codepaths
+  that were silently skipped before.
+- `ZebradConfig::default` now populates `lockbox_disbursements` via
+  `regtest_test_lockbox_disbursements()` and
+  `post_nu6_funding_streams` via
+  `regtest_test_post_nu6_funding_streams()`. Callers using
+  `ZebradConfig::default()` get the full NU6.1 plumbing without
+  having to remember the pairing.
+- **Cross-repo coordination**:
+  `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` must follow
+  this change to `nu6_1=5` (see `regtest_test_activation_heights`'s
+  doc-comment for why drift breaks zainod's chain-index sync with
+  `InvalidData("Block commitment could not be computed")`).
+  Tracked in zingolabs/zaino#1076.
+
 - `Zebrad::launch` no longer carries two unconditional
   `std::thread::sleep(5s)` calls — saves ~10s per launch and stops
   parking the tokio worker thread (`std::thread::sleep` was being
