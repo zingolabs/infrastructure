@@ -123,6 +123,7 @@ pub(crate) fn write_zebrad_config(
     indexer_listen_port: u16,
     miner_address: &str,
     network: NetworkType,
+    lockbox_disbursements: &[crate::validator::LockboxDisbursement],
 ) -> std::io::Result<PathBuf> {
     let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -218,6 +219,21 @@ NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}
 \"NU6.1\" = {nu6_1_activation_height}"
         ));
+
+        // Lockbox disbursements (ZIP-271). Required at the NU6.1
+        // activation block; an empty list trips zebrad's
+        // `subsidy_is_valid` rejection. Schema matches Zebra's
+        // `ConfiguredLockboxDisbursement` in
+        // `zebra-chain/src/parameters/network/testnet.rs`.
+        for d in lockbox_disbursements {
+            cfg.push_str(&format!(
+                "\n\n[[network.testnet_parameters.lockbox_disbursements]]\n\
+                 address = \"{address}\"\n\
+                 amount = {amount}",
+                address = d.address,
+                amount = d.amount_zats,
+            ));
+        }
     }
 
     config_file.write_all(cfg.as_bytes())?;

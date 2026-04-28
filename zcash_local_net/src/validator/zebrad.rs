@@ -62,6 +62,13 @@ pub struct ZebradConfig {
     pub chain_cache: Option<PathBuf>,
     /// Network type
     pub network_type: NetworkType,
+    /// Lockbox disbursements written into Zebra's regtest
+    /// `[network.testnet_parameters]` block. Empty by default —
+    /// preserves today's behavior where the NU6.1 activation block
+    /// is unreachable. Any test whose chain crosses NU6.1 must
+    /// populate this with at least one entry, otherwise zebrad's
+    /// `subsidy_is_valid` rejects the activation block.
+    pub lockbox_disbursements: Vec<crate::validator::LockboxDisbursement>,
 }
 
 impl Default for ZebradConfig {
@@ -75,6 +82,7 @@ impl Default for ZebradConfig {
             network_type: NetworkType::Regtest(
                 crate::validator::regtest_test_activation_heights(),
             ),
+            lockbox_disbursements: Vec::new(),
         }
     }
 }
@@ -173,6 +181,7 @@ impl Process for Zebrad {
             indexer_listen_port,
             &config.miner_address,
             config.network_type,
+            &config.lockbox_disbursements,
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd

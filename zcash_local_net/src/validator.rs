@@ -63,6 +63,40 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
     "all=1,nu5=2,nu6=2,nu6_1=1000,nu7=off";
 
+/// One lockbox disbursement output to inject into Zebra's regtest
+/// `[network.testnet_parameters]` configuration.
+///
+/// Pairs with Zebra's upstream `ConfiguredLockboxDisbursement`
+/// (`zebra-chain/src/parameters/network/testnet.rs`). On Mainnet and
+/// the default Testnet, Zebra ships a hardcoded ZIP-271 disbursement
+/// list. On regtest the list defaults to empty, which makes
+/// `subsidy_is_valid` (`zebra-consensus/src/block/check.rs`) reject
+/// the NU6.1 activation block with
+/// `"missing lockbox disbursements for NU6.1 activation block"`.
+/// Any regtest test whose chain reaches NU6.1 needs a non-empty
+/// list here.
+#[derive(Clone, Debug)]
+pub struct LockboxDisbursement {
+    /// Recipient address, as a valid regtest transparent address
+    /// string. Zebra parses this string the same way it parses any
+    /// other configured testnet-parameters address.
+    pub address: String,
+    /// Disbursement amount, in zatoshis.
+    pub amount_zats: u64,
+}
+
+impl LockboxDisbursement {
+    /// One zatoshi to the standard regtest miner address. Sufficient
+    /// to satisfy zebrad's `lockbox_disbursements.is_empty()` check
+    /// without needing to allocate a separate funded address.
+    pub fn dummy() -> Self {
+        Self {
+            address: zingo_test_vectors::ZEBRAD_DEFAULT_MINER.to_string(),
+            amount_zats: 1,
+        }
+    }
+}
+
 /// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
 fn parse_activation_heights_from_rpc(
     upgrades: &serde_json::Map<String, serde_json::Value>,
