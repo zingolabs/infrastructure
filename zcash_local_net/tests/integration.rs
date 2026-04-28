@@ -156,24 +156,121 @@ async fn launch_zcashd_with_nu6_1_at_height_2() {
     probe_validator_with_nu6_1_at::<Zcashd>(2, 5).await;
 }
 
+// ─── Zebrad RPC liveness probes ─────────────────────────────────────────
+//
+// zebrad has no dedicated /healthz or /readyz endpoint (see
+// zingolabs/infrastructure#245). Until upstream provides one, the
+// harness's best signal is the four readiness-relevant RPCs the
+// daemon already exposes. These probes assert each one responds after
+// `Zebrad::launch_default` returns, plus a conjunction test that
+// implements the "informal readiness" definition from #245
+// (live & ready iff all four return Ok).
+//
+// Per-endpoint probes give nextest-level reporting of which subsystem
+// is unhealthy when something regresses; the conjunction test is the
+// single canary that fails fast if any of them does.
+
+async fn probe_zebrad_rpc_endpoint(endpoint: &'static str) {
+    let zebrad = Zebrad::launch_default()
+        .await
+        .expect("zebrad launch_default");
+    zebrad
+        .client()
+        .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
+        .await
+        .unwrap_or_else(|e| panic!("zebrad {endpoint} probe failed: {e:?}"));
+}
+
+#[tokio::test]
+async fn zebrad_responds_to_getinfo() {
+    tracing_subscriber::fmt().init();
+    // Most permissive endpoint — answers as soon as the JSON-RPC
+    // dispatcher is registered. If this fails, the process is dead
+    // or the listener never bound.
+    probe_zebrad_rpc_endpoint("getinfo").await;
+}
+
+#[tokio::test]
+async fn zebrad_responds_to_getnetworkinfo() {
+    tracing_subscriber::fmt().init();
+    // Network module loaded; peer subsystem reachable.
+    probe_zebrad_rpc_endpoint("getnetworkinfo").await;
+}
+
+#[tokio::test]
+async fn zebrad_responds_to_getblockchaininfo() {
+    tracing_subscriber::fmt().init();
+    // State module loaded; chain tip readable from the database.
+    probe_zebrad_rpc_endpoint("getblockchaininfo").await;
+}
+
+#[tokio::test]
+async fn zebrad_responds_to_getblocktemplate() {
+    tracing_subscriber::fmt().init();
+    // Mining service active and consensus is in a state where the
+    // next block can be mined. Most restrictive of the four.
+    probe_zebrad_rpc_endpoint("getblocktemplate").await;
+}
+
+#[tokio::test]
+async fn zebrad_passes_informal_readiness_conjunction() {
+    tracing_subscriber::fmt().init();
+    // The "informal readiness" contract from
+    // zingolabs/infrastructure#245: live & ready iff all four
+    // readiness-relevant RPCs return Ok. Reports which endpoints
+    // failed when the conjunction does, instead of the single-RPC
+    // ambiguity of polling getblocktemplate alone.
+    let zebrad = Zebrad::launch_default()
+        .await
+        .expect("zebrad launch_default");
+
+    let endpoints = [
+        "getinfo",
+        "getnetworkinfo",
+        "getblockchaininfo",
+        "getblocktemplate",
+    ];
+    let mut failures = Vec::new();
+    for endpoint in endpoints {
+        if let Err(e) = zebrad
+            .client()
+            .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
+            .await
+        {
+            failures.push(format!("{endpoint}: {e:?}"));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "informal readiness conjunction failed:\n{}",
+        failures.join("\n")
+    );
+}
+
 /// Inverse of the failing zebrad probes above: with a non-empty
 /// `lockbox_disbursements` list configured into Zebra's regtest
 /// parameters, the NU6.1 activation block should pass
 /// `subsidy_is_valid` and the chain should mine past it.
 ///
-/// **Currently `#[ignore]`d** — empirically, a single dummy
-/// disbursement is necessary but not sufficient. The test fails with
-/// hyper `IncompleteMessage` from `submitblock` (zebrad died
-/// mid-request), distinct from the empty-default failure mode (a
-/// graceful `"rejected"` response that the harness retries). The
-/// non-empty configuration causes zebrad to take a different code
-/// path through `subsidy_is_valid` — likely a coinbase-output
-/// matching check that the harness's getblocktemplate-driven mining
-/// flow does not satisfy. See zingolabs/infrastructure#244 for the
-/// follow-up. Re-enable once the harness emits matching coinbase
-/// outputs at the activation block (or the upstream regtest
-/// `getblocktemplate` honors configured disbursements).
-#[ignore = "blocked: activation-block coinbase doesn't match configured disbursements; see issue"]
+/// **Currently `#[ignore]`d** — empirically zebrad runs *three*
+/// consensus checks at the activation block, and a single dummy
+/// disbursement only clears two of them:
+///
+///   1. `lockbox_disbursements.is_empty()` — passes (we configure
+///      one entry).
+///   2. `addr.is_script_hash()` — passes (`dummy()` uses a P2SH
+///      address).
+///   3. `Deferred` value-pool constraint — **fails**: the
+///      activation block tries to withdraw 1 zat from the deferred
+///      pool, but regtest's default `funding_streams: []` never
+///      deposited anything into it, so the post-block deferred
+///      balance lands at -1 and the consensus check rejects.
+///
+/// Re-enabling requires harness support for configuring NU6 funding
+/// streams with a `Deferred` recipient (so the lockbox accumulates
+/// before NU6.1 activates). Tracked in zingolabs/infrastructure#244
+/// (and possibly a follow-up sub-issue once that lands).
+#[ignore = "blocked: deferred-pool empty without NU6 funding streams; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
     tracing_subscriber::fmt().init();
@@ -198,14 +295,25 @@ async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
         .await
         .expect("zebrad launch with dummy disbursements");
 
-    // Print zebrad's stdout+stderr no matter how the rest of the test
-    // exits — this captures the actual error message from zebrad when
-    // a downstream call (like generate_blocks) panics on a transport
-    // error and would otherwise discard the logs.
+    // Print zebrad's stdout+stderr to the test runner's stderr no
+    // matter how the rest of the test exits — captures the actual
+    // error message when a downstream call panics on a transport
+    // error. Bypasses `Process::print_all`, which routes through
+    // `tracing::trace!` and is silently dropped at the default INFO
+    // level (#244 diagnostic).
     struct PrintOnDrop<'a>(&'a Zebrad);
     impl Drop for PrintOnDrop<'_> {
         fn drop(&mut self) {
-            self.0.print_all();
+            for (label, name) in [("stdout", "stdout.log"), ("stderr", "stderr.log")] {
+                let path = self.0.logs_dir().path().join(name);
+                match std::fs::read_to_string(&path) {
+                    Ok(s) if s.is_empty() => {
+                        eprintln!("=== zebrad {label}: <empty> ===");
+                    }
+                    Ok(s) => eprintln!("=== zebrad {label} ===\n{s}=== end {label} ==="),
+                    Err(e) => eprintln!("=== zebrad {label}: read failed ({e}) ==="),
+                }
+            }
         }
     }
     let _print_on_drop = PrintOnDrop(&zebrad);

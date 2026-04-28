@@ -86,12 +86,22 @@ pub struct LockboxDisbursement {
 }
 
 impl LockboxDisbursement {
-    /// One zatoshi to the standard regtest miner address. Sufficient
-    /// to satisfy zebrad's `lockbox_disbursements.is_empty()` check
-    /// without needing to allocate a separate funded address.
+    /// One zatoshi to a known-valid testnet/regtest P2SH address.
+    ///
+    /// zebrad's `subsidy_is_valid` (`zebra-consensus/src/block/check.rs:177`)
+    /// asserts `addr.is_script_hash()` for every disbursement entry —
+    /// **lockbox disbursement addresses must be P2SH** (`t2…` prefix
+    /// on regtest/testnet). The standard regtest miner address is
+    /// P2PKH (`tm…`) and is rejected.
+    ///
+    /// `t2RnBRiqrN1nW4ecZs1Fj3WWjNdnSs4kiX8` is Zebra's reference
+    /// testnet NU6.1 disbursement address (`zebra-chain/src/parameters
+    /// /network/subsidy/constants/testnet.rs::NU6_1_LOCKBOX_DISBURSEMENTS`)
+    /// — guaranteed to parse and decode under any Testnet-class
+    /// network kind (which regtest is).
     pub fn dummy() -> Self {
         Self {
-            address: zingo_test_vectors::ZEBRAD_DEFAULT_MINER.to_string(),
+            address: "t2RnBRiqrN1nW4ecZs1Fj3WWjNdnSs4kiX8".to_string(),
             amount_zats: 1,
         }
     }

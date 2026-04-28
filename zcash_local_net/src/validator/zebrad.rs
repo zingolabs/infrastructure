@@ -348,18 +348,19 @@ impl Validator for Zebrad {
             zingo_to_zebra_activation_heights(*activation_heights).into(),
         );
 
-        for _ in 0..n {
-            // Retry on transient rejection. Right after launch, zebrad's
-            // mining/validation services can take a few hundred ms to fully
-            // accept submissions even after `getblocktemplate` answers.
-            // Bounded so a real consensus rejection still surfaces — when
-            // the consensus error is deterministic on block content (e.g.
-            // a missing NU6.1 lockbox disbursement) every retry produces
-            // the same rejection and the loop exits with a clear panic.
-            const MAX_ATTEMPTS: u32 = 30;
-            const ATTEMPT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+        // Drive the chain forward one block per outer iteration. Success
+        // criterion is *chain advance*, not the RPC response: zebra returns
+        // "duplicate" / "duplicate-inconclusive" when validation outruns the
+        // 100 ms retry interval (notably the NU6.1 activation block), and
+        // those responses don't tell us whether the new submission committed
+        // — only that something with the same hash was already submitted.
+        // Polling chain height between submits is the unambiguous answer.
+        const MAX_ATTEMPTS: u32 = 30;
+        const ATTEMPT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+        for i in 0..n {
+            let target_height = chain_height + i + 1;
             let mut last_response = String::new();
-            let mut accepted = false;
+            let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
                 let block_template: BlockTemplateResponse = self
                     .client
@@ -378,25 +379,26 @@ impl Validator for Zebrad {
                     .unwrap(),
                 );
 
-                let submit_block_response = self
+                last_response = self
                     .client
                     .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
                     .await
                     .unwrap();
 
-                if submit_block_response.contains(r#""result":null"#) {
-                    accepted = true;
+                if self.get_chain_height().await >= target_height {
+                    advanced = true;
                     break;
                 }
-                last_response = submit_block_response;
                 tokio::time::sleep(ATTEMPT_INTERVAL).await;
             }
 
-            if !accepted {
+            if !advanced {
                 tracing::error!(
-                    "Failed to submit block after {MAX_ATTEMPTS} attempts: {last_response}"
+                    "chain failed to reach height {target_height} after \
+                     {MAX_ATTEMPTS} attempts; last submitblock response: \
+                     {last_response}"
                 );
-                panic!("Failed to submit block!");
+                panic!("Failed to advance chain to height {target_height}!");
             }
         }
         self.poll_chain_height(chain_height + n).await;
