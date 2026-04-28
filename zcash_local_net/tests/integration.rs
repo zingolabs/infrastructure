@@ -213,6 +213,82 @@ async fn zebrad_responds_to_getblocktemplate() {
 }
 
 #[tokio::test]
+async fn zebrad_healthy_endpoint_responds_200_after_launch() {
+    tracing_subscriber::fmt().init();
+    // /healthy with min_connected_peers=0 (regtest default) returns
+    // 200 as soon as the HTTP server has bound. Launch implies
+    // wait_for_rpc_ready has already passed, so the listener must
+    // be up.
+    let zebrad = Zebrad::launch_default()
+        .await
+        .expect("zebrad launch_default");
+    assert!(
+        zebrad.healthy().await.expect("/healthy fetch"),
+        "/healthy returned non-200 immediately after launch"
+    );
+}
+
+#[tokio::test]
+async fn zebrad_ready_endpoint_responds_200_after_one_block() {
+    tracing_subscriber::fmt().init();
+    // /ready requires the latest committed block to be recent
+    // (within ready_max_tip_age, default 300s) and chain-tip lag
+    // bounded. launch_default mines genesis as part of its
+    // sequence, so post-launch the chain has a fresh block and
+    // /ready should be 200.
+    let zebrad = Zebrad::launch_default()
+        .await
+        .expect("zebrad launch_default");
+    assert!(
+        zebrad.ready().await.expect("/ready fetch"),
+        "/ready returned non-200 after launch (genesis is the most recent block)"
+    );
+}
+
+#[tokio::test]
+async fn zebrad_health_endpoints_agree_with_rpc_readiness_conjunction() {
+    tracing_subscriber::fmt().init();
+    // Regression test for upstream Zebra changes that would let
+    // /healthy or /ready report ready while the JSON-RPC surface
+    // is actually broken (or vice versa). The harness's informal
+    // AND-of-4 readiness contract is the cross-check: both signals
+    // must agree on a healthy steady state, otherwise one side
+    // has regressed.
+    let zebrad = Zebrad::launch_default()
+        .await
+        .expect("zebrad launch_default");
+
+    let endpoints = [
+        "getinfo",
+        "getnetworkinfo",
+        "getblockchaininfo",
+        "getblocktemplate",
+    ];
+    let mut rpc_failures = Vec::new();
+    for endpoint in endpoints {
+        if let Err(e) = zebrad
+            .client()
+            .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
+            .await
+        {
+            rpc_failures.push(format!("{endpoint}: {e:?}"));
+        }
+    }
+    let rpcs_ok = rpc_failures.is_empty();
+
+    let healthy_ok = zebrad.healthy().await.expect("/healthy fetch");
+    let ready_ok = zebrad.ready().await.expect("/ready fetch");
+    let endpoints_ok = healthy_ok && ready_ok;
+
+    assert_eq!(
+        rpcs_ok, endpoints_ok,
+        "informal AND-of-4 RPC readiness ({rpcs_ok}) diverged from \
+         (/healthy AND /ready) ({endpoints_ok}); /healthy={healthy_ok}, \
+         /ready={ready_ok}, RPC failures={rpc_failures:#?}"
+    );
+}
+
+#[tokio::test]
 async fn zebrad_passes_informal_readiness_conjunction() {
     tracing_subscriber::fmt().init();
     // The "informal readiness" contract from

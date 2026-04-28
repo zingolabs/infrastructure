@@ -56,6 +56,11 @@ pub struct ZebradConfig {
     pub rpc_listen_port: Option<u16>,
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<u16>,
+    /// Zebrad `[health]` HTTP listen port. `None` lets the harness
+    /// pick an unused port at launch (the regtest-friendly default,
+    /// matching the other listen ports). Some(N) pins to N. The
+    /// listener exposes `GET /healthy` and `GET /ready`.
+    pub health_listen_port: Option<u16>,
     /// Miner address
     pub miner_address: String,
     /// Chain cache path
@@ -100,6 +105,7 @@ impl Default for ZebradConfig {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
+            health_listen_port: None,
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
             network_type: NetworkType::Regtest(
@@ -159,6 +165,10 @@ pub struct Zebrad {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     indexer_listen_port: u16,
+    /// `[health]` HTTP listen port (serves `/healthy` and `/ready`)
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    health_listen_port: u16,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -174,6 +184,29 @@ pub struct Zebrad {
 impl LogsToDir for Zebrad {
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
+    }
+}
+
+impl Zebrad {
+    /// `GET http://127.0.0.1:<health_listen_port>/healthy`. Returns
+    /// `Ok(true)` when zebrad's health server replies `200 OK`,
+    /// `Ok(false)` for a `503 Service Unavailable`, and `Err` if the
+    /// HTTP request itself fails (port unreachable, malformed
+    /// response, etc.).
+    pub async fn healthy(&self) -> Result<bool, reqwest::Error> {
+        self.fetch_health_status("healthy").await
+    }
+
+    /// `GET http://127.0.0.1:<health_listen_port>/ready`. Same
+    /// return convention as [`Self::healthy`].
+    pub async fn ready(&self) -> Result<bool, reqwest::Error> {
+        self.fetch_health_status("ready").await
+    }
+
+    async fn fetch_health_status(&self, path: &str) -> Result<bool, reqwest::Error> {
+        let url = format!("http://127.0.0.1:{}/{}", self.health_listen_port, path);
+        let response = reqwest::get(&url).await?;
+        Ok(response.status() == reqwest::StatusCode::OK)
     }
 }
 
@@ -199,6 +232,7 @@ impl Process for Zebrad {
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
+        let health_listen_port = network::pick_unused_port(config.health_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),
@@ -206,6 +240,7 @@ impl Process for Zebrad {
             network_listen_port,
             rpc_listen_port,
             indexer_listen_port,
+            health_listen_port,
             &config.miner_address,
             config.network_type,
             &config.lockbox_disbursements,
@@ -286,6 +321,7 @@ impl Process for Zebrad {
             network_listen_port,
             indexer_listen_port,
             rpc_listen_port,
+            health_listen_port,
             config_dir,
             logs_dir,
             data_dir,

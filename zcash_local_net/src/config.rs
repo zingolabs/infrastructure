@@ -121,6 +121,7 @@ pub(crate) fn write_zebrad_config(
     network_listen_port: u16,
     rpc_listen_port: u16,
     indexer_listen_port: u16,
+    health_listen_port: u16,
     miner_address: &str,
     network: NetworkType,
     lockbox_disbursements: &[crate::validator::LockboxDisbursement],
@@ -191,7 +192,9 @@ filter = \"debug\"
 use_journald = false
 
 [health]
-min_connected_peers = {min_connected_peers}",
+listen_addr = \"127.0.0.1:{health_listen_port}\"
+min_connected_peers = {min_connected_peers}
+enforce_on_test_networks = false",
     );
 
     if let NetworkType::Regtest(activation_heights) = network {

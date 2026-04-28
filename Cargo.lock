@@ -5196,6 +5196,7 @@ dependencies = [
  "hex",
  "json",
  "portpicker",
+ "reqwest",
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",

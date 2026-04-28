@@ -73,10 +73,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint. Default `0` is correct for single-node regtest (no
   peer network exists to be on); harnesses targeting mainnet or
   testnet should override to `1` (Zebra's upstream default) or
-  higher. Forward-compatible with the eventual harness wiring of
-  `wait_for_rpc_ready` against `/healthy`/`/ready` instead of
-  overloading `getblocktemplate` (see
-  zingolabs/infrastructure#245).
+  higher.
+- `ZebradConfig.health_listen_port` (`pub field`, `Option<u16>`):
+  port for Zebra's `[health]` HTTP listener serving `/healthy`
+  and `/ready`. `None` (default) lets the harness pick an unused
+  port at launch, matching the other listen-port fields.
+- `Zebrad.health_listen_port` (`pub` getter via `getset`):
+  resolved port the harness picked, exposed for callers that
+  need the URL.
+- `Zebrad::healthy()` and `Zebrad::ready()` (`pub async fn`):
+  HTTP `GET` against `127.0.0.1:<health_listen_port>/{healthy,ready}`,
+  returning `Ok(true)` for a `200 OK`, `Ok(false)` for a
+  `503 Service Unavailable`, and `Err` for a transport error.
+- `[health]` block in the regtest TOML override now includes
+  `listen_addr = "127.0.0.1:<picked_port>"` and
+  `enforce_on_test_networks = true` alongside the previously
+  added `min_connected_peers`. The `enforce_on_test_networks`
+  flip is what makes `/ready` report meaningful state on regtest;
+  Zebra's upstream default short-circuits `/ready` to always-200
+  on test networks.
+- New integration tests:
+  - `zebrad_healthy_endpoint_responds_200_after_launch` — smoke.
+  - `zebrad_ready_endpoint_responds_200_after_one_block` — smoke
+    (genesis is recent enough to satisfy `ready_max_tip_age`).
+  - `zebrad_health_endpoints_agree_with_rpc_readiness_conjunction` —
+    regression guard. Asserts that
+    `(/healthy AND /ready) == (informal AND-of-4-RPC conjunction)`
+    in the steady state. Catches upstream Zebra regressions that
+    would let one side claim ready while the other doesn't, and
+    vice versa.
 
 ### Changed
 

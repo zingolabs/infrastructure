@@ -24,6 +24,7 @@ zebra-chain = { workspace = true }
 # Community
 tempfile = { workspace = true }
 portpicker = { workspace = true }
+reqwest = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 getset = { workspace = true }
