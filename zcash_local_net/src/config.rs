@@ -125,6 +125,7 @@ pub(crate) fn write_zebrad_config(
     network: NetworkType,
     lockbox_disbursements: &[crate::validator::LockboxDisbursement],
     post_nu6_funding_streams: Option<&crate::validator::FundingStreams>,
+    min_connected_peers: usize,
 ) -> std::io::Result<PathBuf> {
     let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
     let mut config_file = File::create(config_file_path.clone())?;
@@ -187,7 +188,10 @@ force_use_color = false
 use_color = true
 #log_file = \"/home/aloe/.zebradtemplogfile\"
 filter = \"debug\"
-use_journald = false",
+use_journald = false
+
+[health]
+min_connected_peers = {min_connected_peers}",
     );
 
     if let NetworkType::Regtest(activation_heights) = network {

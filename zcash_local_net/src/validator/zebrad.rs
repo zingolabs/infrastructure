@@ -76,6 +76,16 @@ pub struct ZebradConfig {
     /// stream deposits into Zebra's `Deferred` value pool, which
     /// the disbursements draw from.
     pub post_nu6_funding_streams: Option<crate::validator::FundingStreams>,
+    /// Minimum live peers required for `/healthy` to return 200,
+    /// emitted into Zebra's `[health]` block. Default `0` is the
+    /// right answer for single-node regtest (no peer network exists
+    /// to be on); mainnet/testnet harnesses should override to
+    /// match the upstream Zebra default of `1` or higher. The value
+    /// only takes effect when `[health].listen_addr` is set —
+    /// today the harness leaves the listener disabled, so this
+    /// field is effectively a forward-compatible placeholder until
+    /// the harness wires in `wait_for_rpc_ready` against `/healthy`.
+    pub min_connected_peers: usize,
 }
 
 impl Default for ZebradConfig {
@@ -99,6 +109,7 @@ impl Default for ZebradConfig {
             post_nu6_funding_streams: Some(
                 crate::validator::regtest_test_post_nu6_funding_streams(),
             ),
+            min_connected_peers: 0,
         }
     }
 }
@@ -199,6 +210,7 @@ impl Process for Zebrad {
             config.network_type,
             &config.lockbox_disbursements,
             config.post_nu6_funding_streams.as_ref(),
+            config.min_connected_peers,
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd

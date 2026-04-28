@@ -67,6 +67,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   NU6.1 must populate this *and* `lockbox_disbursements`
   together — the stream feeds the deferred pool, the disbursements
   draw from it.
+- `ZebradConfig.min_connected_peers` (`pub field`, `usize`):
+  emitted into Zebra's `[health]` block as `min_connected_peers`,
+  controlling the peer-count threshold for the `/healthy` HTTP
+  endpoint. Default `0` is correct for single-node regtest (no
+  peer network exists to be on); harnesses targeting mainnet or
+  testnet should override to `1` (Zebra's upstream default) or
+  higher. Forward-compatible with the eventual harness wiring of
+  `wait_for_rpc_ready` against `/healthy`/`/ready` instead of
+  overloading `getblocktemplate` (see
+  zingolabs/infrastructure#245).
 
 ### Changed
 
