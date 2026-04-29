@@ -316,11 +316,23 @@ impl Zebrad {
         &mut handle,
         &logs_dir,
         None,
-        &[
-            "zebra_rpc::server: Opened RPC endpoint at ",
-            "zebra_rpc::indexer::server: Opened RPC endpoint at ",
-            "spawned initial Zebra tasks",
-        ],
+        // Only the indexer-RPC indicator is reliably *post-bind* for
+        // every listener zebrad opens. The previous list also included
+        // `"zebra_rpc::server: Opened RPC endpoint at "` (fires after
+        // the main RPC bind but BEFORE the indexer-RPC bind) and
+        // `"spawned initial Zebra tasks"` (firing point unclear); both
+        // let `launch::wait` return Ok before zebrad's full set of
+        // binds had completed, which produced failure mode #4: when
+        // the indexer-RPC bind subsequently hit AddrInUse, zebrad shut
+        // down all listeners (including the main RPC), and downstream
+        // `wait_for_rpc_ready` saw `ConnectionRefused` for 30 s with
+        // no chance for the retry helper to fire. Waiting only for
+        // the indexer indicator means: bind succeeds → we proceed; or
+        // bind fails → child exits → `launch::wait` returns
+        // `ProcessFailed` whose captured stdout contains
+        // `"Address already in use"` for the retry helper's signature
+        // scan to match.
+        &["zebra_rpc::indexer::server: Opened RPC endpoint at "],
         &[
             " panicked at",
             "ERROR ",

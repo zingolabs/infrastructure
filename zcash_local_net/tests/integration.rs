@@ -667,33 +667,41 @@ mod launch_recovers_from_rpc_port_collision {
              retry helper:                           zcash_local_net/src/launch.rs::with_retry_on_collision (3 attempts, expects to recover on attempt ≥ 2)"
         );
 
-        let stderr = err.stderr().unwrap_or("<no stderr captured>");
+        let captured = err.captured_output();
         let signature_hit = stderr_signatures
             .iter()
             .copied()
-            .find(|sig| stderr.contains(sig));
+            .find(|sig| captured.contains(sig));
 
         let mode_line = match (&err, signature_hit) {
             (LaunchError::ProcessFailed { exit_status, .. }, Some(sig)) => format!(
                 "mode: every retry attempt hit ProcessFailed (last exit={exit_status}); \
-                 stderr contains expected RPC-bind signature {sig:?}"
+                 captured output contains expected RPC-bind signature {sig:?}"
             ),
             (LaunchError::LaunchAborted { matched_indicator, .. }, Some(sig)) => format!(
                 "mode: every retry attempt hit indicator-scan abort (last matched_indicator={matched_indicator:?}); \
-                 stderr contains expected RPC-bind signature {sig:?}"
+                 captured output contains expected RPC-bind signature {sig:?}"
+            ),
+            (LaunchError::ListenerNotResponsive { port, .. }, Some(sig)) => format!(
+                "mode: every retry attempt left the listener at 127.0.0.1:{port} unresponsive; \
+                 captured output contains expected RPC-bind signature {sig:?}"
             ),
             (LaunchError::ProcessFailed { exit_status, .. }, None) => format!(
                 "mode: LaunchError::ProcessFailed (exit={exit_status}) — UNEXPECTED FAILURE MODE: \
-                 stderr does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
+                 captured output does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
             ),
             (LaunchError::LaunchAborted { matched_indicator, .. }, None) => format!(
                 "mode: LaunchError::LaunchAborted (indicator={matched_indicator:?}) — UNEXPECTED FAILURE MODE: \
-                 stderr does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
+                 captured output does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
+            ),
+            (LaunchError::ListenerNotResponsive { port, .. }, None) => format!(
+                "mode: LaunchError::ListenerNotResponsive (port={port}) — UNEXPECTED FAILURE MODE: \
+                 captured output does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
             ),
             (other, _) => format!("mode: UNEXPECTED FAILURE MODE — {other:?}"),
         };
 
-        panic!("{header}\n  {mode_line}\n  child stderr (full):\n{stderr}");
+        panic!("{header}\n  {mode_line}\n  child captured output (full):\n{captured}");
     }
 
     /// Bind a kernel-ephemeral TCP listener and return both the
