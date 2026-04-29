@@ -210,6 +210,31 @@ impl Zebrad {
     }
 }
 
+/// Listen ports zebrad needs to bind during launch. Picked atomically
+/// as a unit so the planned retry-on-collision helper in `launch::wait`
+/// can re-roll all four in a single call rather than open-coding the
+/// picks per validator. Re-rolling individual fields would risk one of
+/// the surviving picks being a port a sibling test subprocess just
+/// claimed (the cross-process TOCTOU these tests document).
+#[derive(Debug, Clone, Copy)]
+struct ZebradPorts {
+    network: u16,
+    rpc: u16,
+    indexer: u16,
+    health: u16,
+}
+
+impl ZebradPorts {
+    fn pick(config: &ZebradConfig) -> Self {
+        Self {
+            network: network::pick_unused_port(config.network_listen_port),
+            rpc: network::pick_unused_port(config.rpc_listen_port),
+            indexer: network::pick_unused_port(config.indexer_listen_port),
+            health: network::pick_unused_port(config.health_listen_port),
+        }
+    }
+}
+
 impl Process for Zebrad {
     const PROCESS: ProcessId = ProcessId::Zebrad;
 
@@ -229,10 +254,12 @@ impl Process for Zebrad {
             Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type);
         }
 
-        let network_listen_port = network::pick_unused_port(config.network_listen_port);
-        let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
-        let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
-        let health_listen_port = network::pick_unused_port(config.health_listen_port);
+        let ZebradPorts {
+            network: network_listen_port,
+            rpc: rpc_listen_port,
+            indexer: indexer_listen_port,
+            health: health_listen_port,
+        } = ZebradPorts::pick(&config);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),

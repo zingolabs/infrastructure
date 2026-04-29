@@ -123,6 +123,24 @@ impl LogsToDir for Zcashd {
     }
 }
 
+/// Listen ports zcashd needs to bind during launch. A single-field
+/// counterpart to `ZebradPorts` — kept symmetric so the planned
+/// retry-on-collision helper in `launch::wait` can treat all
+/// validators uniformly and re-roll an entire validator's port set
+/// in one call rather than open-coding the picks per validator.
+#[derive(Debug, Clone, Copy)]
+struct ZcashdPorts {
+    rpc: u16,
+}
+
+impl ZcashdPorts {
+    fn pick(config: &ZcashdConfig) -> Self {
+        Self {
+            rpc: network::pick_unused_port(config.rpc_listen_port),
+        }
+    }
+}
+
 impl Process for Zcashd {
     const PROCESS: ProcessId = ProcessId::Zcashd;
 
@@ -145,7 +163,7 @@ impl Process for Zcashd {
             "Configuring zcashd to regtest with these activation heights: {activation_heights:?}"
         );
 
-        let port = network::pick_unused_port(config.rpc_listen_port);
+        let ZcashdPorts { rpc: port } = ZcashdPorts::pick(&config);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zcashd_config(
             config_dir.path(),
