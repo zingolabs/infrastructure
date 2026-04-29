@@ -39,7 +39,7 @@ use crate::{
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<u16>,
@@ -141,12 +141,15 @@ impl ZcashdPorts {
     }
 }
 
-impl Process for Zcashd {
-    const PROCESS: ProcessId = ProcessId::Zcashd;
-
-    type Config = ZcashdConfig;
-
-    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+impl Zcashd {
+    /// Single launch attempt: pick a port, write the config, spawn
+    /// zcashd, wait for the readiness indicator, generate genesis if
+    /// not loading from a cache. Wrapped by `Process::launch` in a
+    /// bounded retry-on-port-collision loop (see
+    /// `launch::with_retry_on_collision`); each retry calls this fresh
+    /// with a config whose port pins have been cleared so
+    /// `ZcashdPorts::pick` re-rolls them via `network::pick_unused_port`.
+    async fn launch_once(config: ZcashdConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -223,6 +226,46 @@ impl Process for Zcashd {
         }
 
         Ok(zcashd)
+    }
+}
+
+impl Process for Zcashd {
+    const PROCESS: ProcessId = ProcessId::Zcashd;
+
+    type Config = ZcashdConfig;
+
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        // Stderr signatures that zcashd emits when its RPC bind hits
+        // an `EADDRINUSE`. The user-facing `Error: Unable to start
+        // HTTP server` is the canonical line; the preceding `Unable to
+        // bind any endpoint for RPC server` is also reliable.
+        // `AddrInUse` / `Address already in use` are libc-level
+        // strings included as belt-and-braces — zcashd does not emit
+        // them today, but a future build that surfaces the raw OS
+        // error string would still be classified correctly.
+        const COLLISION_SIGNATURES: &[&str] = &[
+            "Unable to start HTTP server",
+            "Unable to bind any endpoint",
+            "AddrInUse",
+            "Address already in use",
+        ];
+        const MAX_ATTEMPTS: u32 = 3;
+
+        launch::with_retry_on_collision(
+            "zcashd",
+            config,
+            COLLISION_SIGNATURES,
+            MAX_ATTEMPTS,
+            |c: &mut ZcashdConfig| {
+                // Single-port validator — clear the only pin so the
+                // next attempt's `ZcashdPorts::pick` calls
+                // `network::pick_unused_port(None)` and the kernel
+                // hands back a fresh ephemeral.
+                c.rpc_listen_port = None;
+            },
+            Self::launch_once,
+        )
+        .await
     }
 
     fn stop(&mut self) {

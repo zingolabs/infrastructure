@@ -69,8 +69,8 @@ pub(crate) async fn wait(
 
         let trimmed_stdout = exclude_errors(&stdout, excluded_errors);
         let trimmed_stderr = exclude_errors(&stderr, excluded_errors);
-        if contains_any(&trimmed_stdout, error_indicators)
-            || contains_any(&trimmed_stderr, error_indicators)
+        if let Some(matched) = first_match(&trimmed_stdout, error_indicators)
+            .or_else(|| first_match(&trimmed_stderr, error_indicators))
         {
             tracing::info!("\nSTDOUT:\n{}", stdout);
             if additional_log_file.is_some() {
@@ -85,7 +85,12 @@ pub(crate) async fn wait(
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
             }
             tracing::error!("\nSTDERR:\n{}", stderr);
-            panic!("\n{process} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
+            return Err(LaunchError::LaunchAborted {
+                process_name: process.to_string(),
+                matched_indicator: matched.to_string(),
+                stdout,
+                stderr,
+            });
         }
 
         if additional_log_file.is_some() {
@@ -104,11 +109,16 @@ pub(crate) async fn wait(
             }
 
             let trimmed_log = exclude_errors(&log, excluded_errors);
-            if contains_any(&trimmed_log, error_indicators) {
+            if let Some(matched) = first_match(&trimmed_log, error_indicators) {
                 tracing::info!("\nSTDOUT:\n{}", stdout);
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
                 tracing::error!("\nSTDERR:\n{}", stderr);
-                panic!("{process} launch failed without reporting an error code!\nexiting with panic. you may have to shut the daemon down manually.");
+                return Err(LaunchError::LaunchAborted {
+                    process_name: process.to_string(),
+                    matched_indicator: matched.to_string(),
+                    stdout,
+                    stderr,
+                });
             } else {
                 additional_log_file = Some(log_file);
                 additional_log = Some(log);
@@ -125,9 +135,121 @@ fn contains_any(log: &str, indicators: &[&str]) -> bool {
     indicators.iter().any(|indicator| log.contains(indicator))
 }
 
+/// Returns the first indicator from `indicators` that occurs in `log`,
+/// or `None` if none match. Used by `wait` so the resulting
+/// `LaunchAborted` error can carry the *exact* indicator that tripped
+/// the scan — useful both for human triage and for the retry helper to
+/// distinguish a port-collision indicator from any other error mode.
+fn first_match<'a>(log: &str, indicators: &'a [&'a str]) -> Option<&'a str> {
+    indicators
+        .iter()
+        .copied()
+        .find(|indicator| log.contains(indicator))
+}
+
 fn exclude_errors(log: &str, excluded_errors: &[&str]) -> String {
     log.lines()
         .filter(|line| !contains_any(line, excluded_errors))
         .collect::<Vec<&str>>()
         .join("\n")
+}
+
+/// Bounded retry-on-port-collision wrapper for validator launches.
+///
+/// Closes the cross-test-subprocess port-pick race documented in
+/// `mod launch_recovers_from_rpc_port_collision` (see
+/// `zcash_local_net/tests/integration.rs`). When a launch attempt
+/// fails with stderr matching one of the validator's
+/// `collision_signatures`, the helper:
+///
+///   1. Calls `clear_port_pins(&mut config)` so the next attempt picks
+///      a fresh ephemeral port instead of the one that just collided.
+///      Validators with multiple ports clear all of them — partial
+///      clearing risks one of the surviving picks being a port a
+///      sibling test subprocess just claimed (the same race we are
+///      recovering from).
+///   2. Re-runs `attempt(config.clone()).await`.
+///   3. Repeats up to `max_attempts`. On exhaustion returns the last
+///      error from `attempt`, with the per-attempt count preserved in
+///      tracing events so CI logs surface the rate.
+///
+/// Non-collision errors are returned immediately on the first attempt
+/// — retry only fires when the failure is recognizably a port
+/// collision, never as a blanket "launches sometimes fail, try again"
+/// hack.
+///
+/// Instrumentation: events are emitted under
+/// `target = "zcash_local_net::launch::retry"` at:
+///
+///   - `info!` per detected collision (one event per retry trigger)
+///   - `info!` once on successful recovery (when an attempt > 1
+///     succeeds), so a log grep tells you both how often the race
+///     fires and how often retry actually rescues
+///   - `error!` once on retry exhaustion
+///
+/// Counts can be derived from the event stream; if/when the rate
+/// climbs to where atomic counters are warranted, this is the place
+/// to add them.
+pub(crate) async fn with_retry_on_collision<C, F, Fut, T, M>(
+    process_name: &'static str,
+    mut config: C,
+    collision_signatures: &[&'static str],
+    max_attempts: u32,
+    mut clear_port_pins: M,
+    mut attempt: F,
+) -> Result<T, LaunchError>
+where
+    C: Clone,
+    M: FnMut(&mut C),
+    F: FnMut(C) -> Fut,
+    Fut: std::future::Future<Output = Result<T, LaunchError>>,
+{
+    assert!(
+        max_attempts >= 1,
+        "with_retry_on_collision requires at least one attempt"
+    );
+    for attempt_n in 1..=max_attempts {
+        let err = match attempt(config.clone()).await {
+            Ok(t) => {
+                if attempt_n > 1 {
+                    tracing::info!(
+                        target: "zcash_local_net::launch::retry",
+                        process = process_name,
+                        attempts_used = attempt_n,
+                        "validator launched on retry after port-collision recovery"
+                    );
+                }
+                return Ok(t);
+            }
+            Err(e) => e,
+        };
+
+        let collision = err
+            .stderr()
+            .and_then(|s| first_match(s, collision_signatures));
+        match (collision, attempt_n == max_attempts) {
+            (Some(sig), false) => {
+                tracing::info!(
+                    target: "zcash_local_net::launch::retry",
+                    process = process_name,
+                    attempt = attempt_n,
+                    signature = sig,
+                    "port collision detected; clearing port pins and retrying"
+                );
+                clear_port_pins(&mut config);
+            }
+            (Some(sig), true) => {
+                tracing::error!(
+                    target: "zcash_local_net::launch::retry",
+                    process = process_name,
+                    attempts = max_attempts,
+                    signature = sig,
+                    "port collision retry exhausted; surfacing last error"
+                );
+                return Err(err);
+            }
+            (None, _) => return Err(err),
+        }
+    }
+    unreachable!("with_retry_on_collision loop returns on every iteration")
 }

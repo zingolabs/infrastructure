@@ -235,11 +235,16 @@ impl ZebradPorts {
     }
 }
 
-impl Process for Zebrad {
-    const PROCESS: ProcessId = ProcessId::Zebrad;
-
-    type Config = ZebradConfig;
-    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+impl Zebrad {
+    /// Single launch attempt: pick all four ports, write configs,
+    /// spawn zebrad, wait for the readiness indicator, then probe RPC
+    /// readiness. Wrapped by `Process::launch` in a bounded
+    /// retry-on-port-collision loop (see
+    /// `launch::with_retry_on_collision`); each retry calls this fresh
+    /// with a config whose port pins have been cleared so
+    /// `ZebradPorts::pick` re-rolls all four atomically via
+    /// `network::pick_unused_port`.
+    async fn launch_once(config: ZebradConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -366,6 +371,45 @@ impl Process for Zebrad {
         }
 
         Ok(zebrad)
+    }
+}
+
+impl Process for Zebrad {
+    const PROCESS: ProcessId = ProcessId::Zebrad;
+
+    type Config = ZebradConfig;
+
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        // Stderr signatures that zebrad emits when one of its four
+        // listen-port binds hits an `EADDRINUSE`. The RPC bind path
+        // panics through Rust's panic format ("kind: AddrInUse,
+        // message: 'Address already in use'", "code: 98"); the
+        // peer-protocol bind path raises a typed eyre error that
+        // includes "AddrInUse" in its `{:?}` rendering. All four
+        // bind paths funnel through one of these strings.
+        const COLLISION_SIGNATURES: &[&str] =
+            &["AddrInUse", "code: 98", "Address already in use"];
+        const MAX_ATTEMPTS: u32 = 3;
+
+        launch::with_retry_on_collision(
+            "zebrad",
+            config,
+            COLLISION_SIGNATURES,
+            MAX_ATTEMPTS,
+            |c: &mut ZebradConfig| {
+                // Four-port validator — clear all four pins. Re-rolling
+                // only the conflicted port would leave the surviving
+                // three exposed to a sibling test subprocess that may
+                // have just claimed one of them; cheaper to re-pick the
+                // whole set than to detect-which-one and partial-clear.
+                c.network_listen_port = None;
+                c.rpc_listen_port = None;
+                c.indexer_listen_port = None;
+                c.health_listen_port = None;
+            },
+            Self::launch_once,
+        )
+        .await
     }
 
     fn stop(&mut self) {
