@@ -296,6 +296,16 @@ impl Process for Zcashd {
 }
 
 impl Validator for Zcashd {
+    /// Tighter than the trait default (100 ms) because every
+    /// `get_chain_height` call here spawns `zcash-cli` as a subprocess
+    /// — process exec + RPC round-trip + JSON parse, ~50-100 ms by
+    /// itself — so the per-poll cycle is `spawn + interval`. Idle wait
+    /// of 100 ms between spawns wastes time the chain might already be
+    /// at target. 25 ms keeps us responsive without back-to-back
+    /// spawning faster than zcashd can answer.
+    const CHAIN_POLL_INTERVAL: std::time::Duration =
+        std::time::Duration::from_millis(25);
+
     async fn get_activation_heights(&self) -> ActivationHeights {
         let output = self
             .zcash_cli_command(&["getblockchaininfo"])
