@@ -575,3 +575,216 @@ async fn generate_zcashd_chain_cache() {
 
     crate::testutils::generate_zcashd_chain_cache().await;
 }
+
+/// Regression tests for the cross-test-subprocess port-pick race
+/// that surfaced as a flake of
+/// `launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_streams`
+/// in CI.
+///
+/// **The race.** `network::pick_unused_port` does
+/// `TcpListener::bind("127.0.0.1:0")` → drops the listener → records
+/// the port in a *process-local* `RESERVED: HashSet<u16>`. nextest
+/// runs each test in its own subprocess, so two parallel test
+/// subprocesses each have their own registry; the kernel can hand
+/// the same ephemeral port to both, and the second `*::launch` to
+/// reach the child-bind step fails with
+/// `Os { code: 98, kind: AddrInUse }`. The race is structural to
+/// the "pick → drop → register → much-later child bind" pattern,
+/// not specific to any one validator — every `*::launch` follows it.
+///
+/// **What the tests assert.** Each test holds a `TcpListener` on a
+/// kernel-assigned ephemeral port (taking the role of "a parallel
+/// test subprocess that already bound the port"), pins that port
+/// through the validator's config, and calls the real `*::launch`.
+/// Today both tests FAIL: the child fails its bind, prints an error
+/// indicator to stderr (`panicked at` for zebrad, `Error:` for
+/// zcashd), and `launch::wait` panics with "launch failed without
+/// reporting an error code!" (or returns
+/// `LaunchError::ProcessFailed` if the child exits before the
+/// indicator scan completes).
+///
+/// After the bounded-retry-on-port-collision fix lands in the shared
+/// launch helper, the harness re-picks the conflicted port and the
+/// launch succeeds on a different one.
+///
+/// **Why two tests, not one.** The race is structural — a single
+/// test would suffice as a regression marker. Two tests discriminate
+/// among regression causes: a fix that addresses zebrad's path but
+/// not zcashd's would let one pass and one fail.
+mod launch_recovers_from_rpc_port_collision {
+    use super::*;
+    use std::future::Future;
+    use std::net::TcpListener;
+    use zcash_local_net::error::LaunchError;
+    use zcash_local_net::validator::zcashd::ZcashdConfig;
+
+    /// Indicator strings that confirm a launch failure was caused by the
+    /// conflicted-port collision, not by some unrelated bug. If a future
+    /// regression in the launch helper produces a different failure
+    /// mode, the diagnostic helper flags it as `UNEXPECTED FAILURE MODE`
+    /// rather than letting the test masquerade as a port-collision
+    /// repro.
+    struct ExpectedFailure {
+        /// Substring that, if present in the inner panic message from
+        /// `launch::wait`, confirms the indicator-scan tripped on an
+        /// error in the child's stderr. This is the panic emitted at
+        /// `zcash_local_net/src/launch.rs:88`.
+        indicator_scan_panic: &'static str,
+        /// Substrings (any one) that, if present in the child's stderr
+        /// when `LaunchError::ProcessFailed` is returned, confirm the
+        /// child died on an RPC bind. Per-validator: zebrad surfaces a
+        /// Rust panic with `AddrInUse`; zcashd surfaces an
+        /// `Error: Unable to start HTTP server` line.
+        process_failed_stderr_signatures: &'static [&'static str],
+    }
+
+    /// Run `launch_fut`, capturing both `Err(LaunchError)` and any
+    /// panic from inside the launch helper, and turn either into a
+    /// single multi-line panic message that names the regression, the
+    /// conflicted port, the failure mode, and where the fix lives. On
+    /// the post-fix happy path the launched handle is returned unchanged.
+    ///
+    /// Why `tokio::spawn`: today's pre-fix failure mode for both
+    /// validators routes through a `panic!` inside `launch::wait`
+    /// (`zcash_local_net/src/launch.rs:88`). On the test's own task
+    /// that panic would propagate up through `await` with the bare
+    /// `"launch failed without reporting an error code!"` message and
+    /// no test-level context. Re-spawning lets us catch the panic via
+    /// `JoinError::into_panic` and re-emit it framed as a
+    /// regression-marker diagnostic.
+    async fn diagnose<V, F>(
+        validator: &'static str,
+        conflicted_rpc_port: u16,
+        expected: ExpectedFailure,
+        launch_fut: F,
+    ) -> V
+    where
+        V: Send + 'static,
+        F: Future<Output = Result<V, LaunchError>> + Send + 'static,
+    {
+        let header = format!(
+            "REGRESSION-MARKER: {validator}::launch did not retry past conflicted-port collision\n  \
+             conflicted RPC port (held by squatter): {conflicted_rpc_port}\n  \
+             see module docstring (`mod launch_recovers_from_rpc_port_collision`) for the race\n  \
+             fix lives in:                           zcash_local_net/src/launch.rs (add bounded retry-on-port-collision in the shared launch helper)"
+        );
+
+        match tokio::spawn(launch_fut).await {
+            Ok(Ok(handle)) => handle,
+            Ok(Err(LaunchError::ProcessFailed {
+                exit_status,
+                stderr,
+                ..
+            })) => {
+                let signature_hit = expected
+                    .process_failed_stderr_signatures
+                    .iter()
+                    .find(|sig| stderr.contains(*sig))
+                    .copied();
+                let mode_line = match signature_hit {
+                    Some(sig) => format!(
+                        "mode: child exited before harness indicator-scan tripped (LaunchError::ProcessFailed, exit={exit_status}); \
+                         stderr contains expected RPC-bind signature {sig:?}"
+                    ),
+                    None => format!(
+                        "mode: LaunchError::ProcessFailed (exit={exit_status}) — UNEXPECTED FAILURE MODE: \
+                         stderr does not contain any of the expected RPC-bind signatures \
+                         {:?}; investigate whether the test still reproduces the documented race",
+                        expected.process_failed_stderr_signatures,
+                    ),
+                };
+                panic!("{header}\n  {mode_line}\n  child stderr (full):\n{stderr}");
+            }
+            Ok(Err(other)) => panic!(
+                "{header}\n  \
+                 mode: UNEXPECTED FAILURE MODE — launch returned a non-ProcessFailed error: {other:?}\n  \
+                 investigate whether the test still reproduces the documented race"
+            ),
+            Err(join_err) if join_err.is_panic() => {
+                let payload = join_err.into_panic();
+                let inner_msg = payload
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| payload.downcast_ref::<&'static str>().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "<non-string panic payload>".to_string());
+                let mode_line = if inner_msg.contains(expected.indicator_scan_panic) {
+                    "mode: harness indicator-scan tripped on an error string in child stderr \
+                     (panic from zcash_local_net/src/launch.rs:88)"
+                        .to_string()
+                } else {
+                    format!(
+                        "mode: UNEXPECTED FAILURE MODE — panic from inside the launch path did not match \
+                         the documented indicator-scan panic ({:?}); investigate whether the test still \
+                         reproduces the documented race",
+                        expected.indicator_scan_panic,
+                    )
+                };
+                panic!("{header}\n  {mode_line}\n  inner panic message: {inner_msg}");
+            }
+            Err(other) => panic!(
+                "{header}\n  \
+                 mode: TEST RUNTIME ISSUE — JoinError without panic (cancellation?): {other:?}"
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn zcashd() {
+        let _ = tracing_subscriber::fmt().try_init();
+
+        let squatter = TcpListener::bind("127.0.0.1:0").expect("squatter bind");
+        let conflicted_rpc_port = squatter.local_addr().expect("local_addr").port();
+
+        let mut config = ZcashdConfig::default();
+        config.rpc_listen_port = Some(conflicted_rpc_port);
+
+        let zcashd = diagnose(
+            "Zcashd",
+            conflicted_rpc_port,
+            ExpectedFailure {
+                indicator_scan_panic: "zcashd launch failed without reporting an error code",
+                process_failed_stderr_signatures: &["Unable to start HTTP server"],
+            },
+            Zcashd::launch(config),
+        )
+        .await;
+
+        assert_ne!(
+            zcashd.port(),
+            conflicted_rpc_port,
+            "after retry, zcashd should be on a different RPC port than the squatter"
+        );
+
+        drop(squatter);
+    }
+
+    #[tokio::test]
+    async fn zebrad() {
+        let _ = tracing_subscriber::fmt().try_init();
+
+        let squatter = TcpListener::bind("127.0.0.1:0").expect("squatter bind");
+        let conflicted_rpc_port = squatter.local_addr().expect("local_addr").port();
+
+        let mut config = ZebradConfig::default();
+        config.rpc_listen_port = Some(conflicted_rpc_port);
+
+        let zebrad = diagnose(
+            "Zebrad",
+            conflicted_rpc_port,
+            ExpectedFailure {
+                indicator_scan_panic: "zebrad launch failed without reporting an error code",
+                process_failed_stderr_signatures: &["AddrInUse", "code: 98"],
+            },
+            Zebrad::launch(config),
+        )
+        .await;
+
+        assert_ne!(
+            zebrad.rpc_listen_port(),
+            conflicted_rpc_port,
+            "after retry, zebrad should be on a different RPC port than the squatter"
+        );
+
+        drop(squatter);
+    }
+}
