@@ -138,7 +138,8 @@ impl Process for Lightwalletd {
             &["Starting insecure no-TLS (plaintext) server"],
             &["error"],
             &[],
-        )?;
+        )
+        .await?;
 
         Ok(Lightwalletd {
             handle,

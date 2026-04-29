@@ -39,6 +39,7 @@ pub mod utils;
 pub mod validator;
 
 mod launch;
+mod poll;
 
 use indexer::Indexer;
 use validator::Validator;

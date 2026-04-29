@@ -133,7 +133,8 @@ impl Process for Zainod {
             &["Zaino Indexer started successfully."],
             &["Error:"],
             &[],
-        )?;
+        )
+        .await?;
 
         Ok(Zainod {
             handle,

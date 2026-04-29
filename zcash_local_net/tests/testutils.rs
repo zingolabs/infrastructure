@@ -43,7 +43,8 @@ pub async fn generate_zebrad_large_chain_cache() {
     }
     local_net
         .validator_mut()
-        .cache_chain(chain_cache_dir.join("client_rpc_tests_large"));
+        .cache_chain(chain_cache_dir.join("client_rpc_tests_large"))
+        .await;
 }
 
 // FIXME: could've not been ignored, but relies on zingolib.

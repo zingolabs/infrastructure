@@ -189,7 +189,8 @@ impl Process for Zcashd {
             &["init message: Done loading"],
             &["Error:"],
             &[],
-        )?;
+        )
+        .await?;
 
         let zcashd = Zcashd {
             handle,
@@ -273,12 +274,6 @@ impl Validator for Zcashd {
             .expect(EXPECT_SPAWN);
         let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
         stdout_json[0]["height"].as_u32().unwrap()
-    }
-
-    async fn poll_chain_height(&self, target_height: u32) {
-        while self.get_chain_height().await < target_height {
-            std::thread::sleep(std::time::Duration::from_millis(500));
-        }
     }
 
     fn data_dir(&self) -> &TempDir {

@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `validator::Validator::CHAIN_POLL_INTERVAL` and
+  `validator::Validator::CHAIN_POLL_TIMEOUT` (associated `const`s,
+  defaults `100ms` and `60s`): tunable knobs consumed by the new
+  default-body `Validator::poll_chain_height`. Concrete validators
+  override only the constants — never the loop body. Default timeout
+  is finite by design so wedges surface instead of hanging regtest CI.
+- `validator::Validator::poll_chain_height` is now a *default* trait
+  method (was required) backed by `crate::poll::poll_until`. Both
+  `Zcashd` and `Zebrad` no longer override it — uniform 100ms cadence
+  (was 500ms zcashd / 100ms zebrad) collapsed into one place.
+- `validator::Validator` now requires `Send + Sync`. `Sync` was
+  implicitly enforced before via the per-method `+ Send` future bounds
+  on `&self` methods; making it explicit unblocks the default-body
+  `poll_chain_height`. `Send` is required by the new
+  `&mut self` async `cache_chain` (the future captures `&mut Self`,
+  which is `Send` only when `Self: Send`).
 - `validator::regtest_test_activation_heights` (`pub fn`): single
   source of truth for regtest fixture activation heights across the
   crate. Used by the `Default` impls of `ZebradConfig`, `ZcashdConfig`,
@@ -105,6 +121,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Lifecycle waiters no longer park the tokio worker thread.** The
+  three remaining `std::thread::sleep` calls inside `async fn`
+  lifecycle code are gone — each replaced with `tokio::time::sleep`
+  via the new `poll::poll_until` primitive (or, for
+  `launch::wait`, a direct swap). Mirrors the prior `Zebrad::launch`
+  cleanup. Reaches:
+  - `launch::wait` (now `async fn`) — every validator/indexer
+    launch (zcashd, zebrad, lightwalletd, zainod). Polls log files
+    every 100ms via `tokio::time::sleep`.
+  - `Zcashd::poll_chain_height` and `Zebrad::poll_chain_height`
+    overrides — *deleted*. Both now inherit the default-body
+    `Validator::poll_chain_height` that calls `poll_until` with
+    associated-const interval/timeout. Saves ~7s on
+    `launch_zcashd_custom_activation_heights` (the long-tail zcashd
+    integration test, dominated by the old 500ms `std::thread::sleep`
+    cadence × ~14 iterations).
+  - All four call sites of `launch::wait`
+    (`Zcashd::launch`, `Zebrad::launch`, `Lightwalletd::launch`,
+    `Zainod::launch`) now `.await` the call.
+  - **API break**: `Validator::cache_chain` is now `-> impl Future + Send`
+    (was `-> std::process::Output`). Carried the same
+    `std::thread::sleep(3s)` anti-pattern in a sync default-method body
+    reachable from `async fn` test fixtures; making it async lets the
+    sleep become `tokio::time::sleep`. Sole caller (`tests/testutils.rs`)
+    updated to `.await`.
+  - Tracked in zingolabs/infrastructure#251.
 - **Regtest fixture default now activates NU6.1 at height 5.**
   `validator::regtest_test_activation_heights` returns
   `nu6_1: Some(5)` (was `Some(1000)`); the matching

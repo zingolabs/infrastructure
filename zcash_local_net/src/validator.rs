@@ -275,7 +275,20 @@ pub trait ValidatorConfig: Default {
 }
 
 /// Functionality for validator/full-node processes.
-pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
+pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::Debug {
+    /// Interval between successive `get_chain_height` checks in the
+    /// default [`Self::poll_chain_height`]. Override on a concrete impl
+    /// only if the validator's chain-tip RPC has cadence constraints
+    /// that 100ms violates.
+    const CHAIN_POLL_INTERVAL: std::time::Duration =
+        std::time::Duration::from_millis(100);
+
+    /// Maximum total time the default [`Self::poll_chain_height`] will
+    /// wait for the chain to reach the target height before panicking.
+    /// Finite by design — wedges should surface, not hang regtest CI.
+    const CHAIN_POLL_TIMEOUT: std::time::Duration =
+        std::time::Duration::from_secs(60);
+
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self)
@@ -298,9 +311,26 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     /// Get chain height
     fn get_chain_height(&self) -> impl std::future::Future<Output = u32> + Send;
 
-    /// Polls chain until it reaches target height
-    fn poll_chain_height(&self, target_height: u32)
-        -> impl std::future::Future<Output = ()> + Send;
+    /// Polls the chain until it reaches `target_height`. Default impl
+    /// polls [`Self::get_chain_height`] every
+    /// [`Self::CHAIN_POLL_INTERVAL`] via the shared
+    /// [`crate::poll::poll_until`] primitive, panicking after
+    /// [`Self::CHAIN_POLL_TIMEOUT`] elapses. Concrete validators should
+    /// not override this method — only the constants.
+    fn poll_chain_height(
+        &self,
+        target_height: u32,
+    ) -> impl std::future::Future<Output = ()> + Send {
+        async move {
+            crate::poll::poll_until(
+                Self::CHAIN_POLL_INTERVAL,
+                Self::CHAIN_POLL_TIMEOUT,
+                || async move { self.get_chain_height().await >= target_height },
+            )
+            .await
+            .expect("chain failed to reach target height before CHAIN_POLL_TIMEOUT");
+        }
+    }
 
     /// Get temporary data directory.
     fn data_dir(&self) -> &TempDir;
@@ -313,18 +343,23 @@ pub trait Validator: Process<Config: ValidatorConfig> + std::fmt::Debug {
     fn network(&self) -> NetworkType;
 
     /// Caches chain. This stops the zcashd process.
-    fn cache_chain(&mut self, chain_cache: PathBuf) -> std::process::Output {
-        assert!(!chain_cache.exists(), "chain cache already exists!");
+    fn cache_chain(
+        &mut self,
+        chain_cache: PathBuf,
+    ) -> impl std::future::Future<Output = std::process::Output> + Send {
+        async move {
+            assert!(!chain_cache.exists(), "chain cache already exists!");
 
-        self.stop();
-        std::thread::sleep(std::time::Duration::from_secs(3));
+            self.stop();
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
-        std::process::Command::new("cp")
-            .arg("-r")
-            .arg(self.data_dir().path())
-            .arg(chain_cache)
-            .output()
-            .unwrap()
+            std::process::Command::new("cp")
+                .arg("-r")
+                .arg(self.data_dir().path())
+                .arg(chain_cache)
+                .output()
+                .unwrap()
+        }
     }
 
     /// Checks `chain cache` is valid and loads into `validator_data_dir`.

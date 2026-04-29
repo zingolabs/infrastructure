@@ -305,7 +305,8 @@ impl Process for Zebrad {
             "Seed peer DNS resolution failed",
             "warning: some trace filter directives would enable traces that are disabled statically",
         ],
-    )?;
+    )
+    .await?;
 
         let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
         let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
@@ -491,12 +492,6 @@ impl Validator for Zebrad {
             .and_then(serde_json::Value::as_u64)
             .and_then(|h| u32::try_from(h).ok())
             .unwrap()
-    }
-
-    async fn poll_chain_height(&self, target_height: u32) {
-        while self.get_chain_height().await < target_height {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
     }
 
     fn data_dir(&self) -> &TempDir {
