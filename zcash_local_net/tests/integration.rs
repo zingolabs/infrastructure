@@ -788,3 +788,60 @@ mod launch_recovers_from_rpc_port_collision {
         drop(squatter);
     }
 }
+
+/// Regression marker: zebrad on regtest must not resolve seed peers.
+///
+/// Today, `Zebrad::launch` with default regtest config produces
+/// ~2.4 s of stdout doing DNS for `dnsseed.testnet.z.cash`,
+/// `testnet.seeder.zfnd.org`, and `testnet.is.yolo.money` — none of
+/// which serve any purpose in single-node regtest. That window
+/// dominates zebrad's TOC→TOU lag for its RPC port, which is the
+/// primary surface area of the cross-subprocess port-collision race
+/// documented in `mod launch_recovers_from_rpc_port_collision`.
+///
+/// The hypothesis is that `write_zebrad_config` leaves the upstream
+/// defaults for `initial_testnet_peers` / `initial_mainnet_peers` in
+/// place, so zebrad attempts seeder DNS regardless of `network_type`.
+/// Forcing both lists to `[]` on regtest should make this test pass.
+///
+/// What this test asserts: zebrad's captured stdout contains none of
+/// the three strings that fire only when zebrad's `add_initial_peers`
+/// span runs over a non-empty seeder list. The strings are emitted
+/// *before* the RPC bind (the `launch::wait` success indicator), so by
+/// the time `launch` returns, all DNS work is already on disk.
+#[tokio::test]
+async fn zebrad_regtest_skips_seed_peer_dns() {
+    let _ = tracing_subscriber::fmt().try_init();
+
+    let zebrad = Zebrad::launch(ZebradConfig::default())
+        .await
+        .expect("Zebrad::launch should succeed in regtest");
+
+    // `zcash_local_net::logs::STDOUT_LOG` is `pub(crate)` — hardcode the
+    // filename here. If the launch helper ever changes the convention,
+    // the read below fails loud with "stdout log should exist" before
+    // any false-negative pass on the assertion.
+    let stdout_path = zebrad.logs_dir().path().join("stdout.log");
+    let stdout = std::fs::read_to_string(&stdout_path)
+        .expect("stdout log should exist after successful launch");
+
+    let seeder_dns_signatures = [
+        "resolved seed peer IP addresses",
+        "DNS error resolving peer IP addresses",
+        "Seed peer DNS resolution failed",
+    ];
+    let hits: Vec<&str> = seeder_dns_signatures
+        .iter()
+        .copied()
+        .filter(|sig| stdout.contains(*sig))
+        .collect();
+
+    assert!(
+        hits.is_empty(),
+        "zebrad regtest should not perform seed-peer DNS, but stdout contains: {hits:?}\n\n\
+         Hypothesis: `write_zebrad_config` is leaving `initial_testnet_peers` / \
+         `initial_mainnet_peers` populated with upstream defaults. Force both to `[]` on regtest.\n\n\
+         Captured stdout for diagnosis (truncated to 4 KiB):\n{}",
+        stdout.chars().take(4096).collect::<String>()
+    );
+}
