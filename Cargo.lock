@@ -2143,8 +2143,7 @@ dependencies = [
 [[package]]
 name = "libzcash_script"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f8ce05b56f3cbc65ec7d0908adb308ed91281e022f61c8c3a0c9388b5380b17"
+source = "git+https://github.com/zancas/zcash_script?branch=fix-bindgen-rust-target#c9f1abd6edd43a3ab03923761ee7ae5f725ac2fa"
 dependencies = [
  "bindgen",
  "cc",

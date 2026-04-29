@@ -31,3 +31,6 @@ tracing-subscriber = "0.3.15"
 
 [profile.dev.package]
 insta.opt-level = 3
+
+[patch.crates-io]
+libzcash_script = { git = "https://github.com/zancas/zcash_script", branch = "fix-bindgen-rust-target" }
