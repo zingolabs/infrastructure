@@ -579,7 +579,10 @@ async fn generate_zcashd_chain_cache() {
 /// Regression tests for the cross-test-subprocess port-pick race
 /// that surfaced as a flake of
 /// `launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_streams`
-/// in CI.
+/// in this crate's CI and as `ConnectionRefused` failures of
+/// `integration-tests::fetch_service zcashd::get::mining_info` and
+/// `integration-tests::state_service zebra::lightwallet_indexer::get_latest_block`
+/// in zaino's CI.
 ///
 /// **The race.** `network::pick_unused_port` does
 /// `TcpListener::bind("127.0.0.1:0")` → drops the listener → records
@@ -590,38 +593,45 @@ async fn generate_zcashd_chain_cache() {
 /// reach the child-bind step fails with
 /// `Os { code: 98, kind: AddrInUse }`. The race is structural to
 /// the "pick → drop → register → much-later child bind" pattern,
-/// not specific to any one validator — every `*::launch` follows it.
+/// not specific to any one process — every `*::launch` follows it,
+/// validators *and* indexers alike.
 ///
 /// **What the tests assert.** Each test holds a `TcpListener` on a
 /// kernel-assigned ephemeral port (taking the role of "a parallel
 /// test subprocess that already bound the port"), pins that port
-/// through the validator's config, and calls the real `*::launch`.
+/// through the process's config, and calls the real `*::launch`.
 /// `launch::with_retry_on_collision` should detect the AddrInUse on
-/// the first attempt, clear all of the validator's port pins (so
-/// `*Ports::pick` re-rolls fresh ephemerals), and succeed on a
-/// subsequent attempt with a port that does not collide with the
-/// squatter. The `assert_ne!` confirms the recovered port differs
-/// from the pinned one — i.e., that retry actually re-rolled rather
-/// than producing a same-port success by accident.
+/// the first attempt, clear the process's port pins (so the next
+/// pick re-rolls fresh ephemerals), and succeed on a subsequent
+/// attempt with a port that does not collide with the squatter. The
+/// `assert_ne!` confirms the recovered port differs from the pinned
+/// one — i.e., that retry actually re-rolled rather than producing a
+/// same-port success by accident.
 ///
-/// **Why two tests, not one.** The race is structural — a single
-/// test would suffice as a regression marker. Two tests discriminate
-/// among regression causes: a fix that addresses zebrad's path but
-/// not zcashd's would let one pass and one fail.
+/// **Why four tests.** The race is structural — a single test would
+/// suffice as a regression marker. Four tests discriminate among
+/// regression causes: a fix that addresses zebrad's path but not
+/// zcashd's would let one validator pass and one fail; same for
+/// indexers vs. validators. The validator tests run standalone; the
+/// indexer tests pre-launch a real validator (whose own retry covers
+/// any TOCTOU on its picks) so the indexer's launch has a live RPC
+/// endpoint to point at.
 ///
-/// **What "fail" looks like, post-retry.** If the retry helper is
-/// broken, both tests fail through `diagnose` with a multi-line
-/// `REGRESSION-MARKER:` panic identifying the validator, the
+/// **What "fail" looks like.** If the retry helper is broken for a
+/// given process, that test fails through `diagnose` with a
+/// multi-line `REGRESSION-MARKER:` panic identifying the process, the
 /// pinned conflicted port, the captured stderr, and which
 /// `LaunchError` variant the last attempt produced
 /// (`ProcessFailed` vs. `LaunchAborted`). If the failure stderr
-/// does not contain a known RPC-bind signature, the panic is
+/// does not contain a known bind-failure signature, the panic is
 /// flagged `UNEXPECTED FAILURE MODE` so a divergent regression
 /// cannot masquerade as the port-collision repro.
 mod launch_recovers_from_rpc_port_collision {
     use super::*;
     use std::net::TcpListener;
     use zcash_local_net::error::LaunchError;
+    use zcash_local_net::indexer::lightwalletd::LightwalletdConfig;
+    use zcash_local_net::indexer::zainod::ZainodConfig;
     use zcash_local_net::validator::zcashd::ZcashdConfig;
 
     /// Run `launch_fut` and, on failure, panic with a multi-line
@@ -686,58 +696,152 @@ mod launch_recovers_from_rpc_port_collision {
         panic!("{header}\n  {mode_line}\n  child stderr (full):\n{stderr}");
     }
 
+    /// Bind a kernel-ephemeral TCP listener and return both the
+    /// listener (held for the lifetime of the test) and the port it
+    /// claimed. The listener takes the role of "a parallel test
+    /// subprocess that already bound the port" — pinning that port
+    /// through a process's config is what forces the launch path to
+    /// hit AddrInUse and exercise its retry.
+    fn squat_a_port() -> (TcpListener, u16) {
+        let squatter = TcpListener::bind("127.0.0.1:0").expect("squatter bind");
+        let port = squatter.local_addr().expect("local_addr").port();
+        (squatter, port)
+    }
+
+    /// One collision-recovery test in template form. Used by every
+    /// process-specific test in this module:
+    ///
+    ///   1. Squat a kernel-ephemeral port.
+    ///   2. Hand it to `pin_and_launch` so the caller can build the
+    ///      process's config with that port pinned and invoke its
+    ///      `*::launch`.
+    ///   3. Funnel the launch future through `diagnose`, which
+    ///      produces a `REGRESSION-MARKER` panic on failure or
+    ///      returns the launched handle on success.
+    ///   4. Assert (via `extract_port`) that the recovered port is
+    ///      different from the squatted one — i.e., that retry
+    ///      actually re-rolled rather than producing a same-port
+    ///      success by accident.
+    ///
+    /// The squatter is held until after the assertion so the bind
+    /// stays in effect for the entire collision/retry sequence, then
+    /// dropped explicitly to free the port.
+    async fn run_collision_test<V, F>(
+        process_name: &'static str,
+        stderr_signatures: &'static [&'static str],
+        pin_and_launch: impl FnOnce(u16) -> F,
+        extract_port: impl FnOnce(&V) -> u16,
+    ) where
+        F: std::future::Future<Output = Result<V, LaunchError>>,
+    {
+        let (squatter, conflicted) = squat_a_port();
+        let v = diagnose(
+            process_name,
+            conflicted,
+            stderr_signatures,
+            pin_and_launch(conflicted),
+        )
+        .await;
+        assert_ne!(
+            extract_port(&v),
+            conflicted,
+            "after retry, {process_name} should be on a different listen port than the squatter"
+        );
+        drop(squatter);
+    }
+
     #[tokio::test]
     async fn zcashd() {
         let _ = tracing_subscriber::fmt().try_init();
-
-        let squatter = TcpListener::bind("127.0.0.1:0").expect("squatter bind");
-        let conflicted_rpc_port = squatter.local_addr().expect("local_addr").port();
-
-        let mut config = ZcashdConfig::default();
-        config.rpc_listen_port = Some(conflicted_rpc_port);
-
-        let zcashd = diagnose(
+        run_collision_test(
             "Zcashd",
-            conflicted_rpc_port,
             &["Unable to start HTTP server", "Unable to bind any endpoint"],
-            Zcashd::launch(config),
+            |conflicted| {
+                let mut config = ZcashdConfig::default();
+                config.rpc_listen_port = Some(conflicted);
+                Zcashd::launch(config)
+            },
+            |z| z.port(),
         )
         .await;
-
-        assert_ne!(
-            zcashd.port(),
-            conflicted_rpc_port,
-            "after retry, zcashd should be on a different RPC port than the squatter"
-        );
-
-        drop(squatter);
     }
 
     #[tokio::test]
     async fn zebrad() {
         let _ = tracing_subscriber::fmt().try_init();
-
-        let squatter = TcpListener::bind("127.0.0.1:0").expect("squatter bind");
-        let conflicted_rpc_port = squatter.local_addr().expect("local_addr").port();
-
-        let mut config = ZebradConfig::default();
-        config.rpc_listen_port = Some(conflicted_rpc_port);
-
-        let zebrad = diagnose(
+        run_collision_test(
             "Zebrad",
-            conflicted_rpc_port,
             &["AddrInUse", "code: 98", "Address already in use"],
-            Zebrad::launch(config),
+            |conflicted| {
+                let mut config = ZebradConfig::default();
+                config.rpc_listen_port = Some(conflicted);
+                Zebrad::launch(config)
+            },
+            |z| z.rpc_listen_port(),
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn zainod() {
+        let _ = tracing_subscriber::fmt().try_init();
+
+        // Zainod connects to a validator's JSON-RPC port; launch one
+        // first (default config, no pinning — its own retry covers
+        // any TOCTOU on its picks) and capture its port.
+        let zebrad = Zebrad::launch(ZebradConfig::default())
+            .await
+            .expect("zebrad launch must succeed for the Zainod collision test");
+        let validator_port = zebrad.rpc_listen_port();
+
+        run_collision_test(
+            "Zainod",
+            // Zaino's gRPC server (tonic/tower) surfaces AddrInUse
+            // through the standard libc strings. If a future Zaino
+            // build emits something else, the diagnose helper flags
+            // UNEXPECTED FAILURE MODE and the list gets an entry.
+            &["address already in use", "Address already in use", "AddrInUse"],
+            |conflicted| {
+                let mut config = ZainodConfig::default();
+                config.listen_port = Some(conflicted);
+                config.validator_port = validator_port;
+                Zainod::launch(config)
+            },
+            |z| z.port(),
         )
         .await;
 
-        assert_ne!(
-            zebrad.rpc_listen_port(),
-            conflicted_rpc_port,
-            "after retry, zebrad should be on a different RPC port than the squatter"
-        );
+        drop(zebrad);
+    }
 
-        drop(squatter);
+    #[tokio::test]
+    async fn lightwalletd() {
+        let _ = tracing_subscriber::fmt().try_init();
+
+        // Lightwalletd reads its validator's RPC port from a
+        // zcash.conf file; launch a zcashd (default config) and
+        // hand the conf path through.
+        let zcashd = Zcashd::launch(ZcashdConfig::default())
+            .await
+            .expect("zcashd launch must succeed for the Lightwalletd collision test");
+        let zcashd_conf = zcashd.get_zcashd_conf_path();
+
+        run_collision_test(
+            "Lightwalletd",
+            // lightwalletd is Go; `net.Listen` surfaces AddrInUse as
+            // "bind: address already in use" / "address already in use".
+            &["address already in use", "bind:"],
+            |conflicted| {
+                let mut config = LightwalletdConfig::default();
+                config.listen_port = Some(conflicted);
+                config.zcashd_conf = zcashd_conf.clone();
+                Lightwalletd::launch(config)
+            },
+            |lwd| lwd.port(),
+        )
+        .await;
+
+        drop(zcashd);
     }
 }
 
