@@ -153,8 +153,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `regtest-launcher` CLI `--activation-heights` default now references
   `REGTEST_FIXTURE_HEIGHTS_CLI_STRING` rather than carrying its own
   hand-typed copy of the same values.
+- `network::pick_unused_port` no longer races under concurrent calls.
+  Backed by kernel-assigned ephemeral allocation
+  (`TcpListener::bind("127.0.0.1:0")`) plus a process-local registry —
+  two concurrent in-process callers can never receive the same port.
+  Closes the flake where parallel zebrad/zcashd spawns occasionally
+  collided on a port and surfaced as `RpcReadinessTimeout` in the
+  child's RPC bind.
+- `network::pick_unused_port(Some(p))` now panics if `p` is already
+  reserved by another caller in this process. Previously a duplicate
+  fixed-port reservation would silently slip through.
 
 ### Removed
+
+- `portpicker` workspace dependency. The new `network::pick_unused_port`
+  uses `std::net` directly.
 
 ## [0.4.0] - 2026-02-28
 
