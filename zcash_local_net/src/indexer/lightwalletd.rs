@@ -129,7 +129,6 @@ impl Process for Lightwalletd {
             .stderr(std::process::Stdio::piped());
 
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
             ProcessId::Lightwalletd,
             &mut handle,

@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   method (was required) backed by `crate::poll::poll_until`. Both
   `Zcashd` and `Zebrad` no longer override it — uniform 100ms cadence
   (was 500ms zcashd / 100ms zebrad) collapsed into one place.
+- `validator::Validator::BLOCK_GENERATION_DELAY` (associated `const`,
+  default `1500ms`): tunable knob consumed by the new default-body
+  `Validator::generate_blocks_with_delay`. Provenance of the 1500ms
+  default is currently unaudited.
+- `validator::Validator::generate_blocks_with_delay` is now a *default*
+  trait method (was required). Both `Zcashd` and `Zebrad` no longer
+  override it — byte-identical body collapsed onto the trait. Inner
+  `unwrap()`s replaced with `?` propagation.
+- `launch::wait` now invokes `logs::write_logs` internally as part of
+  its setup. The four call sites (`Zcashd::launch`, `Zebrad::launch`,
+  `Lightwalletd::launch`, `Zainod::launch`) no longer call
+  `logs::write_logs` separately; doing both would panic on the second
+  `Child::stdout.take()`.
 - `validator::Validator` now requires `Send + Sync`. `Sync` was
   implicitly enforced before via the per-method `+ Send` future bounds
   on `&self` methods; making it explicit unblocks the default-body

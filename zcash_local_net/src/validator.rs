@@ -289,6 +289,13 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     const CHAIN_POLL_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(60);
 
+    /// Delay between successive single-block mines in the default
+    /// [`Self::generate_blocks_with_delay`]. Provenance of the 1500ms
+    /// value is unaudited at time of writing — see lifecycle audit
+    /// follow-up notes.
+    const BLOCK_GENERATION_DELAY: std::time::Duration =
+        std::time::Duration::from_millis(1500);
+
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self)
@@ -301,12 +308,24 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
         n: u32,
     ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
 
-    /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
-    /// correct height when this function returns.
+    /// Generate `n` blocks one at a time, sleeping
+    /// [`Self::BLOCK_GENERATION_DELAY`] between each. Each inner mine
+    /// goes through [`Self::generate_blocks`], which calls
+    /// [`Self::poll_chain_height`], so the chain is at the correct
+    /// height when this function returns. Concrete validators should
+    /// not override this method — only the constant.
     fn generate_blocks_with_delay(
         &self,
         n: u32,
-    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send;
+    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send {
+        async move {
+            for _ in 0..n {
+                self.generate_blocks(1).await?;
+                tokio::time::sleep(Self::BLOCK_GENERATION_DELAY).await;
+            }
+            Ok(())
+        }
+    }
 
     /// Get chain height
     fn get_chain_height(&self) -> impl std::future::Future<Output = u32> + Send;

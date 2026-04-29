@@ -4,7 +4,11 @@ use tempfile::TempDir;
 
 use crate::{error::LaunchError, logs, ProcessId};
 
-/// Wait until the process logs indicate the launch has succeeded or failed.
+/// Spawn the per-process stdout/stderr drainer threads and wait until
+/// the process logs indicate the launch has succeeded or failed. Owns
+/// the `write_logs` setup so callers do not need to invoke it
+/// separately — calling `logs::write_logs` *and* this function would
+/// panic on the second `Child::stdout.take()`.
 pub(crate) async fn wait(
     process: ProcessId,
     handle: &mut Child,
@@ -14,6 +18,8 @@ pub(crate) async fn wait(
     error_indicators: &[&str],
     excluded_errors: &[&str],
 ) -> Result<(), LaunchError> {
+    logs::write_logs(handle, logs_dir);
+
     let stdout_log_path = logs_dir.path().join(logs::STDOUT_LOG);
     let mut stdout_log = File::open(stdout_log_path).expect("should be able to open log");
     let mut stdout = String::new();

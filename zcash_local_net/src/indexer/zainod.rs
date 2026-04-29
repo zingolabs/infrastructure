@@ -15,7 +15,6 @@ use crate::{
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     launch,
-    logs::{self},
     network::{self},
     process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
@@ -124,7 +123,6 @@ impl Process for Zainod {
             .stderr(std::process::Stdio::piped());
 
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
             ProcessId::Zainod,
             &mut handle,

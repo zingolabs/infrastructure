@@ -19,7 +19,7 @@ use crate::{
     config,
     error::LaunchError,
     launch,
-    logs::{self, LogsToDir},
+    logs::LogsToDir,
     network,
     process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
@@ -180,7 +180,6 @@ impl Process for Zcashd {
 
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
 
-        logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
             ProcessId::Zcashd,
             &mut handle,
@@ -260,14 +259,6 @@ impl Validator for Zcashd {
 
         Ok(())
     }
-    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
-        for _ in 0..blocks {
-            self.generate_blocks(1).await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-        }
-        Ok(())
-    }
-
     async fn get_chain_height(&self) -> u32 {
         let output = self
             .zcash_cli_command(&["getchaintips"])
