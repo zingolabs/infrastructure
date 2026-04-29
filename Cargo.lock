@@ -5432,9 +5432,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-network"
-version = "5.0.0"
+version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "456c7afee9c651c8db90970db9ab86d42a313016457271fdf3340ae0b6bc4b2d"
+checksum = "57f1d5d4fe6fcc7be986f5a26a9c66f814c62d11746645fc6b7314573de9fb51"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -5486,9 +5486,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-rpc"
-version = "6.0.1"
+version = "6.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5465db3b35a3c894567f32036c84d6ff1aacdfa300f87ddfa237d29ac9f120df"
+checksum = "17c7ad0e43df0860c33ad26a5814baaa5ae183d8d1d397e93ca7205cec286d08"
 dependencies = [
  "base64",
  "chrono",

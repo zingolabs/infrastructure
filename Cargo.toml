@@ -14,7 +14,7 @@ zingo_common_components = "0.3.0"
 # zebra
 zebra-chain = "6.0.2"
 zebra-node-services = "4.0.0"
-zebra-rpc = "6.0.1"
+zebra-rpc = "6.0.2"
 
 # other
 getset = "0.1.3"
