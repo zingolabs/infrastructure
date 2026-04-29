@@ -2143,8 +2143,7 @@ dependencies = [
 [[package]]
 name = "libzcash_script"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f8ce05b56f3cbc65ec7d0908adb308ed91281e022f61c8c3a0c9388b5380b17"
+source = "git+https://github.com/zancas/zcash_script?branch=fix-bindgen-rust-target#c9f1abd6edd43a3ab03923761ee7ae5f725ac2fa"
 dependencies = [
  "bindgen",
  "cc",
@@ -2704,15 +2703,6 @@ name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
-
-[[package]]
-name = "portpicker"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be97d76faf1bfab666e1375477b23fde79eccf0276e9b63b92a39d676a889ba9"
-dependencies = [
- "rand 0.8.5",
-]
 
 [[package]]
 name = "potential_utf"
@@ -5168,7 +5158,7 @@ dependencies = [
  "getset",
  "hex",
  "json",
- "portpicker",
+ "reqwest",
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",

@@ -5,7 +5,7 @@ use tempfile::TempDir;
 use crate::{error::LaunchError, logs, ProcessId};
 
 /// Wait until the process logs indicate the launch has succeeded or failed.
-pub(crate) fn wait(
+pub(crate) async fn wait(
     process: ProcessId,
     handle: &mut Child,
     logs_dir: &TempDir,
@@ -109,7 +109,7 @@ pub(crate) fn wait(
             }
         }
 
-        std::thread::sleep(interval);
+        tokio::time::sleep(interval).await;
     }
 
     Ok(())

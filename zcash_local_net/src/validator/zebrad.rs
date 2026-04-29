@@ -56,23 +56,66 @@ pub struct ZebradConfig {
     pub rpc_listen_port: Option<u16>,
     /// Zebrad gRPC listen port
     pub indexer_listen_port: Option<u16>,
+    /// Zebrad `[health]` HTTP listen port. `None` lets the harness
+    /// pick an unused port at launch (the regtest-friendly default,
+    /// matching the other listen ports). Some(N) pins to N. The
+    /// listener exposes `GET /healthy` and `GET /ready`.
+    pub health_listen_port: Option<u16>,
     /// Miner address
     pub miner_address: String,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
     /// Network type
     pub network_type: NetworkType,
+    /// Lockbox disbursements written into Zebra's regtest
+    /// `[network.testnet_parameters]` block. Empty by default —
+    /// preserves today's behavior where the NU6.1 activation block
+    /// is unreachable. Any test whose chain crosses NU6.1 must
+    /// populate this with at least one entry, otherwise zebrad's
+    /// `subsidy_is_valid` rejects the activation block.
+    pub lockbox_disbursements: Vec<crate::validator::LockboxDisbursement>,
+    /// Post-NU6 funding streams written into Zebra's regtest
+    /// `[network.testnet_parameters.post_nu6_funding_streams]` block.
+    /// `None` by default. To make the chain mineable past NU6.1,
+    /// populate this *and* `lockbox_disbursements` together — the
+    /// stream deposits into Zebra's `Deferred` value pool, which
+    /// the disbursements draw from.
+    pub post_nu6_funding_streams: Option<crate::validator::FundingStreams>,
+    /// Minimum live peers required for `/healthy` to return 200,
+    /// emitted into Zebra's `[health]` block. Default `0` is the
+    /// right answer for single-node regtest (no peer network exists
+    /// to be on); mainnet/testnet harnesses should override to
+    /// match the upstream Zebra default of `1` or higher. The value
+    /// only takes effect when `[health].listen_addr` is set —
+    /// today the harness leaves the listener disabled, so this
+    /// field is effectively a forward-compatible placeholder until
+    /// the harness wires in `wait_for_rpc_ready` against `/healthy`.
+    pub min_connected_peers: usize,
 }
 
 impl Default for ZebradConfig {
     fn default() -> Self {
+        // The default fixture activates NU6.1 at height 5 (see
+        // `regtest_test_activation_heights`), so the matching
+        // `lockbox_disbursements` and post-NU6 funding stream are
+        // both required for any test that mines past block 4. We
+        // populate them here so callers don't have to remember the
+        // pairing.
         Self {
             network_listen_port: None,
             rpc_listen_port: None,
             indexer_listen_port: None,
+            health_listen_port: None,
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
-            network_type: NetworkType::Regtest(ActivationHeights::default()),
+            network_type: NetworkType::Regtest(
+                crate::validator::regtest_test_activation_heights(),
+            ),
+            lockbox_disbursements: crate::validator::regtest_test_lockbox_disbursements(),
+            post_nu6_funding_streams: Some(
+                crate::validator::regtest_test_post_nu6_funding_streams(),
+            ),
+            min_connected_peers: 0,
         }
     }
 }
@@ -122,6 +165,10 @@ pub struct Zebrad {
     #[getset(skip)]
     #[getset(get_copy = "pub")]
     indexer_listen_port: u16,
+    /// `[health]` HTTP listen port (serves `/healthy` and `/ready`)
+    #[getset(skip)]
+    #[getset(get_copy = "pub")]
+    health_listen_port: u16,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
@@ -137,6 +184,29 @@ pub struct Zebrad {
 impl LogsToDir for Zebrad {
     fn logs_dir(&self) -> &TempDir {
         &self.logs_dir
+    }
+}
+
+impl Zebrad {
+    /// `GET http://127.0.0.1:<health_listen_port>/healthy`. Returns
+    /// `Ok(true)` when zebrad's health server replies `200 OK`,
+    /// `Ok(false)` for a `503 Service Unavailable`, and `Err` if the
+    /// HTTP request itself fails (port unreachable, malformed
+    /// response, etc.).
+    pub async fn healthy(&self) -> Result<bool, reqwest::Error> {
+        self.fetch_health_status("healthy").await
+    }
+
+    /// `GET http://127.0.0.1:<health_listen_port>/ready`. Same
+    /// return convention as [`Self::healthy`].
+    pub async fn ready(&self) -> Result<bool, reqwest::Error> {
+        self.fetch_health_status("ready").await
+    }
+
+    async fn fetch_health_status(&self, path: &str) -> Result<bool, reqwest::Error> {
+        let url = format!("http://127.0.0.1:{}/{}", self.health_listen_port, path);
+        let response = reqwest::get(&url).await?;
+        Ok(response.status() == reqwest::StatusCode::OK)
     }
 }
 
@@ -162,6 +232,7 @@ impl Process for Zebrad {
         let network_listen_port = network::pick_unused_port(config.network_listen_port);
         let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
         let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
+        let health_listen_port = network::pick_unused_port(config.health_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),
@@ -169,8 +240,12 @@ impl Process for Zebrad {
             network_listen_port,
             rpc_listen_port,
             indexer_listen_port,
+            health_listen_port,
             &config.miner_address,
             config.network_type,
+            &config.lockbox_disbursements,
+            config.post_nu6_funding_streams.as_ref(),
+            config.min_connected_peers,
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd
@@ -230,17 +305,24 @@ impl Process for Zebrad {
             "Seed peer DNS resolution failed",
             "warning: some trace filter directives would enable traces that are disabled statically",
         ],
-    )?;
-        std::thread::sleep(std::time::Duration::from_secs(5));
+    )
+    .await?;
 
         let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
         let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+
+        // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
+        // confirmed via stdout that the RPC listener bound; this confirms it
+        // actually answers, which is the readiness signal every caller needs.
+        // Cost in the happy path is one RPC round-trip (~ms), not 5s.
+        wait_for_rpc_ready(&client, rpc_address, std::time::Duration::from_secs(30)).await?;
 
         let zebrad = Zebrad {
             handle,
             network_listen_port,
             indexer_listen_port,
             rpc_listen_port,
+            health_listen_port,
             config_dir,
             logs_dir,
             data_dir,
@@ -249,10 +331,13 @@ impl Process for Zebrad {
         };
 
         if config.chain_cache.is_none() && matches!(config.network_type, NetworkType::Regtest(_)) {
-            // generate genesis block
+            // Generate genesis block. `generate_blocks` calls `poll_chain_height`
+            // to the new tip, so by the time it returns the RPC has answered
+            // multiple times AND the genesis block is observable. The previously
+            // unconditional `sleep(5s)` after this point had no documented
+            // rationale and no successor predicate — deleted.
             zebrad.generate_blocks(1).await.unwrap();
         }
-        std::thread::sleep(std::time::Duration::from_secs(5));
 
         Ok(zebrad)
     }
@@ -264,6 +349,42 @@ impl Process for Zebrad {
     fn print_all(&self) {
         self.print_stdout();
         self.print_stderr();
+    }
+}
+
+/// Polls Zebrad's RPC endpoint until `getblocktemplate` returns success, or
+/// the timeout elapses. Replaces a fixed `std::thread::sleep` previously used
+/// in `Zebrad::launch` as a paper-over for RPC bind→mining-service-ready
+/// latency. `getblocktemplate` is used (not `getblockchaininfo`) because the
+/// first thing every caller does after launch is generate a genesis block via
+/// `generate_blocks`, which needs the mining service. `getblockchaininfo`
+/// answers as soon as the listener binds, well before the mining service is
+/// up — exactly the gap the old sleep was masking.
+async fn wait_for_rpc_ready(
+    client: &RpcRequestClient,
+    address: SocketAddr,
+    timeout: std::time::Duration,
+) -> Result<(), LaunchError> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        match client
+            .json_result_from_call::<serde_json::Value>("getblocktemplate", "[]".to_string())
+            .await
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                let last_error = format!("{e:?}");
+                if tokio::time::Instant::now() >= deadline {
+                    return Err(LaunchError::RpcReadinessTimeout {
+                        process_name: ProcessId::Zebrad.to_string(),
+                        address,
+                        timeout,
+                        last_error,
+                    });
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        }
     }
 }
 
@@ -289,38 +410,61 @@ impl Validator for Zebrad {
         let NetworkType::Regtest(activation_heights) = self.network() else {
             panic!("Can only generate blocks on regtest networks!");
         };
+        let network = zebra_chain::parameters::Network::new_regtest(
+            zingo_to_zebra_activation_heights(*activation_heights).into(),
+        );
 
-        for _ in 0..n {
-            let block_template: BlockTemplateResponse = self
-                .client
-                .json_result_from_call("getblocktemplate", "[]".to_string())
-                .await
-                .expect("response should be success output with a serialized `GetBlockTemplate`");
+        // Drive the chain forward one block per outer iteration. Success
+        // criterion is *chain advance*, not the RPC response: zebra returns
+        // "duplicate" / "duplicate-inconclusive" when validation outruns the
+        // 100 ms retry interval (notably the NU6.1 activation block), and
+        // those responses don't tell us whether the new submission committed
+        // — only that something with the same hash was already submitted.
+        // Polling chain height between submits is the unambiguous answer.
+        const MAX_ATTEMPTS: u32 = 30;
+        const ATTEMPT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+        for i in 0..n {
+            let target_height = chain_height + i + 1;
+            let mut last_response = String::new();
+            let mut advanced = false;
+            for _ in 0..MAX_ATTEMPTS {
+                let block_template: BlockTemplateResponse = self
+                    .client
+                    .json_result_from_call("getblocktemplate", "[]".to_string())
+                    .await
+                    .expect("response should be success output with a serialized `GetBlockTemplate`");
 
-            let network = zebra_chain::parameters::Network::new_regtest(
-                zingo_to_zebra_activation_heights(*activation_heights).into(),
-            );
+                let block_data = hex::encode(
+                    proposal_block_from_template(
+                        &block_template,
+                        BlockTemplateTimeSource::default(),
+                        &network,
+                    )
+                    .unwrap()
+                    .zcash_serialize_to_vec()
+                    .unwrap(),
+                );
 
-            let block_data = hex::encode(
-                proposal_block_from_template(
-                    &block_template,
-                    BlockTemplateTimeSource::default(),
-                    &network,
-                )
-                .unwrap()
-                .zcash_serialize_to_vec()
-                .unwrap(),
-            );
+                last_response = self
+                    .client
+                    .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
+                    .await
+                    .unwrap();
 
-            let submit_block_response = self
-                .client
-                .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-                .await
-                .unwrap();
+                if self.get_chain_height().await >= target_height {
+                    advanced = true;
+                    break;
+                }
+                tokio::time::sleep(ATTEMPT_INTERVAL).await;
+            }
 
-            if !submit_block_response.contains(r#""result":null"#) {
-                tracing::error!("Failed to submit block: {submit_block_response}");
-                panic!("Failed to submit block!");
+            if !advanced {
+                tracing::error!(
+                    "chain failed to reach height {target_height} after \
+                     {MAX_ATTEMPTS} attempts; last submitblock response: \
+                     {last_response}"
+                );
+                panic!("Failed to advance chain to height {target_height}!");
             }
         }
         self.poll_chain_height(chain_height + n).await;
@@ -348,12 +492,6 @@ impl Validator for Zebrad {
             .and_then(serde_json::Value::as_u64)
             .and_then(|h| u32::try_from(h).ok())
             .unwrap()
-    }
-
-    async fn poll_chain_height(&self, target_height: u32) {
-        while self.get_chain_height().await < target_height {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
     }
 
     fn data_dir(&self) -> &TempDir {

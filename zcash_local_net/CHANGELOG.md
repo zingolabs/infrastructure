@@ -11,9 +11,205 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `validator::Validator::CHAIN_POLL_INTERVAL` and
+  `validator::Validator::CHAIN_POLL_TIMEOUT` (associated `const`s,
+  defaults `100ms` and `60s`): tunable knobs consumed by the new
+  default-body `Validator::poll_chain_height`. Concrete validators
+  override only the constants — never the loop body. Default timeout
+  is finite by design so wedges surface instead of hanging regtest CI.
+- `validator::Validator::poll_chain_height` is now a *default* trait
+  method (was required) backed by `crate::poll::poll_until`. Both
+  `Zcashd` and `Zebrad` no longer override it — uniform 100ms cadence
+  (was 500ms zcashd / 100ms zebrad) collapsed into one place.
+- `validator::Validator` now requires `Send + Sync`. `Sync` was
+  implicitly enforced before via the per-method `+ Send` future bounds
+  on `&self` methods; making it explicit unblocks the default-body
+  `poll_chain_height`. `Send` is required by the new
+  `&mut self` async `cache_chain` (the future captures `&mut Self`,
+  which is `Send` only when `Self: Send`).
+- `validator::regtest_test_activation_heights` (`pub fn`): single
+  source of truth for regtest fixture activation heights across the
+  crate. Used by the `Default` impls of `ZebradConfig`, `ZcashdConfig`,
+  and `ZainodConfig` so all fixture configs agree on activation
+  heights — values aligned with
+  `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` (nu5=2, nu6=2,
+  nu6_1=1000, nu7=None, all earlier=1).
+- `validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING` (`pub const`):
+  serialized form of the helper for use as clap's `default_value`
+  (which requires `&'static str`). Drift between the two is enforced
+  by a unit test in `regtest-launcher::cli::tests`.
+- `error::LaunchError::RpcReadinessTimeout` variant for explicit
+  signaling that the validator's RPC framework did not respond within
+  the readiness budget.
+- `validator::LockboxDisbursement` (`pub struct`) and
+  `LockboxDisbursement::dummy` (`pub fn`): a value type for ZIP-271
+  lockbox disbursement entries written into Zebra's regtest
+  `[network.testnet_parameters]` config. Mirrors Zebra's upstream
+  `ConfiguredLockboxDisbursement`. `dummy()` returns a 1-zatoshi
+  disbursement to the standard regtest miner address — sufficient to
+  satisfy zebrad's `subsidy_is_valid` `is_empty()` check at the NU6.1
+  activation block.
+- `validator::regtest_test_lockbox_disbursements` (`pub fn`): single
+  source of truth for the regtest fixture disbursement list. Pairs
+  with `regtest_test_activation_heights` — any caller that needs the
+  canonical disbursement set (harness, downstream fixtures) goes
+  through this helper rather than hand-rolling `vec![dummy()]`.
+- `ZebradConfig.lockbox_disbursements` (`pub field`,
+  `Vec<LockboxDisbursement>`): caller-supplied disbursement list,
+  serialized into Zebra's regtest TOML at
+  `[[network.testnet_parameters.lockbox_disbursements]]` when the
+  network is regtest. Default empty preserves prior behavior; set
+  to a non-empty list (typically
+  `regtest_test_lockbox_disbursements()`) to make the chain mineable
+  past the NU6.1 activation block.
+- `validator::FundingStreamReceiver` (`pub enum`),
+  `validator::FundingStreamRecipient` (`pub struct`),
+  `validator::FundingStreams` (`pub struct`): mirror Zebra's
+  `ConfiguredFundingStreams{,Recipient}` and
+  `FundingStreamReceiver`. Drive the funding-stream side of the
+  NU6.1 plumbing: a `Deferred` recipient deposits a fraction of
+  block subsidy into Zebra's deferred value pool, which NU6.1
+  disbursements draw from.
+- `validator::regtest_test_post_nu6_funding_streams` (`pub fn`):
+  single source of truth for the regtest fixture's post-NU6
+  funding streams. Returns one `Deferred` recipient drawing 1% of
+  block subsidy across heights 2..1_000_000 — enough lockbox
+  accumulation for any small NU6.1 disbursement test.
+- `ZebradConfig.post_nu6_funding_streams` (`pub field`,
+  `Option<FundingStreams>`): caller-supplied stream config,
+  serialized into Zebra's regtest TOML at
+  `[network.testnet_parameters.post_nu6_funding_streams]` when
+  Some. Default `None` preserves prior behavior. Tests that cross
+  NU6.1 must populate this *and* `lockbox_disbursements`
+  together — the stream feeds the deferred pool, the disbursements
+  draw from it.
+- `ZebradConfig.min_connected_peers` (`pub field`, `usize`):
+  emitted into Zebra's `[health]` block as `min_connected_peers`,
+  controlling the peer-count threshold for the `/healthy` HTTP
+  endpoint. Default `0` is correct for single-node regtest (no
+  peer network exists to be on); harnesses targeting mainnet or
+  testnet should override to `1` (Zebra's upstream default) or
+  higher.
+- `ZebradConfig.health_listen_port` (`pub field`, `Option<u16>`):
+  port for Zebra's `[health]` HTTP listener serving `/healthy`
+  and `/ready`. `None` (default) lets the harness pick an unused
+  port at launch, matching the other listen-port fields.
+- `Zebrad.health_listen_port` (`pub` getter via `getset`):
+  resolved port the harness picked, exposed for callers that
+  need the URL.
+- `Zebrad::healthy()` and `Zebrad::ready()` (`pub async fn`):
+  HTTP `GET` against `127.0.0.1:<health_listen_port>/{healthy,ready}`,
+  returning `Ok(true)` for a `200 OK`, `Ok(false)` for a
+  `503 Service Unavailable`, and `Err` for a transport error.
+- `[health]` block in the regtest TOML override now includes
+  `listen_addr = "127.0.0.1:<picked_port>"` and
+  `enforce_on_test_networks = true` alongside the previously
+  added `min_connected_peers`. The `enforce_on_test_networks`
+  flip is what makes `/ready` report meaningful state on regtest;
+  Zebra's upstream default short-circuits `/ready` to always-200
+  on test networks.
+- New integration tests:
+  - `zebrad_healthy_endpoint_responds_200_after_launch` — smoke.
+  - `zebrad_ready_endpoint_responds_200_after_one_block` — smoke
+    (genesis is recent enough to satisfy `ready_max_tip_age`).
+  - `zebrad_health_endpoints_agree_with_rpc_readiness_conjunction` —
+    regression guard. Asserts that
+    `(/healthy AND /ready) == (informal AND-of-4-RPC conjunction)`
+    in the steady state. Catches upstream Zebra regressions that
+    would let one side claim ready while the other doesn't, and
+    vice versa.
+
 ### Changed
 
+- **Lifecycle waiters no longer park the tokio worker thread.** The
+  three remaining `std::thread::sleep` calls inside `async fn`
+  lifecycle code are gone — each replaced with `tokio::time::sleep`
+  via the new `poll::poll_until` primitive (or, for
+  `launch::wait`, a direct swap). Mirrors the prior `Zebrad::launch`
+  cleanup. Reaches:
+  - `launch::wait` (now `async fn`) — every validator/indexer
+    launch (zcashd, zebrad, lightwalletd, zainod). Polls log files
+    every 100ms via `tokio::time::sleep`.
+  - `Zcashd::poll_chain_height` and `Zebrad::poll_chain_height`
+    overrides — *deleted*. Both now inherit the default-body
+    `Validator::poll_chain_height` that calls `poll_until` with
+    associated-const interval/timeout. Saves ~7s on
+    `launch_zcashd_custom_activation_heights` (the long-tail zcashd
+    integration test, dominated by the old 500ms `std::thread::sleep`
+    cadence × ~14 iterations).
+  - All four call sites of `launch::wait`
+    (`Zcashd::launch`, `Zebrad::launch`, `Lightwalletd::launch`,
+    `Zainod::launch`) now `.await` the call.
+  - **API break**: `Validator::cache_chain` is now `-> impl Future + Send`
+    (was `-> std::process::Output`). Carried the same
+    `std::thread::sleep(3s)` anti-pattern in a sync default-method body
+    reachable from `async fn` test fixtures; making it async lets the
+    sleep become `tokio::time::sleep`. Sole caller (`tests/testutils.rs`)
+    updated to `.await`.
+  - Tracked in zingolabs/infrastructure#251.
+- **Regtest fixture default now activates NU6.1 at height 5.**
+  `validator::regtest_test_activation_heights` returns
+  `nu6_1: Some(5)` (was `Some(1000)`); the matching
+  `REGTEST_FIXTURE_HEIGHTS_CLI_STRING` is
+  `"all=1,nu5=2,nu6=2,nu6_1=5,nu7=off"`. Any regtest test that mines
+  ≥ 5 blocks now exercises the NU6.1 activation block — codepaths
+  that were silently skipped before.
+- `ZebradConfig::default` now populates `lockbox_disbursements` via
+  `regtest_test_lockbox_disbursements()` and
+  `post_nu6_funding_streams` via
+  `regtest_test_post_nu6_funding_streams()`. Callers using
+  `ZebradConfig::default()` get the full NU6.1 plumbing without
+  having to remember the pairing.
+- **Cross-repo coordination**:
+  `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS` must follow
+  this change to `nu6_1=5` (see `regtest_test_activation_heights`'s
+  doc-comment for why drift breaks zainod's chain-index sync with
+  `InvalidData("Block commitment could not be computed")`).
+  Tracked in zingolabs/zaino#1076.
+
+- `Zebrad::launch` no longer carries two unconditional
+  `std::thread::sleep(5s)` calls — saves ~10s per launch and stops
+  parking the tokio worker thread (`std::thread::sleep` was being
+  used inside an async fn). Specifically:
+  - The pre-genesis-mine sleep is replaced by a poll-based
+    `wait_for_rpc_ready` helper hitting `getblocktemplate` every 50ms
+    with a 30s ceiling.
+  - The post-genesis-mine sleep is removed entirely;
+    `generate_blocks` already calls `poll_chain_height` internally,
+    which is a stricter signal — RPC liveness AND the new tip are
+    both observable by the time it returns.
+- `Zebrad::generate_blocks` retries the
+  (`getblocktemplate` → build proposal → `submitblock`) sequence on
+  rejection (30 attempts × 100ms). Right after launch some validation
+  services need a few hundred ms to accept submissions even though
+  the RPC framework already answers; retries re-read the template
+  each pass. Deterministic consensus failures still surface with a
+  clear panic listing the last response.
+- `ZebradConfig`, `ZcashdConfig`, and `ZainodConfig` `Default` impls
+  now consume `validator::regtest_test_activation_heights` instead of
+  inheriting `zingo_common_components::ActivationHeights::default()`.
+  The old default activated NU6.1 at height 1, which made the
+  genesis-mining block the NU6.1 activation block and triggered the
+  `"missing lockbox disbursements for NU6.1 activation block"`
+  consensus rejection (see zingolabs/infrastructure#241).
+- `regtest-launcher` CLI `--activation-heights` default now references
+  `REGTEST_FIXTURE_HEIGHTS_CLI_STRING` rather than carrying its own
+  hand-typed copy of the same values.
+- `network::pick_unused_port` no longer races under concurrent calls.
+  Backed by kernel-assigned ephemeral allocation
+  (`TcpListener::bind("127.0.0.1:0")`) plus a process-local registry —
+  two concurrent in-process callers can never receive the same port.
+  Closes the flake where parallel zebrad/zcashd spawns occasionally
+  collided on a port and surfaced as `RpcReadinessTimeout` in the
+  child's RPC bind.
+- `network::pick_unused_port(Some(p))` now panics if `p` is already
+  reserved by another caller in this process. Previously a duplicate
+  fixed-port reservation would silently slip through.
+
 ### Removed
+
+- `portpicker` workspace dependency. The new `network::pick_unused_port`
+  uses `std::net` directly.
 
 ## [0.4.0] - 2026-02-28
 
