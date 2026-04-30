@@ -2285,6 +2285,18 @@ checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
 name = "nix"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
+name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -3224,7 +3236,7 @@ dependencies = [
  "clap",
  "hex",
  "insta",
- "nix",
+ "nix 0.30.1",
  "owo-colors",
  "regex",
  "ripemd 0.1.3",
@@ -5158,6 +5170,7 @@ dependencies = [
  "getset",
  "hex",
  "json",
+ "nix 0.29.0",
  "reqwest",
  "serde_json",
  "tempfile",
@@ -5494,7 +5507,7 @@ dependencies = [
  "jsonrpsee-proc-macros",
  "jsonrpsee-types",
  "metrics",
- "nix",
+ "nix 0.30.1",
  "openrpsee",
  "phf",
  "prost",
