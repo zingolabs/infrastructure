@@ -49,6 +49,24 @@ pub struct ZcashdConfig {
     pub miner_address: Option<&'static str>,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
+    /// When `true`, launch zcashd with `-disableshieldedproving`,
+    /// which skips loading the Sapling/Orchard proving keys at
+    /// startup (~6 s saved on this hardware) at the cost of
+    /// disabling proof-creating RPCs (`z_sendmany`,
+    /// `z_shieldcoinbase`, mining to a shielded `mineraddress`).
+    /// Block validation, transaction validation, sync and
+    /// transparent mining all continue to work because they only
+    /// need verifying keys, which load in milliseconds.
+    ///
+    /// Default `true`: every default-launch test in this crate (and
+    /// every downstream consumer that does its proving client-side
+    /// via zingolib) sees the fast path. Set to `false` for any
+    /// test that drives zcashd to *create* a shielded proof
+    /// itself; that test pays the full ~6 s cold start.
+    ///
+    /// See zingolabs/infrastructure#254 for the diagnosis that led
+    /// to this knob.
+    pub disable_shielded_proving: bool,
 }
 
 impl Default for ZcashdConfig {
@@ -67,6 +85,7 @@ impl Default for ZcashdConfig {
             // `PoolType::ORCHARD` or `PoolType::SAPLING`.
             miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
+            disable_shielded_proving: true,
         }
     }
 }
@@ -207,6 +226,14 @@ impl Zcashd {
             ])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+
+        // Skip Sapling/Orchard proving-key load when no test on this
+        // launch needs zcashd to build a shielded proof. Default-true
+        // — see `ZcashdConfig::disable_shielded_proving` and
+        // zingolabs/infrastructure#254.
+        if config.disable_shielded_proving {
+            command.arg("-disableshieldedproving");
+        }
 
         let spawn_start = std::time::Instant::now();
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
