@@ -83,3 +83,54 @@ mod tests {
         assert!(pick_path.is_some());
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    /// Audit tests for `CLAUDE.md` checklist item #1 — TOCTOU on
+    /// filesystem paths. See issue #256.
+    mod corrosion_mitigation {
+        mod fs_path_toctou {
+            //! Site A1: `pick_path` pre-validates the resolved path with
+            //! `.exists()` (line 26) before returning it; the caller
+            //! then execs via `Command::new(path).spawn()`. Two syscalls
+            //! on the same `&Path` → TOCTOU window between lookup and
+            //! exec.
+            //!
+            //! Mitigation: drop the `.exists()` check entirely. Let
+            //! `Command::new(...).spawn()` fail with `ENOENT`. The same
+            //! change also fixes the silent-fallback-to-`PATH` bug
+            //! observed when zainod is missing from
+            //! `TEST_BINARIES_DIR` (the wrapper currently swallows the
+            //! lookup miss and re-spawns from PATH, producing a
+            //! confusing "Failed to spawn command" error far from the
+            //! real cause).
+
+            use crate::utils::executable_finder::pick_path;
+
+            /// FAILS while `pick_path` calls `.exists()` on the
+            /// resolved path before returning. After the fix (remove
+            /// the check), `pick_path` returns `Some(<dir>/<name>)`
+            /// regardless of whether the file is present, and lookup
+            /// is decoupled from existence — the path is only bound by
+            /// a syscall at exec time.
+            #[test]
+            fn pick_path_does_not_pre_validate_with_exists() {
+                let dir = tempfile::tempdir().unwrap();
+                std::env::set_var("TEST_BINARIES_DIR", dir.path());
+
+                let absent_name = "audit_a1_nonexistent_target";
+                let resolved = pick_path(absent_name, false);
+
+                assert_eq!(
+                    resolved,
+                    Some(dir.path().join(absent_name)),
+                    "audit (issue #256, site A1): pick_path pre-validates \
+                     the resolved path with .exists() before returning. \
+                     Drop the check; let `Command::new(path).spawn()` fail \
+                     with ENOENT instead of pre-checking and triggering a \
+                     silent PATH fallback."
+                );
+            }
+        }
+    }
+}

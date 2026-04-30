@@ -621,3 +621,73 @@ impl Drop for Zebrad {
         self.stop();
     }
 }
+
+#[cfg(test)]
+mod unit_tests {
+    /// Audit tests for `CLAUDE.md` checklist item #1 — TOCTOU on
+    /// filesystem paths. See issue #256.
+    mod corrosion_mitigation {
+        mod fs_path_toctou {
+            //! Site A3: `Zebrad::load_chain` (line 599) does
+            //!   `assert!(state_dir.exists())` then `cp -r state_dir
+            //!   validator_data_dir`.
+            //! `Path::exists()` follows symlinks, so a *valid* symlink
+            //! at `chain_cache/state` pointing at an attacker-controlled
+            //! directory passes the assertion, and `cp -r SRC` (which
+            //! also follows the symlink) reads the attacker's files
+            //! into `validator_data_dir`. Deterministic — no race
+            //! window required.
+            //!
+            //! Mitigation: replace `.exists()` with
+            //! `fs::symlink_metadata(p)` and reject if `is_symlink()`
+            //! (or open the directory once as an FD and use `*at`
+            //! syscalls); drop the `cp -r` subprocess for an
+            //! FD-anchored Rust-level recursive copy so the path is
+            //! not re-resolved by an external tool.
+
+            use crate::validator::regtest_test_activation_heights;
+            use crate::validator::zebrad::Zebrad;
+            use crate::validator::Validator;
+            use zingo_common_components::protocol::NetworkType;
+
+            /// FAILS while `Zebrad::load_chain` trusts a symlink at
+            /// `chain_cache/state`. After the fix, the function rejects
+            /// the symlink (or refuses to follow it) and the attacker's
+            /// payload never reaches `validator_data_dir`.
+            #[test]
+            fn load_chain_refuses_symlinked_state_dir() {
+                let attacker_dir = tempfile::tempdir().unwrap();
+                std::fs::write(
+                    attacker_dir.path().join("PWNED"),
+                    b"attacker payload -- must not reach validator_data_dir",
+                )
+                .unwrap();
+
+                let chain_cache = tempfile::tempdir().unwrap();
+                let state_path = chain_cache.path().join("state");
+                std::os::unix::fs::symlink(attacker_dir.path(), &state_path).unwrap();
+
+                let validator_data_holder = tempfile::tempdir().unwrap();
+                let validator_data_dir = validator_data_holder.path().to_path_buf();
+
+                let _ = <Zebrad as Validator>::load_chain(
+                    chain_cache.path().to_path_buf(),
+                    validator_data_dir.clone(),
+                    NetworkType::Regtest(regtest_test_activation_heights()),
+                );
+
+                // `cp -r state_dir validator_data_dir` produces
+                // `validator_data_dir/state/<contents>` (the basename
+                // of the source is appended when copying a directory
+                // into an existing directory).
+                let attacker_marker = validator_data_dir.join("state").join("PWNED");
+                assert!(
+                    !attacker_marker.exists(),
+                    "audit (issue #256, site A3): Zebrad::load_chain followed \
+                     a symlink at chain_cache/state and copied attacker \
+                     payload into validator_data_dir at {attacker_marker:?}"
+                );
+            }
+        }
+    }
+}
