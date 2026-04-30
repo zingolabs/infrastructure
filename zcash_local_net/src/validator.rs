@@ -358,22 +358,24 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     fn network(&self) -> NetworkType;
 
     /// Caches chain. This stops the zcashd process.
+    ///
+    /// `chain_cache` must not already exist; its parent path is
+    /// walked from `/` with `openat(O_NOFOLLOW)` -- if any ancestor
+    /// component is a symlink the call returns `Err` and nothing is
+    /// copied. Closes the TOCTOU window the prior `assert!(!exists)`
+    /// + `cp -r` shape left open (issue #256, A2).
     fn cache_chain(
         &mut self,
         chain_cache: PathBuf,
-    ) -> impl std::future::Future<Output = std::process::Output> + Send {
+    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send {
         async move {
-            assert!(!chain_cache.exists(), "chain cache already exists!");
-
             self.stop();
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
-            std::process::Command::new("cp")
-                .arg("-r")
-                .arg(self.data_dir().path())
-                .arg(chain_cache)
-                .output()
-                .unwrap()
+            crate::utils::safe_copy::safe_copy_into_new(
+                self.data_dir().path(),
+                &chain_cache,
+            )
         }
     }
 
@@ -381,12 +383,19 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     /// Returns the path to the loaded chain cache.
     ///
     /// If network is not `Regtest` variant, the chain cache will not be copied and the original cache path will be
-    /// returned instead
+    /// returned instead.
+    ///
+    /// Returns `Err` if the chain-cache subdirectory expected by the
+    /// concrete validator (e.g. `<chain_cache>/state` for Zebrad, or
+    /// `<chain_cache>/regtest` for Zcashd) is missing, is a symlink,
+    /// or has a symlink ancestor -- the implementation routes through
+    /// [`crate::utils::safe_copy::safe_copy_into_existing`] which
+    /// rejects those shapes (issue #256, A3/A4).
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
         validator_network: NetworkType,
-    ) -> PathBuf;
+    ) -> std::io::Result<PathBuf>;
 
     /// To reveal a port.
     fn get_port(&self) -> u16;
@@ -496,7 +505,7 @@ mod unit_tests {
                     _chain_cache: PathBuf,
                     _validator_data_dir: PathBuf,
                     _validator_network: NetworkType,
-                ) -> PathBuf {
+                ) -> std::io::Result<PathBuf> {
                     unimplemented!("MockValidator: not exercised by cache_chain")
                 }
 

@@ -254,7 +254,8 @@ impl Zebrad {
         let working_cache_dir = data_dir.path().to_path_buf();
 
         if let Some(src) = config.chain_cache.as_ref() {
-            Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type);
+            Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type)
+                .expect("load_chain failed");
         }
 
         let ZebradPorts {
@@ -594,20 +595,19 @@ impl Validator for Zebrad {
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
         validator_network: NetworkType,
-    ) -> PathBuf {
-        let state_dir = chain_cache.clone().join("state");
-        assert!(state_dir.exists(), "state directory not found!");
+    ) -> std::io::Result<PathBuf> {
+        let state_dir = chain_cache.join("state");
 
         if matches!(validator_network, NetworkType::Regtest(_)) {
-            std::process::Command::new("cp")
-                .arg("-r")
-                .arg(state_dir)
-                .arg(validator_data_dir.clone())
-                .output()
-                .unwrap();
-            validator_data_dir
+            // `safe_copy_into_existing` walks state_dir's parent
+            // no-symlinks and opens state_dir's basename with
+            // O_NOFOLLOW -- so a symlink at chain_cache/state can no
+            // longer redirect the read into an attacker-controlled
+            // directory the way the prior `cp -r` did (issue #256, A3).
+            crate::utils::safe_copy::safe_copy_into_existing(&state_dir, &validator_data_dir)?;
+            Ok(validator_data_dir)
         } else {
-            chain_cache
+            Ok(chain_cache)
         }
     }
 

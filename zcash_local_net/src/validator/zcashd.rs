@@ -186,7 +186,8 @@ impl Zcashd {
                 cache,
                 data_dir.path().to_path_buf(),
                 NetworkType::Regtest(ActivationHeights::default()),
-            );
+            )
+            .expect("load_chain failed");
         }
 
         let activation_heights = config.activation_heights;
@@ -420,17 +421,16 @@ impl Validator for Zcashd {
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
         _validator_network: NetworkType,
-    ) -> PathBuf {
-        let regtest_dir = chain_cache.clone().join("regtest");
-        assert!(regtest_dir.exists(), "regtest directory not found!");
+    ) -> std::io::Result<PathBuf> {
+        let regtest_dir = chain_cache.join("regtest");
 
-        std::process::Command::new("cp")
-            .arg("-r")
-            .arg(regtest_dir)
-            .arg(validator_data_dir)
-            .output()
-            .unwrap();
-        chain_cache
+        // `safe_copy_into_existing` walks regtest_dir's parent
+        // no-symlinks and opens regtest_dir's basename with
+        // O_NOFOLLOW -- so a symlink at chain_cache/regtest can no
+        // longer redirect the read into an attacker-controlled
+        // directory the way the prior `cp -r` did (issue #256, A4).
+        crate::utils::safe_copy::safe_copy_into_existing(&regtest_dir, &validator_data_dir)?;
+        Ok(chain_cache)
     }
 
     fn get_port(&self) -> u16 {
