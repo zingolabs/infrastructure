@@ -16,15 +16,14 @@ use crate::logs::LogsToStdoutAndStderr;
 use crate::utils::executable_finder::trace_version_and_location;
 use crate::validator::ValidatorConfig;
 use crate::{
-    config,
+    ProcessId, config,
     error::LaunchError,
     launch,
     logs::LogsToDir,
     network,
     process::Process,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
+    utils::executable_finder::{EXPECT_SPAWN, pick_command},
     validator::Validator,
-    ProcessId,
 };
 
 /// Zcashd configuration
@@ -544,8 +543,8 @@ mod unit_tests {
             //! FD-anchored Rust-level recursive copy so the path is
             //! not re-resolved by an external tool.
 
-            use crate::validator::zcashd::Zcashd;
             use crate::validator::Validator;
+            use crate::validator::zcashd::Zcashd;
             use zingo_common_components::protocol::{ActivationHeights, NetworkType};
 
             /// FAILS while `Zcashd::load_chain` trusts a symlink at
@@ -624,11 +623,7 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_transparent_pool_keeps_wallet_disabled() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(
-                PoolType::Transparent,
-                ActivationHeights::default(),
-                None,
-            );
+            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
             assert!(
                 config.disable_wallet,
                 "Transparent mining does not need zcashd's wallet to \
@@ -641,11 +636,7 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_orchard_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(
-                PoolType::ORCHARD,
-                ActivationHeights::default(),
-                None,
-            );
+            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Orchard mining needs zcashd's wallet to materialize the \
@@ -659,11 +650,7 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_sapling_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(
-                PoolType::SAPLING,
-                ActivationHeights::default(),
-                None,
-            );
+            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Sapling mining needs zcashd's wallet to materialize \

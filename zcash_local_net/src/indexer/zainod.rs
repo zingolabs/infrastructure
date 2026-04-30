@@ -11,14 +11,13 @@ use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
 use crate::utils::executable_finder::trace_version_and_location;
 use crate::{
-    config,
+    ProcessId, config,
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     launch,
     network::{self},
     process::Process,
-    utils::executable_finder::{pick_command, EXPECT_SPAWN},
-    ProcessId,
+    utils::executable_finder::{EXPECT_SPAWN, pick_command},
 };
 
 /// Zainod configuration

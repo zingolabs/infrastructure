@@ -2,7 +2,7 @@
 
 use std::future::Future;
 
-use crate::{error::LaunchError, ProcessId};
+use crate::{ProcessId, error::LaunchError};
 
 /// Processes share some behavior.
 pub trait Process: Sized {

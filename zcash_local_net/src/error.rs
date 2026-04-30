@@ -104,9 +104,7 @@ pub enum LaunchError {
     /// at all (PATH/permission/etc.) — distinct from
     /// `UnsupportedZcashdCapability` where the binary ran but
     /// rejected the flag.
-    #[error(
-        "{process_name} capability probe for `{capability}` failed to spawn: {io_error}"
-    )]
+    #[error("{process_name} capability probe for `{capability}` failed to spawn: {io_error}")]
     CapabilityProbeFailed {
         /// Process name
         process_name: String,

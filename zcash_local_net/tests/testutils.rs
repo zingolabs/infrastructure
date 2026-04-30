@@ -21,11 +21,11 @@
 //! ```
 
 use zcash_local_net::{
+    LocalNet,
     indexer::lightwalletd::Lightwalletd,
     process::Process,
     utils,
-    validator::{zebrad::Zebrad, Validator as _},
-    LocalNet,
+    validator::{Validator as _, zebrad::Zebrad},
 };
 /// Generates zebrad chain cache for client RPC test fixtures requiring a large chain
 pub async fn generate_zebrad_large_chain_cache() {
