@@ -288,11 +288,12 @@ NU6 = {nu6_activation_height}
                     numerator = r.numerator,
                 ));
                 if let Some(addresses) = &r.addresses
-                    && !addresses.is_empty() {
-                        let quoted: Vec<String> =
-                            addresses.iter().map(|a| format!("\"{a}\"")).collect();
-                        cfg.push_str(&format!("\naddresses = [{}]", quoted.join(", ")));
-                    }
+                    && !addresses.is_empty()
+                {
+                    let quoted: Vec<String> =
+                        addresses.iter().map(|a| format!("\"{a}\"")).collect();
+                    cfg.push_str(&format!("\naddresses = [{}]", quoted.join(", ")));
+                }
             }
         }
     }
