@@ -67,6 +67,23 @@ pub struct ZcashdConfig {
     /// See zingolabs/infrastructure#254 for the diagnosis that led
     /// to this knob.
     pub disable_shielded_proving: bool,
+    /// When `true`, launch zcashd with `-disablewallet`, which skips
+    /// loading the wallet at startup. The harness uses zcashd for
+    /// chain state, not for wallet operations (clients drive their
+    /// own wallet via zingolib/zaino), so this is the correct
+    /// default for the common case.
+    ///
+    /// Default `true`. Auto-flipped to `false` by
+    /// [`ValidatorConfig::set_test_parameters`] when `mine_to_pool
+    /// != Transparent` (zcashd needs wallet code to materialize a
+    /// shielded coinbase from `mineraddress`). Tests that drive
+    /// wallet RPCs directly (`z_sendmany`, `getnewaddress`,
+    /// `z_shieldcoinbase`, etc.) must set this to `false`
+    /// themselves.
+    ///
+    /// Unlike `disable_shielded_proving`, this is a *stock* zcashd
+    /// flag — no patched fork or capability probe required.
+    pub disable_wallet: bool,
 }
 
 impl Default for ZcashdConfig {
@@ -86,6 +103,7 @@ impl Default for ZcashdConfig {
             miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
             disable_shielded_proving: true,
+            disable_wallet: true,
         }
     }
 }
@@ -104,6 +122,13 @@ impl ValidatorConfig for ZcashdConfig {
         });
         self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;
+        // Shielded coinbase needs the wallet to materialize the
+        // mineraddress output. Re-enable for non-Transparent pools
+        // so callers don't have to know about the disable_wallet
+        // default.
+        if !matches!(mine_to_pool, PoolType::Transparent) {
+            self.disable_wallet = false;
+        }
     }
 }
 
@@ -169,6 +194,46 @@ impl ZcashdPorts {
     }
 }
 
+/// Pre-launch capability probe: confirm the resolved zcashd binary
+/// accepts `-disableshieldedproving`. The Zingolabs patched fork
+/// accepts the flag and exits 0 from `-version`; stock zcashd
+/// rejects the unknown option and exits non-zero. Run from
+/// `Zcashd::launch_once` before any tempdirs are created when
+/// `ZcashdConfig::disable_shielded_proving = true` (the default), so
+/// an unpatched binary fails fast with a clear, actionable error
+/// instead of producing a confusing failure deep in the launch
+/// pipeline.
+fn ensure_disableshieldedproving_supported() -> Result<(), LaunchError> {
+    const FLAG: &str = "-disableshieldedproving";
+    let mut command = pick_command("zcashd", false);
+    command.arg(FLAG).arg("-version");
+    let output = command
+        .output()
+        .map_err(|e| LaunchError::CapabilityProbeFailed {
+            process_name: ProcessId::Zcashd.to_string(),
+            capability: FLAG,
+            io_error: e.to_string(),
+        })?;
+    if !output.status.success() {
+        return Err(LaunchError::UnsupportedZcashdCapability {
+            process_name: ProcessId::Zcashd.to_string(),
+            capability: FLAG,
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            hint: concat!(
+                "Hint: this looks like stock zcashd, which does not accept ",
+                "`-disableshieldedproving`. The Zingolabs harness defaults to ",
+                "passing this flag for the proving-key-load fast path. Either ",
+                "install the Zingolabs patched fork ",
+                "(https://github.com/zingolabs/zcash) and point TEST_BINARIES_DIR ",
+                "at it, or set ZcashdConfig::disable_shielded_proving = false ",
+                "(slower; loads Sapling/Orchard proving keys at startup)."
+            )
+            .to_string(),
+        });
+    }
+    Ok(())
+}
+
 impl Zcashd {
     /// Single launch attempt: pick a port, write the config, spawn
     /// zcashd, wait for the readiness indicator, generate genesis if
@@ -178,6 +243,10 @@ impl Zcashd {
     /// with a config whose port pins have been cleared so
     /// `ZcashdPorts::pick` re-rolls them via `network::pick_unused_port`.
     async fn launch_once(config: ZcashdConfig) -> Result<Self, LaunchError> {
+        if config.disable_shielded_proving {
+            ensure_disableshieldedproving_supported()?;
+        }
+
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -234,6 +303,14 @@ impl Zcashd {
         // zingolabs/infrastructure#254.
         if config.disable_shielded_proving {
             command.arg("-disableshieldedproving");
+        }
+
+        // Skip wallet load when the launch isn't going to use wallet
+        // RPCs. Default-true; auto-flipped to false by
+        // `set_test_parameters` for non-Transparent mining pools.
+        // See `ZcashdConfig::disable_wallet`.
+        if config.disable_wallet {
+            command.arg("-disablewallet");
         }
 
         let spawn_start = std::time::Instant::now();
@@ -509,6 +586,92 @@ mod unit_tests {
                      payload into validator_data_dir at {attacker_marker:?}"
                 );
             }
+        }
+    }
+
+    /// Regression tests for `ZcashdConfig`'s overrideable defaults.
+    /// Each test pins a single specced default; flipping that
+    /// default in code without updating the spec breaks exactly one
+    /// of these tests.
+    mod overrideable_defaults {
+        use super::super::*;
+        use crate::validator::ValidatorConfig;
+
+        #[test]
+        fn default_disables_shielded_proving() {
+            assert!(
+                ZcashdConfig::default().disable_shielded_proving,
+                "ZcashdConfig::default().disable_shielded_proving must be \
+                 true: the harness's narrow zcashd scope and the \
+                 patched-fork capability probe at launch both depend on \
+                 it. Flipping this default requires a deliberate spec \
+                 change (see CHANGELOG)."
+            );
+        }
+
+        #[test]
+        fn default_disables_wallet() {
+            assert!(
+                ZcashdConfig::default().disable_wallet,
+                "ZcashdConfig::default().disable_wallet must be true: \
+                 the harness uses zcashd for chain state, not wallet \
+                 operations (clients drive their own wallet via \
+                 zingolib/zaino). Flipping this default requires a \
+                 deliberate spec change (see CHANGELOG)."
+            );
+        }
+
+        #[test]
+        fn set_test_parameters_transparent_pool_keeps_wallet_disabled() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(
+                PoolType::Transparent,
+                ActivationHeights::default(),
+                None,
+            );
+            assert!(
+                config.disable_wallet,
+                "Transparent mining does not need zcashd's wallet to \
+                 materialize coinbase outputs; set_test_parameters must \
+                 preserve the default-true `disable_wallet` for \
+                 PoolType::Transparent."
+            );
+        }
+
+        #[test]
+        fn set_test_parameters_orchard_pool_enables_wallet() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(
+                PoolType::ORCHARD,
+                ActivationHeights::default(),
+                None,
+            );
+            assert!(
+                !config.disable_wallet,
+                "Orchard mining needs zcashd's wallet to materialize the \
+                 shielded coinbase output from `mineraddress`; \
+                 set_test_parameters must auto-flip `disable_wallet` to \
+                 false for PoolType::ORCHARD so callers don't have to \
+                 know about the default."
+            );
+        }
+
+        #[test]
+        fn set_test_parameters_sapling_pool_enables_wallet() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(
+                PoolType::SAPLING,
+                ActivationHeights::default(),
+                None,
+            );
+            assert!(
+                !config.disable_wallet,
+                "Sapling mining needs zcashd's wallet to materialize \
+                 the shielded coinbase output from `mineraddress`; \
+                 set_test_parameters must auto-flip `disable_wallet` to \
+                 false for PoolType::SAPLING so callers don't have to \
+                 know about the default."
+            );
         }
     }
 }
