@@ -3,6 +3,10 @@ name = "zcash_local_net"
 version = "0.5.0"
 edition = "2024"
 license = "MIT"
+description = "Utilities for launching and managing local Zcash processes (zebrad, zcashd, zainod, lightwalletd) for integration testing."
+authors = ["Zingolabs <zingo@zingolabs.org>"]
+repository = "https://github.com/zingolabs/infrastructure"
+homepage = "https://github.com/zingolabs/infrastructure"
 
 [badges]
 github = { repository = "zingolabs/infrastructure/services" }
