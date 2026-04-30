@@ -50,10 +50,14 @@ pub fn pick_unused_port(fixed_port: Option<u16>) -> u16 {
             !reserved.contains(&port),
             "Fixed port {port} already reserved by another caller in this process"
         );
-        assert!(
-            TcpListener::bind(("127.0.0.1", port)).is_ok(),
-            "Fixed port {port} is not free"
-        );
+        // Deliberately no `TcpListener::bind` pre-check here. A pinned
+        // port reflects the caller's choice; surfacing a port conflict
+        // earlier than the actual binder (zebrad/zcashd/etc.) hides
+        // the failure mode the harness must be able to recover from.
+        // The cross-test-subprocess race the doc-comment describes
+        // cannot be detected here anyway — a parallel test process can
+        // grab the port between this check and the child's bind, so
+        // pre-checking is both misleading and racy.
         reserved.insert(port);
         return port;
     }
@@ -100,7 +104,10 @@ mod tests {
                 for _ in 0..PICKS_PER_THREAD {
                     let port = pick_unused_port(None);
                     let mut o = observed.lock().expect("observed poisoned");
-                    assert!(o.insert(port), "duplicate port {port} returned concurrently");
+                    assert!(
+                        o.insert(port),
+                        "duplicate port {port} returned concurrently"
+                    );
                 }
             }));
         }

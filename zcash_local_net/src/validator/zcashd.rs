@@ -19,7 +19,7 @@ use crate::{
     config,
     error::LaunchError,
     launch,
-    logs::{self, LogsToDir},
+    logs::LogsToDir,
     network,
     process::Process,
     utils::executable_finder::{pick_command, EXPECT_SPAWN},
@@ -39,7 +39,7 @@ use crate::{
 /// Use `miner_address` to specify the target address for the block rewards when blocks are generated.
 ///
 /// If `chain_cache` path is `None`, a new chain is launched.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZcashdConfig {
     /// Zcashd RPC listen port
     pub rpc_listen_port: Option<u16>,
@@ -49,6 +49,24 @@ pub struct ZcashdConfig {
     pub miner_address: Option<&'static str>,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
+    /// When `true`, launch zcashd with `-disableshieldedproving`,
+    /// which skips loading the Sapling/Orchard proving keys at
+    /// startup (~6 s saved on this hardware) at the cost of
+    /// disabling proof-creating RPCs (`z_sendmany`,
+    /// `z_shieldcoinbase`, mining to a shielded `mineraddress`).
+    /// Block validation, transaction validation, sync and
+    /// transparent mining all continue to work because they only
+    /// need verifying keys, which load in milliseconds.
+    ///
+    /// Default `true`: every default-launch test in this crate (and
+    /// every downstream consumer that does its proving client-side
+    /// via zingolib) sees the fast path. Set to `false` for any
+    /// test that drives zcashd to *create* a shielded proof
+    /// itself; that test pays the full ~6 s cold start.
+    ///
+    /// See zingolabs/infrastructure#254 for the diagnosis that led
+    /// to this knob.
+    pub disable_shielded_proving: bool,
 }
 
 impl Default for ZcashdConfig {
@@ -56,8 +74,18 @@ impl Default for ZcashdConfig {
         Self {
             rpc_listen_port: None,
             activation_heights: crate::validator::regtest_test_activation_heights(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            // Mine to a transparent address by default. `Zcashd::launch`
+            // always mines a genesis block, and an Orchard or Sapling
+            // coinbase forces zcashd to generate a Halo2 / Groth16 proof
+            // (~1 s pre-NU6.1, ~4 s post-NU6.1 for Orchard) for every
+            // mined block. The harness's lifecycle/launch tests don't
+            // use the funds — the proving cost was pure overhead.
+            // Tests that need shielded-mined funds opt in via
+            // `ValidatorConfig::set_test_parameters` with
+            // `PoolType::ORCHARD` or `PoolType::SAPLING`.
+            miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
+            disable_shielded_proving: true,
         }
     }
 }
@@ -123,12 +151,33 @@ impl LogsToDir for Zcashd {
     }
 }
 
-impl Process for Zcashd {
-    const PROCESS: ProcessId = ProcessId::Zcashd;
+/// Listen ports zcashd needs to bind during launch. A single-field
+/// counterpart to `ZebradPorts` — kept symmetric so the planned
+/// retry-on-collision helper in `launch::wait` can treat all
+/// validators uniformly and re-roll an entire validator's port set
+/// in one call rather than open-coding the picks per validator.
+#[derive(Debug, Clone, Copy)]
+struct ZcashdPorts {
+    rpc: u16,
+}
 
-    type Config = ZcashdConfig;
+impl ZcashdPorts {
+    fn pick(config: &ZcashdConfig) -> Self {
+        Self {
+            rpc: network::pick_unused_port(config.rpc_listen_port),
+        }
+    }
+}
 
-    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+impl Zcashd {
+    /// Single launch attempt: pick a port, write the config, spawn
+    /// zcashd, wait for the readiness indicator, generate genesis if
+    /// not loading from a cache. Wrapped by `Process::launch` in a
+    /// bounded retry-on-port-collision loop (see
+    /// `launch::with_retry_on_collision`); each retry calls this fresh
+    /// with a config whose port pins have been cleared so
+    /// `ZcashdPorts::pick` re-rolls them via `network::pick_unused_port`.
+    async fn launch_once(config: ZcashdConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -145,7 +194,7 @@ impl Process for Zcashd {
             "Configuring zcashd to regtest with these activation heights: {activation_heights:?}"
         );
 
-        let port = network::pick_unused_port(config.rpc_listen_port);
+        let ZcashdPorts { rpc: port } = ZcashdPorts::pick(&config);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zcashd_config(
             config_dir.path(),
@@ -178,9 +227,22 @@ impl Process for Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
+        // Skip Sapling/Orchard proving-key load when no test on this
+        // launch needs zcashd to build a shielded proof. Default-true
+        // — see `ZcashdConfig::disable_shielded_proving` and
+        // zingolabs/infrastructure#254.
+        if config.disable_shielded_proving {
+            command.arg("-disableshieldedproving");
+        }
 
-        logs::write_logs(&mut handle, &logs_dir);
+        let spawn_start = std::time::Instant::now();
+        let mut handle = command.spawn().expect(EXPECT_SPAWN);
+        tracing::info!(
+            elapsed_ms = spawn_start.elapsed().as_millis() as u64,
+            "zcashd: process spawned"
+        );
+
+        let wait_start = std::time::Instant::now();
         launch::wait(
             ProcessId::Zcashd,
             &mut handle,
@@ -191,6 +253,10 @@ impl Process for Zcashd {
             &[],
         )
         .await?;
+        tracing::info!(
+            elapsed_ms = wait_start.elapsed().as_millis() as u64,
+            "zcashd: launch::wait returned (Done loading observed)"
+        );
 
         let zcashd = Zcashd {
             handle,
@@ -202,10 +268,56 @@ impl Process for Zcashd {
 
         if config.chain_cache.is_none() {
             // generate genesis block
+            let genesis_start = std::time::Instant::now();
             zcashd.generate_blocks(1).await.unwrap();
+            tracing::info!(
+                elapsed_ms = genesis_start.elapsed().as_millis() as u64,
+                "zcashd: genesis block mined (post-launch generate_blocks(1))"
+            );
         }
 
         Ok(zcashd)
+    }
+}
+
+impl Process for Zcashd {
+    const PROCESS: ProcessId = ProcessId::Zcashd;
+
+    type Config = ZcashdConfig;
+
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        // Stderr signatures that zcashd emits when its RPC bind hits
+        // an `EADDRINUSE`. The user-facing `Error: Unable to start
+        // HTTP server` is the canonical line; the preceding `Unable to
+        // bind any endpoint for RPC server` is also reliable.
+        // `AddrInUse` / `Address already in use` are libc-level
+        // strings included as belt-and-braces — zcashd does not emit
+        // them today, but a future build that surfaces the raw OS
+        // error string would still be classified correctly.
+        const COLLISION_SIGNATURES: &[&str] = &[
+            "Unable to start HTTP server",
+            "Unable to bind any endpoint",
+            "AddrInUse",
+            "Address already in use",
+        ];
+        const MAX_ATTEMPTS: u32 = 3;
+
+        launch::with_retry_on_collision(
+            "zcashd",
+            config,
+            COLLISION_SIGNATURES,
+            MAX_ATTEMPTS,
+            |c: &ZcashdConfig| c.rpc_listen_port.into_iter().collect(),
+            |c: &mut ZcashdConfig| {
+                // Single-port validator — clear the only pin so the
+                // next attempt's `ZcashdPorts::pick` calls
+                // `network::pick_unused_port(None)` and the kernel
+                // hands back a fresh ephemeral.
+                c.rpc_listen_port = None;
+            },
+            Self::launch_once,
+        )
+        .await
     }
 
     fn stop(&mut self) {
@@ -236,6 +348,15 @@ impl Process for Zcashd {
 }
 
 impl Validator for Zcashd {
+    /// Tighter than the trait default (100 ms) because every
+    /// `get_chain_height` call here spawns `zcash-cli` as a subprocess
+    /// — process exec + RPC round-trip + JSON parse, ~50-100 ms by
+    /// itself — so the per-poll cycle is `spawn + interval`. Idle wait
+    /// of 100 ms between spawns wastes time the chain might already be
+    /// at target. 25 ms keeps us responsive without back-to-back
+    /// spawning faster than zcashd can answer.
+    const CHAIN_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(25);
+
     async fn get_activation_heights(&self) -> ActivationHeights {
         let output = self
             .zcash_cli_command(&["getblockchaininfo"])
@@ -255,19 +376,26 @@ impl Validator for Zcashd {
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
+
+        let cli_start = std::time::Instant::now();
         self.zcash_cli_command(&["generate", &n.to_string()])?;
+        let cli_ms = cli_start.elapsed().as_millis() as u64;
+
+        let poll_start = std::time::Instant::now();
         self.poll_chain_height(chain_height + n).await;
+        let poll_ms = poll_start.elapsed().as_millis() as u64;
+
+        tracing::info!(
+            n,
+            target_height = chain_height + n,
+            cli_ms,
+            poll_ms,
+            total_ms = cli_ms + poll_ms,
+            "zcashd: generate_blocks"
+        );
 
         Ok(())
     }
-    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
-        for _ in 0..blocks {
-            self.generate_blocks(1).await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-        }
-        Ok(())
-    }
-
     async fn get_chain_height(&self) -> u32 {
         let output = self
             .zcash_cli_command(&["getchaintips"])

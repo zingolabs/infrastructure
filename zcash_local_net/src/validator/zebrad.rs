@@ -4,7 +4,7 @@ use crate::{
     config,
     error::LaunchError,
     launch,
-    logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
+    logs::{LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
     utils::{
@@ -108,9 +108,7 @@ impl Default for ZebradConfig {
             health_listen_port: None,
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
-            network_type: NetworkType::Regtest(
-                crate::validator::regtest_test_activation_heights(),
-            ),
+            network_type: NetworkType::Regtest(crate::validator::regtest_test_activation_heights()),
             lockbox_disbursements: crate::validator::regtest_test_lockbox_disbursements(),
             post_nu6_funding_streams: Some(
                 crate::validator::regtest_test_post_nu6_funding_streams(),
@@ -210,11 +208,41 @@ impl Zebrad {
     }
 }
 
-impl Process for Zebrad {
-    const PROCESS: ProcessId = ProcessId::Zebrad;
+/// Listen ports zebrad needs to bind during launch. Picked atomically
+/// as a unit so the planned retry-on-collision helper in `launch::wait`
+/// can re-roll all four in a single call rather than open-coding the
+/// picks per validator. Re-rolling individual fields would risk one of
+/// the surviving picks being a port a sibling test subprocess just
+/// claimed (the cross-process TOCTOU these tests document).
+#[derive(Debug, Clone, Copy)]
+struct ZebradPorts {
+    network: u16,
+    rpc: u16,
+    indexer: u16,
+    health: u16,
+}
 
-    type Config = ZebradConfig;
-    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+impl ZebradPorts {
+    fn pick(config: &ZebradConfig) -> Self {
+        Self {
+            network: network::pick_unused_port(config.network_listen_port),
+            rpc: network::pick_unused_port(config.rpc_listen_port),
+            indexer: network::pick_unused_port(config.indexer_listen_port),
+            health: network::pick_unused_port(config.health_listen_port),
+        }
+    }
+}
+
+impl Zebrad {
+    /// Single launch attempt: pick all four ports, write configs,
+    /// spawn zebrad, wait for the readiness indicator, then probe RPC
+    /// readiness. Wrapped by `Process::launch` in a bounded
+    /// retry-on-port-collision loop (see
+    /// `launch::with_retry_on_collision`); each retry calls this fresh
+    /// with a config whose port pins have been cleared so
+    /// `ZebradPorts::pick` re-rolls all four atomically via
+    /// `network::pick_unused_port`.
+    async fn launch_once(config: ZebradConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
@@ -229,10 +257,12 @@ impl Process for Zebrad {
             Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type);
         }
 
-        let network_listen_port = network::pick_unused_port(config.network_listen_port);
-        let rpc_listen_port = network::pick_unused_port(config.rpc_listen_port);
-        let indexer_listen_port = network::pick_unused_port(config.indexer_listen_port);
-        let health_listen_port = network::pick_unused_port(config.health_listen_port);
+        let ZebradPorts {
+            network: network_listen_port,
+            rpc: rpc_listen_port,
+            indexer: indexer_listen_port,
+            health: health_listen_port,
+        } = ZebradPorts::pick(&config);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),
@@ -279,17 +309,28 @@ impl Process for Zebrad {
 
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
 
-        logs::write_logs(&mut handle, &logs_dir);
         launch::wait(
         ProcessId::Zebrad,
         &mut handle,
         &logs_dir,
         None,
-        &[
-            "zebra_rpc::server: Opened RPC endpoint at ",
-            "zebra_rpc::indexer::server: Opened RPC endpoint at ",
-            "spawned initial Zebra tasks",
-        ],
+        // Only the indexer-RPC indicator is reliably *post-bind* for
+        // every listener zebrad opens. The previous list also included
+        // `"zebra_rpc::server: Opened RPC endpoint at "` (fires after
+        // the main RPC bind but BEFORE the indexer-RPC bind) and
+        // `"spawned initial Zebra tasks"` (firing point unclear); both
+        // let `launch::wait` return Ok before zebrad's full set of
+        // binds had completed, which produced failure mode #4: when
+        // the indexer-RPC bind subsequently hit AddrInUse, zebrad shut
+        // down all listeners (including the main RPC), and downstream
+        // `wait_for_rpc_ready` saw `ConnectionRefused` for 30 s with
+        // no chance for the retry helper to fire. Waiting only for
+        // the indexer indicator means: bind succeeds → we proceed; or
+        // bind fails → child exits → `launch::wait` returns
+        // `ProcessFailed` whose captured stdout contains
+        // `"Address already in use"` for the retry helper's signature
+        // scan to match.
+        &["zebra_rpc::indexer::server: Opened RPC endpoint at "],
         &[
             " panicked at",
             "ERROR ",
@@ -340,6 +381,55 @@ impl Process for Zebrad {
         }
 
         Ok(zebrad)
+    }
+}
+
+impl Process for Zebrad {
+    const PROCESS: ProcessId = ProcessId::Zebrad;
+
+    type Config = ZebradConfig;
+
+    async fn launch(config: Self::Config) -> Result<Self, LaunchError> {
+        // Stderr signatures that zebrad emits when one of its four
+        // listen-port binds hits an `EADDRINUSE`. The RPC bind path
+        // panics through Rust's panic format ("kind: AddrInUse,
+        // message: 'Address already in use'", "code: 98"); the
+        // peer-protocol bind path raises a typed eyre error that
+        // includes "AddrInUse" in its `{:?}` rendering. All four
+        // bind paths funnel through one of these strings.
+        const COLLISION_SIGNATURES: &[&str] = &["AddrInUse", "code: 98", "Address already in use"];
+        const MAX_ATTEMPTS: u32 = 3;
+
+        launch::with_retry_on_collision(
+            "zebrad",
+            config,
+            COLLISION_SIGNATURES,
+            MAX_ATTEMPTS,
+            |c: &ZebradConfig| {
+                [
+                    c.network_listen_port,
+                    c.rpc_listen_port,
+                    c.indexer_listen_port,
+                    c.health_listen_port,
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
+            },
+            |c: &mut ZebradConfig| {
+                // Four-port validator — clear all four pins. Re-rolling
+                // only the conflicted port would leave the surviving
+                // three exposed to a sibling test subprocess that may
+                // have just claimed one of them; cheaper to re-pick the
+                // whole set than to detect-which-one and partial-clear.
+                c.network_listen_port = None;
+                c.rpc_listen_port = None;
+                c.indexer_listen_port = None;
+                c.health_listen_port = None;
+            },
+            Self::launch_once,
+        )
+        .await
     }
 
     fn stop(&mut self) {
@@ -432,7 +522,9 @@ impl Validator for Zebrad {
                     .client
                     .json_result_from_call("getblocktemplate", "[]".to_string())
                     .await
-                    .expect("response should be success output with a serialized `GetBlockTemplate`");
+                    .expect(
+                        "response should be success output with a serialized `GetBlockTemplate`",
+                    );
 
                 let block_data = hex::encode(
                     proposal_block_from_template(
@@ -469,14 +561,6 @@ impl Validator for Zebrad {
         }
         self.poll_chain_height(chain_height + n).await;
 
-        Ok(())
-    }
-
-    async fn generate_blocks_with_delay(&self, blocks: u32) -> std::io::Result<()> {
-        for _ in 0..blocks {
-            self.generate_blocks(1).await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-        }
         Ok(())
     }
 

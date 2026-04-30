@@ -133,6 +133,37 @@ pub(crate) fn write_zebrad_config(
     let chain_cache = cache_dir.to_str().unwrap();
     let network_string = network_type_to_string(network);
 
+    // Regtest is single-node by definition — the upstream-default seeder
+    // lists for mainnet/testnet have nothing useful to contribute and
+    // their DNS resolution dominates zebrad's TOC→TOU lag for the RPC
+    // port (see `zebrad_regtest_skips_seed_peer_dns` regression test
+    // and `mod launch_recovers_from_rpc_port_collision` for why that
+    // matters). Force both lists to `[]` on regtest; preserve the
+    // upstream defaults on cached mainnet/testnet runs where peer
+    // discovery still matters.
+    let regtest = matches!(network, NetworkType::Regtest(_));
+    let initial_mainnet_peers_block = if regtest {
+        "initial_mainnet_peers = []".to_string()
+    } else {
+        "initial_mainnet_peers = [\n    \
+            \"dnsseed.z.cash:8233\",\n    \
+            \"dnsseed.str4d.xyz:8233\",\n    \
+            \"mainnet.seeder.zfnd.org:8233\",\n    \
+            \"mainnet.is.yolo.money:8233\",\n\
+         ]"
+        .to_string()
+    };
+    let initial_testnet_peers_block = if regtest {
+        "initial_testnet_peers = []".to_string()
+    } else {
+        "initial_testnet_peers = [\n    \
+            \"dnsseed.testnet.z.cash:18233\",\n    \
+            \"testnet.seeder.zfnd.org:18233\",\n    \
+            \"testnet.is.yolo.money:18233\",\n\
+         ]"
+        .to_string()
+    };
+
     let mut cfg = format!(
         "\
 [consensus]
@@ -147,17 +178,8 @@ tx_cost_limit = 80000000
 [network]
 cache_dir = false
 crawl_new_peer_interval = \"1m 1s\"
-initial_mainnet_peers = [
-    \"dnsseed.z.cash:8233\",
-    \"dnsseed.str4d.xyz:8233\",
-    \"mainnet.seeder.zfnd.org:8233\",
-    \"mainnet.is.yolo.money:8233\",
-]
-initial_testnet_peers = [
-    \"dnsseed.testnet.z.cash:18233\",
-    \"testnet.seeder.zfnd.org:18233\",
-    \"testnet.is.yolo.money:18233\",
-]
+{initial_mainnet_peers_block}
+{initial_testnet_peers_block}
 listen_addr = \"127.0.0.1:{network_listen_port}\"
 max_connections_per_ip = 1
 network = \"{network_string}\"
@@ -269,10 +291,7 @@ NU6 = {nu6_activation_height}
                     if !addresses.is_empty() {
                         let quoted: Vec<String> =
                             addresses.iter().map(|a| format!("\"{a}\"")).collect();
-                        cfg.push_str(&format!(
-                            "\naddresses = [{}]",
-                            quoted.join(", ")
-                        ));
+                        cfg.push_str(&format!("\naddresses = [{}]", quoted.join(", ")));
                     }
                 }
             }
