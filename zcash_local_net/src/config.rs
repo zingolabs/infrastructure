@@ -287,13 +287,12 @@ NU6 = {nu6_activation_height}
                     receiver = r.receiver.as_toml(),
                     numerator = r.numerator,
                 ));
-                if let Some(addresses) = &r.addresses {
-                    if !addresses.is_empty() {
+                if let Some(addresses) = &r.addresses
+                    && !addresses.is_empty() {
                         let quoted: Vec<String> =
                             addresses.iter().map(|a| format!("\"{a}\"")).collect();
                         cfg.push_str(&format!("\naddresses = [{}]", quoted.join(", ")));
                     }
-                }
             }
         }
     }
