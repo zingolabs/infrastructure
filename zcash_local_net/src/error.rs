@@ -110,7 +110,8 @@ impl LaunchError {
                 ..
             } => {
                 let extra_len = additional_log.as_deref().map_or(0, str::len);
-                let mut combined = String::with_capacity(stdout.len() + stderr.len() + extra_len + 2);
+                let mut combined =
+                    String::with_capacity(stdout.len() + stderr.len() + extra_len + 2);
                 combined.push_str(stdout);
                 combined.push('\n');
                 combined.push_str(stderr);

@@ -70,8 +70,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// unit test in `regtest-launcher::cli::tests`** — the test parses
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
-pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
-    "all=1,nu5=2,nu6=2,nu6_1=5,nu7=off";
+pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str = "all=1,nu5=2,nu6=2,nu6_1=5,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.
@@ -280,21 +279,18 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     /// default [`Self::poll_chain_height`]. Override on a concrete impl
     /// only if the validator's chain-tip RPC has cadence constraints
     /// that 100ms violates.
-    const CHAIN_POLL_INTERVAL: std::time::Duration =
-        std::time::Duration::from_millis(100);
+    const CHAIN_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
 
     /// Maximum total time the default [`Self::poll_chain_height`] will
     /// wait for the chain to reach the target height before panicking.
     /// Finite by design — wedges should surface, not hang regtest CI.
-    const CHAIN_POLL_TIMEOUT: std::time::Duration =
-        std::time::Duration::from_secs(60);
+    const CHAIN_POLL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
     /// Delay between successive single-block mines in the default
     /// [`Self::generate_blocks_with_delay`]. Provenance of the 1500ms
     /// value is unaudited at time of writing — see lifecycle audit
     /// follow-up notes.
-    const BLOCK_GENERATION_DELAY: std::time::Duration =
-        std::time::Duration::from_millis(1500);
+    const BLOCK_GENERATION_DELAY: std::time::Duration = std::time::Duration::from_millis(1500);
 
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.

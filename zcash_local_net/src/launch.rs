@@ -38,16 +38,15 @@ pub(crate) async fn wait(
     let mut stderr_log = File::open(stderr_log_path).expect("should be able to open log");
     let mut stderr = String::new();
 
-    let (mut additional_log_file, mut additional_log) = if let Some(log_path) =
-        additional_log_path.as_ref()
-    {
-        let log_file = File::open(log_path).expect("should be able to open log");
-        let log = String::new();
+    let (mut additional_log_file, mut additional_log) =
+        if let Some(log_path) = additional_log_path.as_ref() {
+            let log_file = File::open(log_path).expect("should be able to open log");
+            let log = String::new();
 
-        (Some(log_file), Some(log))
-    } else {
-        (None, None)
-    };
+            (Some(log_file), Some(log))
+        } else {
+            (None, None)
+        };
 
     // wait for stdout log entry that indicates daemon is ready
     let interval = std::time::Duration::from_millis(100);
@@ -190,10 +189,10 @@ pub(crate) async fn probe_listener(
     additional_log_path: Option<&PathBuf>,
 ) -> Result<(), LaunchError> {
     let read_logs = || {
-        let stdout = std::fs::read_to_string(logs_dir.path().join(logs::STDOUT_LOG))
-            .unwrap_or_default();
-        let stderr = std::fs::read_to_string(logs_dir.path().join(logs::STDERR_LOG))
-            .unwrap_or_default();
+        let stdout =
+            std::fs::read_to_string(logs_dir.path().join(logs::STDOUT_LOG)).unwrap_or_default();
+        let stderr =
+            std::fs::read_to_string(logs_dir.path().join(logs::STDERR_LOG)).unwrap_or_default();
         let additional_log = snapshot_additional_log(additional_log_path);
         (stdout, stderr, additional_log)
     };
@@ -303,34 +302,64 @@ fn exclude_errors(log: &str, excluded_errors: &[&str]) -> String {
         .join("\n")
 }
 
+/// Test whether `port` on 127.0.0.1 is currently bindable by trying
+/// to bind a `TcpListener` and immediately releasing it. Returns
+/// `false` when another process is holding the port (or any other
+/// `bind` error fires — e.g. permission). Used as a fast-path
+/// pre-check in [`with_retry_on_collision`] to avoid paying a full
+/// validator cold-start just to learn that a pinned port is taken.
+///
+/// **TOCTOU caveat**: the bind succeeds and is released before the
+/// real validator launch attempts its own bind, so the port could in
+/// principle be claimed in between. This is a fast-path optimization,
+/// not a guarantee — the existing collision-detection-on-failure
+/// branch in `with_retry_on_collision` remains the correctness
+/// backstop and will fire if the race wins.
+fn try_bind_and_release(port: u16) -> bool {
+    std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
 /// Bounded retry-on-port-collision wrapper for validator launches.
 ///
 /// Closes the cross-test-subprocess port-pick race documented in
 /// `mod launch_recovers_from_rpc_port_collision` (see
-/// `zcash_local_net/tests/integration.rs`). When a launch attempt
-/// fails with stderr matching one of the validator's
-/// `collision_signatures`, the helper:
+/// `zcash_local_net/tests/integration.rs`). Two collision-recovery
+/// paths share one wrapper:
 ///
-///   1. Calls `clear_port_pins(&mut config)` so the next attempt picks
-///      a fresh ephemeral port instead of the one that just collided.
-///      Validators with multiple ports clear all of them — partial
-///      clearing risks one of the surviving picks being a port a
-///      sibling test subprocess just claimed (the same race we are
-///      recovering from).
-///   2. Re-runs `attempt(config.clone()).await`.
-///   3. Repeats up to `max_attempts`. On exhaustion returns the last
-///      error from `attempt`, with the per-attempt count preserved in
-///      tracing events so CI logs surface the rate.
+///   - **Fast path (pre-check)**: `read_pinned_ports(&config)`
+///     enumerates the currently-set listen ports; the helper
+///     attempts to bind each via [`try_bind_and_release`] *before*
+///     spawning. If any pinned port refuses, the spawn is skipped,
+///     `clear_port_pins` re-rolls, and the next attempt begins.
+///     Saves a full validator cold-start (~6 s for zcashd) per
+///     pre-detected collision in the common case where the racing
+///     process is still holding the port at pre-check time.
+///   - **Slow path (post-failure)**: when an attempt does spawn and
+///     subsequently fails with stderr matching `collision_signatures`,
+///     the helper performs the same `clear_port_pins` re-roll and
+///     retries. Backstop for the TOCTOU window between pre-check
+///     release and actual bind, and for failure modes that don't
+///     surface as a bindable-port-test (e.g. zaino's
+///     `ListenerNotResponsive`).
 ///
-/// Non-collision errors are returned immediately on the first attempt
-/// — retry only fires when the failure is recognizably a port
-/// collision, never as a blanket "launches sometimes fail, try again"
-/// hack.
+/// Both paths share the same retry budget (`max_attempts`),
+/// `clear_port_pins` semantics (clear all pins, not just the
+/// conflicting one — partial clearing risks the surviving picks
+/// being raced), and `tracing` instrumentation. The pre-check is
+/// disabled on the *last* attempt so a real `LaunchError` is
+/// surfaced if the spawn ultimately fails — the wrapper never
+/// synthesizes errors out of pre-check failures.
+///
+/// Non-collision errors are returned immediately on the first
+/// attempt — retry only fires when the failure is recognizably a
+/// port collision, never as a blanket "launches sometimes fail, try
+/// again" hack.
 ///
 /// Instrumentation: events are emitted under
 /// `target = "zcash_local_net::launch::retry"` at:
 ///
-///   - `info!` per detected collision (one event per retry trigger)
+///   - `info!` per detected collision (one event per retry trigger,
+///     pre-check or post-failure, with `reason` distinguishing them)
 ///   - `info!` once on successful recovery (when an attempt > 1
 ///     succeeds), so a log grep tells you both how often the race
 ///     fires and how often retry actually rescues
@@ -339,16 +368,18 @@ fn exclude_errors(log: &str, excluded_errors: &[&str]) -> String {
 /// Counts can be derived from the event stream; if/when the rate
 /// climbs to where atomic counters are warranted, this is the place
 /// to add them.
-pub(crate) async fn with_retry_on_collision<C, F, Fut, T, M>(
+pub(crate) async fn with_retry_on_collision<C, F, Fut, T, M, P>(
     process_name: &'static str,
     mut config: C,
     collision_signatures: &[&'static str],
     max_attempts: u32,
+    mut read_pinned_ports: P,
     mut clear_port_pins: M,
     mut attempt: F,
 ) -> Result<T, LaunchError>
 where
     C: Clone,
+    P: FnMut(&C) -> Vec<u16>,
     M: FnMut(&mut C),
     F: FnMut(C) -> Fut,
     Fut: std::future::Future<Output = Result<T, LaunchError>>,
@@ -358,6 +389,26 @@ where
         "with_retry_on_collision requires at least one attempt"
     );
     for attempt_n in 1..=max_attempts {
+        // Fast-path collision pre-check: if any pinned port is
+        // currently held by another process, skip the whole spawn
+        // attempt and re-roll. Disabled on the last attempt so a
+        // genuine bind failure still produces a real LaunchError
+        // instead of a synthesized one.
+        if attempt_n < max_attempts {
+            let pinned = read_pinned_ports(&config);
+            if pinned.iter().any(|p| !try_bind_and_release(*p)) {
+                tracing::info!(
+                    target: "zcash_local_net::launch::retry",
+                    process = process_name,
+                    attempt = attempt_n,
+                    reason = "pre_check_bind_fail",
+                    "pinned port currently held; clearing pins and retrying without spawn"
+                );
+                clear_port_pins(&mut config);
+                continue;
+            }
+        }
+
         let err = match attempt(config.clone()).await {
             Ok(t) => {
                 if attempt_n > 1 {

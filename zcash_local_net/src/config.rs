@@ -291,10 +291,7 @@ NU6 = {nu6_activation_height}
                     if !addresses.is_empty() {
                         let quoted: Vec<String> =
                             addresses.iter().map(|a| format!("\"{a}\"")).collect();
-                        cfg.push_str(&format!(
-                            "\naddresses = [{}]",
-                            quoted.join(", ")
-                        ));
+                        cfg.push_str(&format!("\naddresses = [{}]", quoted.join(", ")));
                     }
                 }
             }

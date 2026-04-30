@@ -104,7 +104,10 @@ mod tests {
                 for _ in 0..PICKS_PER_THREAD {
                     let port = pick_unused_port(None);
                     let mut o = observed.lock().expect("observed poisoned");
-                    assert!(o.insert(port), "duplicate port {port} returned concurrently");
+                    assert!(
+                        o.insert(port),
+                        "duplicate port {port} returned concurrently"
+                    );
                 }
             }));
         }

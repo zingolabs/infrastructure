@@ -108,9 +108,7 @@ impl Default for ZebradConfig {
             health_listen_port: None,
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
             chain_cache: None,
-            network_type: NetworkType::Regtest(
-                crate::validator::regtest_test_activation_heights(),
-            ),
+            network_type: NetworkType::Regtest(crate::validator::regtest_test_activation_heights()),
             lockbox_disbursements: crate::validator::regtest_test_lockbox_disbursements(),
             post_nu6_funding_streams: Some(
                 crate::validator::regtest_test_post_nu6_funding_streams(),
@@ -399,8 +397,7 @@ impl Process for Zebrad {
         // peer-protocol bind path raises a typed eyre error that
         // includes "AddrInUse" in its `{:?}` rendering. All four
         // bind paths funnel through one of these strings.
-        const COLLISION_SIGNATURES: &[&str] =
-            &["AddrInUse", "code: 98", "Address already in use"];
+        const COLLISION_SIGNATURES: &[&str] = &["AddrInUse", "code: 98", "Address already in use"];
         const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
@@ -408,6 +405,17 @@ impl Process for Zebrad {
             config,
             COLLISION_SIGNATURES,
             MAX_ATTEMPTS,
+            |c: &ZebradConfig| {
+                [
+                    c.network_listen_port,
+                    c.rpc_listen_port,
+                    c.indexer_listen_port,
+                    c.health_listen_port,
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
+            },
             |c: &mut ZebradConfig| {
                 // Four-port validator — clear all four pins. Re-rolling
                 // only the conflicted port would leave the surviving
@@ -514,7 +522,9 @@ impl Validator for Zebrad {
                     .client
                     .json_result_from_call("getblocktemplate", "[]".to_string())
                     .await
-                    .expect("response should be success output with a serialized `GetBlockTemplate`");
+                    .expect(
+                        "response should be success output with a serialized `GetBlockTemplate`",
+                    );
 
                 let block_data = hex::encode(
                     proposal_block_from_template(

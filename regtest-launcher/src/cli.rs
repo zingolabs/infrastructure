@@ -357,7 +357,7 @@ mod tests {
     #[test]
     fn cli_default_matches_fixture_helper() {
         use local_net::validator::{
-            regtest_test_activation_heights, REGTEST_FIXTURE_HEIGHTS_CLI_STRING,
+            REGTEST_FIXTURE_HEIGHTS_CLI_STRING, regtest_test_activation_heights,
         };
         let parsed = parse_activation_heights(REGTEST_FIXTURE_HEIGHTS_CLI_STRING)
             .expect("CLI default string must parse");

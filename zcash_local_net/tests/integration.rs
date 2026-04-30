@@ -2,9 +2,9 @@ mod testutils;
 
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
 use zcash_local_net::process::Process;
+use zcash_local_net::protocol::ActivationHeights;
 use zcash_local_net::validator::Validator as _;
 use zcash_local_net::validator::ValidatorConfig as _;
-use zcash_local_net::protocol::ActivationHeights;
 use zcash_local_net::LocalNetConfig;
 use zcash_local_net::{
     indexer::{
@@ -377,8 +377,7 @@ async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_str
 
     let mut config = ZebradConfig::default();
     config.set_test_parameters(PoolType::Transparent, activation_heights, None);
-    config.lockbox_disbursements =
-        zcash_local_net::validator::regtest_test_lockbox_disbursements();
+    config.lockbox_disbursements = zcash_local_net::validator::regtest_test_lockbox_disbursements();
     config.post_nu6_funding_streams =
         Some(zcash_local_net::validator::regtest_test_post_nu6_funding_streams());
 
@@ -808,7 +807,11 @@ mod launch_recovers_from_rpc_port_collision {
             // through the standard libc strings. If a future Zaino
             // build emits something else, the diagnose helper flags
             // UNEXPECTED FAILURE MODE and the list gets an entry.
-            &["address already in use", "Address already in use", "AddrInUse"],
+            &[
+                "address already in use",
+                "Address already in use",
+                "AddrInUse",
+            ],
             |conflicted| {
                 let mut config = ZainodConfig::default();
                 config.listen_port = Some(conflicted);

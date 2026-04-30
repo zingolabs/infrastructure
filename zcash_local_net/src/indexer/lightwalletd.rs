@@ -204,6 +204,7 @@ impl Process for Lightwalletd {
             config,
             COLLISION_SIGNATURES,
             MAX_ATTEMPTS,
+            |c: &LightwalletdConfig| c.listen_port.into_iter().collect(),
             |c: &mut LightwalletdConfig| {
                 // Single-port indexer — clear the only pin so the
                 // next attempt's `LightwalletdPorts::pick` calls

@@ -184,8 +184,11 @@ impl Process for Zainod {
         // strings the build emits today; if a future Zaino change
         // produces something else, the test trips UNEXPECTED FAILURE
         // MODE before silently classifying the failure here.
-        const COLLISION_SIGNATURES: &[&str] =
-            &["address already in use", "Address already in use", "AddrInUse"];
+        const COLLISION_SIGNATURES: &[&str] = &[
+            "address already in use",
+            "Address already in use",
+            "AddrInUse",
+        ];
         const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
@@ -193,6 +196,7 @@ impl Process for Zainod {
             config,
             COLLISION_SIGNATURES,
             MAX_ATTEMPTS,
+            |c: &ZainodConfig| c.listen_port.into_iter().collect(),
             |c: &mut ZainodConfig| {
                 // Single-port indexer — clear the only pin so the
                 // next attempt's `ZainodPorts::pick` calls
