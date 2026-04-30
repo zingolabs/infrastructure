@@ -4,8 +4,8 @@ description = "A crate that provides access to Zingo testvectors."
 version = "0.0.1"
 edition = "2024"
 authors = ["Zingolabs <zingo@zingolabs.org>"]
-repository = "https://github.com/zingolabs/zingolib"
-homepage = "https://github.com/zingolabs/zingolib"
+repository = "https://github.com/zingolabs/infrastructure"
+homepage = "https://github.com/zingolabs/infrastructure"
 license = "MIT"
 
 [dependencies]
