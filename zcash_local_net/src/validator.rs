@@ -358,22 +358,24 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     fn network(&self) -> NetworkType;
 
     /// Caches chain. This stops the zcashd process.
+    ///
+    /// `chain_cache` must not already exist; its parent path is
+    /// walked from `/` with `openat(O_NOFOLLOW)` -- if any ancestor
+    /// component is a symlink the call returns `Err` and nothing is
+    /// copied. Closes the TOCTOU window the prior `assert!(!exists)`
+    /// + `cp -r` shape left open (issue #256, A2).
     fn cache_chain(
         &mut self,
         chain_cache: PathBuf,
-    ) -> impl std::future::Future<Output = std::process::Output> + Send {
+    ) -> impl std::future::Future<Output = std::io::Result<()>> + Send {
         async move {
-            assert!(!chain_cache.exists(), "chain cache already exists!");
-
             self.stop();
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
-            std::process::Command::new("cp")
-                .arg("-r")
-                .arg(self.data_dir().path())
-                .arg(chain_cache)
-                .output()
-                .unwrap()
+            crate::utils::safe_copy::safe_copy_into_new(
+                self.data_dir().path(),
+                &chain_cache,
+            )
         }
     }
 
@@ -381,13 +383,175 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     /// Returns the path to the loaded chain cache.
     ///
     /// If network is not `Regtest` variant, the chain cache will not be copied and the original cache path will be
-    /// returned instead
+    /// returned instead.
+    ///
+    /// Returns `Err` if the chain-cache subdirectory expected by the
+    /// concrete validator (e.g. `<chain_cache>/state` for Zebrad, or
+    /// `<chain_cache>/regtest` for Zcashd) is missing, is a symlink,
+    /// or has a symlink ancestor -- the implementation routes through
+    /// [`crate::utils::safe_copy::safe_copy_into_existing`] which
+    /// rejects those shapes (issue #256, A3/A4).
     fn load_chain(
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
         validator_network: NetworkType,
-    ) -> PathBuf;
+    ) -> std::io::Result<PathBuf>;
 
     /// To reveal a port.
     fn get_port(&self) -> u16;
+}
+
+#[cfg(test)]
+mod unit_tests {
+    /// Audit tests for `CLAUDE.md` checklist item #1 -- TOCTOU on
+    /// filesystem paths. See issue #256.
+    mod corrosion_mitigation {
+        mod fs_path_toctou {
+            //! Site A2: `Validator::cache_chain` default impl
+            //! (`validator.rs:366`) does
+            //!   `assert!(!chain_cache.exists())` then
+            //!   `cp -r self.data_dir() chain_cache`.
+            //! Both `Path::exists()` and `cp -r` resolve symlinks in
+            //! the *parent components* of the path. If any ancestor
+            //! component of `chain_cache` is a symlink to an
+            //! attacker-controlled directory, the assertion passes
+            //! (the leaf doesn't exist under the resolved parent) and
+            //! `cp -r` writes the validator data dir at the
+            //! attacker-pointed location. Deterministic -- no race
+            //! window required.
+            //!
+            //! (A *leaf* dangling symlink at `chain_cache` itself does
+            //! not exploit: GNU `cp -r SRC_DIR dangling_symlink`
+            //! refuses with "cannot overwrite non-directory". The
+            //! parent-component symlink vector is the deterministic
+            //! one.)
+            //!
+            //! Mitigation: canonicalize the chain_cache path and
+            //! verify no parent component traversed a symlink (or
+            //! resolve the parent via `openat(O_NOFOLLOW)`-style
+            //! syscalls), and drop the `cp -r` subprocess for an
+            //! FD-anchored Rust-level recursive copy so the path is
+            //! not re-resolved by an external tool.
+
+            use crate::error::LaunchError;
+            use crate::process::Process;
+            use crate::validator::{Validator, ValidatorConfig};
+            use crate::ProcessId;
+            use std::path::PathBuf;
+            use tempfile::TempDir;
+            use zcash_protocol::PoolType;
+            use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+
+            #[derive(Debug, Default)]
+            struct MockValidatorConfig;
+
+            impl ValidatorConfig for MockValidatorConfig {
+                fn set_test_parameters(
+                    &mut self,
+                    _mine_to_pool: PoolType,
+                    _activation_heights: ActivationHeights,
+                    _chain_cache: Option<PathBuf>,
+                ) {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+            }
+
+            #[derive(Debug)]
+            struct MockValidator {
+                data_dir: TempDir,
+            }
+
+            impl Process for MockValidator {
+                const PROCESS: ProcessId = ProcessId::Empty;
+                type Config = MockValidatorConfig;
+
+                async fn launch(_config: Self::Config) -> Result<Self, LaunchError> {
+                    Ok(MockValidator {
+                        data_dir: tempfile::tempdir().unwrap(),
+                    })
+                }
+
+                fn stop(&mut self) {}
+
+                fn print_all(&self) {}
+            }
+
+            impl Validator for MockValidator {
+                async fn get_activation_heights(&self) -> ActivationHeights {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                async fn generate_blocks(&self, _n: u32) -> std::io::Result<()> {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                async fn get_chain_height(&self) -> u32 {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                fn data_dir(&self) -> &TempDir {
+                    &self.data_dir
+                }
+
+                fn get_zcashd_conf_path(&self) -> PathBuf {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                fn network(&self) -> NetworkType {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                fn load_chain(
+                    _chain_cache: PathBuf,
+                    _validator_data_dir: PathBuf,
+                    _validator_network: NetworkType,
+                ) -> std::io::Result<PathBuf> {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+
+                fn get_port(&self) -> u16 {
+                    unimplemented!("MockValidator: not exercised by cache_chain")
+                }
+            }
+
+            /// FAILS while `Validator::cache_chain` trusts a
+            /// chain_cache path whose parent component is a symlink.
+            /// After the fix, the function rejects (or canonicalizes
+            /// away) symlinked ancestors and the attacker-pointed
+            /// directory is never written.
+            #[tokio::test]
+            async fn cache_chain_refuses_chain_cache_with_symlinked_parent() {
+                let mut validator = MockValidator {
+                    data_dir: tempfile::tempdir().unwrap(),
+                };
+                std::fs::write(
+                    validator.data_dir.path().join("payload"),
+                    b"validator data dir contents",
+                )
+                .unwrap();
+
+                let attacker_dir = tempfile::tempdir().unwrap();
+
+                let cache_holder = tempfile::tempdir().unwrap();
+                let cache_subdir_link = cache_holder.path().join("cache_subdir");
+                std::os::unix::fs::symlink(attacker_dir.path(), &cache_subdir_link).unwrap();
+
+                let chain_cache = cache_subdir_link.join("target");
+
+                let _ = validator.cache_chain(chain_cache).await;
+
+                // `cp -r data_dir chain_cache` with chain_cache's
+                // parent being a symlink to attacker_dir resolves to
+                // attacker_dir/target/<data_dir contents>.
+                let attacker_marker = attacker_dir.path().join("target").join("payload");
+                assert!(
+                    !attacker_marker.exists(),
+                    "audit (issue #256, site A2): cache_chain followed a \
+                     parent-directory symlink in the chain_cache path and \
+                     wrote validator data into the attacker-pointed \
+                     directory at {attacker_marker:?}"
+                );
+            }
+        }
+    }
 }

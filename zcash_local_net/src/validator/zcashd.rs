@@ -186,7 +186,8 @@ impl Zcashd {
                 cache,
                 data_dir.path().to_path_buf(),
                 NetworkType::Regtest(ActivationHeights::default()),
-            );
+            )
+            .expect("load_chain failed");
         }
 
         let activation_heights = config.activation_heights;
@@ -420,17 +421,16 @@ impl Validator for Zcashd {
         chain_cache: PathBuf,
         validator_data_dir: PathBuf,
         _validator_network: NetworkType,
-    ) -> PathBuf {
-        let regtest_dir = chain_cache.clone().join("regtest");
-        assert!(regtest_dir.exists(), "regtest directory not found!");
+    ) -> std::io::Result<PathBuf> {
+        let regtest_dir = chain_cache.join("regtest");
 
-        std::process::Command::new("cp")
-            .arg("-r")
-            .arg(regtest_dir)
-            .arg(validator_data_dir)
-            .output()
-            .unwrap();
-        chain_cache
+        // `safe_copy_into_existing` walks regtest_dir's parent
+        // no-symlinks and opens regtest_dir's basename with
+        // O_NOFOLLOW -- so a symlink at chain_cache/regtest can no
+        // longer redirect the read into an attacker-controlled
+        // directory the way the prior `cp -r` did (issue #256, A4).
+        crate::utils::safe_copy::safe_copy_into_existing(&regtest_dir, &validator_data_dir)?;
+        Ok(chain_cache)
     }
 
     fn get_port(&self) -> u16 {
@@ -441,5 +441,74 @@ impl Validator for Zcashd {
 impl Drop for Zcashd {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+#[cfg(test)]
+mod unit_tests {
+    /// Audit tests for `CLAUDE.md` checklist item #1 — TOCTOU on
+    /// filesystem paths. See issue #256.
+    mod corrosion_mitigation {
+        mod fs_path_toctou {
+            //! Site A4: `Zcashd::load_chain` (line 425) does
+            //!   `assert!(regtest_dir.exists())` then `cp -r regtest_dir
+            //!   validator_data_dir`.
+            //! `Path::exists()` follows symlinks, so a *valid* symlink
+            //! at `chain_cache/regtest` pointing at an attacker-
+            //! controlled directory passes the assertion, and `cp -r
+            //! SRC` (which also follows the symlink) reads the
+            //! attacker's files into `validator_data_dir`.
+            //! Deterministic -- no race window required.
+            //!
+            //! Mitigation: replace `.exists()` with
+            //! `fs::symlink_metadata(p)` and reject if `is_symlink()`
+            //! (or open the directory once as an FD and use `*at`
+            //! syscalls); drop the `cp -r` subprocess for an
+            //! FD-anchored Rust-level recursive copy so the path is
+            //! not re-resolved by an external tool.
+
+            use crate::validator::zcashd::Zcashd;
+            use crate::validator::Validator;
+            use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+
+            /// FAILS while `Zcashd::load_chain` trusts a symlink at
+            /// `chain_cache/regtest`. After the fix, the function
+            /// rejects the symlink (or refuses to follow it) and the
+            /// attacker's payload never reaches `validator_data_dir`.
+            #[test]
+            fn load_chain_refuses_symlinked_regtest_dir() {
+                let attacker_dir = tempfile::tempdir().unwrap();
+                std::fs::write(
+                    attacker_dir.path().join("PWNED"),
+                    b"attacker payload -- must not reach validator_data_dir",
+                )
+                .unwrap();
+
+                let chain_cache = tempfile::tempdir().unwrap();
+                let regtest_path = chain_cache.path().join("regtest");
+                std::os::unix::fs::symlink(attacker_dir.path(), &regtest_path).unwrap();
+
+                let validator_data_holder = tempfile::tempdir().unwrap();
+                let validator_data_dir = validator_data_holder.path().to_path_buf();
+
+                let _ = <Zcashd as Validator>::load_chain(
+                    chain_cache.path().to_path_buf(),
+                    validator_data_dir.clone(),
+                    NetworkType::Regtest(ActivationHeights::default()),
+                );
+
+                // `cp -r regtest_dir validator_data_dir` produces
+                // `validator_data_dir/regtest/<contents>` (the basename
+                // of the source is appended when copying a directory
+                // into an existing directory).
+                let attacker_marker = validator_data_dir.join("regtest").join("PWNED");
+                assert!(
+                    !attacker_marker.exists(),
+                    "audit (issue #256, site A4): Zcashd::load_chain followed \
+                     a symlink at chain_cache/regtest and copied attacker \
+                     payload into validator_data_dir at {attacker_marker:?}"
+                );
+            }
+        }
     }
 }
