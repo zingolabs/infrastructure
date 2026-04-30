@@ -56,7 +56,16 @@ impl Default for ZcashdConfig {
         Self {
             rpc_listen_port: None,
             activation_heights: crate::validator::regtest_test_activation_heights(),
-            miner_address: Some(REG_O_ADDR_FROM_ABANDONART),
+            // Mine to a transparent address by default. `Zcashd::launch`
+            // always mines a genesis block, and an Orchard or Sapling
+            // coinbase forces zcashd to generate a Halo2 / Groth16 proof
+            // (~1 s pre-NU6.1, ~4 s post-NU6.1 for Orchard) for every
+            // mined block. The harness's lifecycle/launch tests don't
+            // use the funds — the proving cost was pure overhead.
+            // Tests that need shielded-mined funds opt in via
+            // `ValidatorConfig::set_test_parameters` with
+            // `PoolType::ORCHARD` or `PoolType::SAPLING`.
+            miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
         }
     }
@@ -199,8 +208,14 @@ impl Zcashd {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
+        let spawn_start = std::time::Instant::now();
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
+        tracing::info!(
+            elapsed_ms = spawn_start.elapsed().as_millis() as u64,
+            "zcashd: process spawned"
+        );
 
+        let wait_start = std::time::Instant::now();
         launch::wait(
             ProcessId::Zcashd,
             &mut handle,
@@ -211,6 +226,10 @@ impl Zcashd {
             &[],
         )
         .await?;
+        tracing::info!(
+            elapsed_ms = wait_start.elapsed().as_millis() as u64,
+            "zcashd: launch::wait returned (Done loading observed)"
+        );
 
         let zcashd = Zcashd {
             handle,
@@ -222,7 +241,12 @@ impl Zcashd {
 
         if config.chain_cache.is_none() {
             // generate genesis block
+            let genesis_start = std::time::Instant::now();
             zcashd.generate_blocks(1).await.unwrap();
+            tracing::info!(
+                elapsed_ms = genesis_start.elapsed().as_millis() as u64,
+                "zcashd: genesis block mined (post-launch generate_blocks(1))"
+            );
         }
 
         Ok(zcashd)
@@ -325,8 +349,23 @@ impl Validator for Zcashd {
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
+
+        let cli_start = std::time::Instant::now();
         self.zcash_cli_command(&["generate", &n.to_string()])?;
+        let cli_ms = cli_start.elapsed().as_millis() as u64;
+
+        let poll_start = std::time::Instant::now();
         self.poll_chain_height(chain_height + n).await;
+        let poll_ms = poll_start.elapsed().as_millis() as u64;
+
+        tracing::info!(
+            n,
+            target_height = chain_height + n,
+            cli_ms,
+            poll_ms,
+            total_ms = cli_ms + poll_ms,
+            "zcashd: generate_blocks"
+        );
 
         Ok(())
     }
