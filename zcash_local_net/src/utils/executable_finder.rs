@@ -17,24 +17,29 @@ pub(crate) fn pick_command(executable_name: &str, trace_location: bool) -> Comma
 }
 
 /// The part of `pick_command` that is unit-testable.
+///
+/// Resolution is decoupled from existence: when `TEST_BINARIES_DIR`
+/// is set we return `Some(<dir>/<name>)` without stat-ing the path.
+/// The caller's `Command::new(path).spawn()` is the single syscall
+/// that binds the path, closing the TOCTOU window between a
+/// redundant `.exists()` and the eventual `execve` (issue #256, A1).
+/// Same change also removes the silent `PATH` fallback when
+/// `TEST_BINARIES_DIR` is set but the binary is missing -- a missing
+/// binary now surfaces as `ENOENT` from the spawn at the resolved
+/// path instead of disappearing into the PATH lookup.
 fn pick_path(executable_name: &str, trace_location: bool) -> Option<PathBuf> {
     let environment_variable_path: &str = "TEST_BINARIES_DIR";
 
     match std::env::var(environment_variable_path) {
         Ok(directory) => {
             let path = PathBuf::from(directory).join(executable_name);
-            if path.exists() {
-                if trace_location {
-                    tracing::info!("Found {executable_name} at {path:?}.");
-                    tracing::info!("Ready to launch to launch {executable_name}.");
-                }
-                Some(path)
-            } else {
-                if trace_location {
-                    tracing::info!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
-                }
-                None
+            if trace_location {
+                tracing::info!(
+                    "Resolved {executable_name} to {path:?} via {environment_variable_path}; \
+                     existence is verified at spawn time."
+                );
             }
+            Some(path)
         }
         Err(_err) => {
             if trace_location {
@@ -73,6 +78,10 @@ mod tests {
 
     #[test]
     fn cargo() {
+        // Pin the env-unset branch deterministically; otherwise this
+        // test depends on whatever `TEST_BINARIES_DIR` happens to be
+        // in the parent shell.
+        std::env::remove_var("TEST_BINARIES_DIR");
         let pick_path = pick_path("cargo", true);
         assert_eq!(pick_path, None);
     }
