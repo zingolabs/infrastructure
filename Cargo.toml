@@ -5,7 +5,7 @@ resolver = "2"
 [workspace.dependencies]
 
 # workspace
-zingo_test_vectors = { path = "zingo_test_vectors" }
+zingo_test_vectors = { path = "zingo_test_vectors", version = "0.0.1" }
 zcash_local_net = { path = "zcash_local_net" }
 
 # zingo-common
