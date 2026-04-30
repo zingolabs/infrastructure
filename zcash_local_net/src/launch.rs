@@ -2,7 +2,7 @@ use std::{fs::File, io::Read as _, path::PathBuf, process::Child};
 
 use tempfile::TempDir;
 
-use crate::{error::LaunchError, logs, ProcessId};
+use crate::{ProcessId, error::LaunchError, logs};
 
 /// Read the captured additional-log file (if a path was configured)
 /// for a final snapshot at error-emission time. Used to populate the

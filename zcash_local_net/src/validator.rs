@@ -257,7 +257,9 @@ fn parse_activation_heights_from_rpc(
         .set_nu6_1(get_height("NU6.1"))
         .set_nu7(get_height("NU7"))
         .build();
-    tracing::debug!("regtest validator reports the following activation heights: {configured_activation_heights:?}");
+    tracing::debug!(
+        "regtest validator reports the following activation heights: {configured_activation_heights:?}"
+    );
 
     configured_activation_heights
 }
@@ -295,7 +297,7 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     /// A representation of the Network Upgrade Activation heights applied for this
     /// Validator's test configuration.
     fn get_activation_heights(&self)
-        -> impl std::future::Future<Output = ActivationHeights> + Send;
+    -> impl std::future::Future<Output = ActivationHeights> + Send;
 
     /// Generate `n` blocks. This implementation should also call [`Self::poll_chain_height`] so the chain is at the
     /// correct height when this function returns.
@@ -372,10 +374,7 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
             self.stop();
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
-            crate::utils::safe_copy::safe_copy_into_new(
-                self.data_dir().path(),
-                &chain_cache,
-            )
+            crate::utils::safe_copy::safe_copy_into_new(self.data_dir().path(), &chain_cache)
         }
     }
 
@@ -433,10 +432,10 @@ mod unit_tests {
             //! FD-anchored Rust-level recursive copy so the path is
             //! not re-resolved by an external tool.
 
+            use crate::ProcessId;
             use crate::error::LaunchError;
             use crate::process::Process;
             use crate::validator::{Validator, ValidatorConfig};
-            use crate::ProcessId;
             use std::path::PathBuf;
             use tempfile::TempDir;
             use zcash_protocol::PoolType;

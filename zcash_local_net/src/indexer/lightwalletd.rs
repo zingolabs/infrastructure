@@ -4,15 +4,14 @@ use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use crate::{
-    config,
+    ProcessId, config,
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     launch,
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
     process::Process,
-    utils::executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
-    ProcessId,
+    utils::executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
 };
 
 /// Lightwalletd configuration

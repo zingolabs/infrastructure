@@ -1,12 +1,13 @@
 mod testutils;
 
+use zcash_local_net::LocalNetConfig;
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
 use zcash_local_net::process::Process;
 use zcash_local_net::protocol::ActivationHeights;
 use zcash_local_net::validator::Validator as _;
 use zcash_local_net::validator::ValidatorConfig as _;
-use zcash_local_net::LocalNetConfig;
 use zcash_local_net::{
+    LocalNet,
     indexer::{
         empty::{Empty, EmptyConfig},
         zainod::Zainod,
@@ -16,7 +17,6 @@ use zcash_local_net::{
         zcashd::Zcashd,
         zebrad::{Zebrad, ZebradConfig},
     },
-    LocalNet,
 };
 use zcash_protocol::PoolType;
 
@@ -677,7 +677,12 @@ mod launch_recovers_from_rpc_port_collision {
                 "mode: every retry attempt hit ProcessFailed (last exit={exit_status}); \
                  captured output contains expected RPC-bind signature {sig:?}"
             ),
-            (LaunchError::LaunchAborted { matched_indicator, .. }, Some(sig)) => format!(
+            (
+                LaunchError::LaunchAborted {
+                    matched_indicator, ..
+                },
+                Some(sig),
+            ) => format!(
                 "mode: every retry attempt hit indicator-scan abort (last matched_indicator={matched_indicator:?}); \
                  captured output contains expected RPC-bind signature {sig:?}"
             ),
@@ -689,7 +694,12 @@ mod launch_recovers_from_rpc_port_collision {
                 "mode: LaunchError::ProcessFailed (exit={exit_status}) — UNEXPECTED FAILURE MODE: \
                  captured output does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
             ),
-            (LaunchError::LaunchAborted { matched_indicator, .. }, None) => format!(
+            (
+                LaunchError::LaunchAborted {
+                    matched_indicator, ..
+                },
+                None,
+            ) => format!(
                 "mode: LaunchError::LaunchAborted (indicator={matched_indicator:?}) — UNEXPECTED FAILURE MODE: \
                  captured output does not contain any of the expected RPC-bind signatures {stderr_signatures:?}"
             ),

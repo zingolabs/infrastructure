@@ -1,18 +1,17 @@
 //! The Zebrad executable support struct and associated.
 
 use crate::{
-    config,
+    ProcessId, config,
     error::LaunchError,
     launch,
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
     utils::{
-        executable_finder::{pick_command, trace_version_and_location, EXPECT_SPAWN},
+        executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
         type_conversions::zingo_to_zebra_activation_heights,
     },
     validator::{Validator, ValidatorConfig},
-    ProcessId,
 };
 use zcash_protocol::PoolType;
 use zingo_common_components::protocol::{ActivationHeights, NetworkType};
@@ -139,7 +138,11 @@ impl ValidatorConfig for ZebradConfig {
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
-        assert_eq!(mine_to_pool, PoolType::Transparent, "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}");
+        assert_eq!(
+            mine_to_pool,
+            PoolType::Transparent,
+            "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}"
+        );
         self.network_type = NetworkType::Regtest(activation_heights);
         self.chain_cache = chain_cache;
     }
@@ -645,9 +648,9 @@ mod unit_tests {
             //! FD-anchored Rust-level recursive copy so the path is
             //! not re-resolved by an external tool.
 
+            use crate::validator::Validator;
             use crate::validator::regtest_test_activation_heights;
             use crate::validator::zebrad::Zebrad;
-            use crate::validator::Validator;
             use zingo_common_components::protocol::NetworkType;
 
             /// FAILS while `Zebrad::load_chain` trusts a symlink at

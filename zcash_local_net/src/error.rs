@@ -79,6 +79,40 @@ pub enum LaunchError {
         /// Last error returned by the RPC client
         last_error: String,
     },
+    /// The pre-launch capability probe ran the binary and observed
+    /// that the requested CLI flag is rejected (binary exits
+    /// non-zero from `<binary> <flag> -version`). Surfaces the
+    /// missing-capability before any state is created so callers
+    /// see a clear, descriptive failure instead of a deep failure
+    /// downstream of the actual launch.
+    #[error(
+        "{process_name} binary does not accept `{capability}`.\n{hint}\nProbe stderr: {stderr}"
+    )]
+    UnsupportedZcashdCapability {
+        /// Process name (always `zcashd` today; field for forward
+        /// compatibility with future per-binary probes).
+        process_name: String,
+        /// The CLI flag that was probed
+        capability: &'static str,
+        /// Captured stderr from the probe invocation
+        stderr: String,
+        /// Human-readable remediation hint (fork URL, opt-out flag,
+        /// etc.)
+        hint: String,
+    },
+    /// The pre-launch capability probe failed to spawn the binary
+    /// at all (PATH/permission/etc.) — distinct from
+    /// `UnsupportedZcashdCapability` where the binary ran but
+    /// rejected the flag.
+    #[error("{process_name} capability probe for `{capability}` failed to spawn: {io_error}")]
+    CapabilityProbeFailed {
+        /// Process name
+        process_name: String,
+        /// The CLI flag that was being probed
+        capability: &'static str,
+        /// Underlying io::Error / spawn-failure description
+        io_error: String,
+    },
 }
 
 impl LaunchError {
@@ -121,7 +155,9 @@ impl LaunchError {
                 }
                 combined
             }
-            Self::RpcReadinessTimeout { .. } => String::new(),
+            Self::RpcReadinessTimeout { .. }
+            | Self::UnsupportedZcashdCapability { .. }
+            | Self::CapabilityProbeFailed { .. } => String::new(),
         }
     }
 }

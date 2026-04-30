@@ -12,23 +12,36 @@ testing in the development of:
 
 ## List of Managed Processes
 - Zebrad
-- [Zcashd](https://github.com/zcash/zcash)
+- Zcashd
 - Zainod
-- [Lightwalletd](https://github.com/zcash/lightwalletd/)
+- Lightwalletd
 
 ## Prerequisites
 
-An internet connection will be needed (during the fist build at least) in order to fetch the required testing binaries.
-The binaries will be automagically checked and downloaded on `cargo build/check/test`. If you specify `None` in a process `launch` config, these binaries will be used.
-The path to the binaries can be specified when launching a process. In that case, you are responsible for compiling the needed binaries.
-Each processes `launch` fn and [`crate::LocalNet::launch`] take config structs for defining parameters such as path
-locations.
-See the config structs for each process in validator.rs and indexer.rs for more details.
+Set `TEST_BINARIES_DIR` to a directory containing the executables
+the harness needs (`zebrad`, `zcashd`, `zcash-cli`, `zainod`,
+`lightwalletd`); otherwise each binary is resolved via `PATH`.
+Each processes `launch` fn and [`crate::LocalNet::launch`] take
+config structs for defining additional parameters; see the config
+structs for each process in `validator.rs` and `indexer.rs`.
+
+### Patched zcashd required for the default-true fast path
+
+`ZcashdConfig::disable_shielded_proving` defaults to `true`, which
+passes `-disableshieldedproving` at launch. Stock zcashd does not
+accept this flag; the harness requires the Zingolabs patched fork
+(<https://github.com/zingolabs/zcash>). `Zcashd::launch` runs a
+pre-launch capability probe that fails fast with
+[`crate::error::LaunchError::UnsupportedZcashdCapability`] if the
+resolved binary doesn't accept the flag. To use stock zcashd
+anyway, set `disable_shielded_proving = false` (slower; loads
+Sapling/Orchard proving keys at startup).
 
 ### Launching multiple processes
 
 See [`crate::LocalNet`].
 
-Current version: 0.1.0
 
-License: MIT License
+Current version: 0.5.0
+
+License: MIT

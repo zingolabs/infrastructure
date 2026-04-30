@@ -2,11 +2,11 @@ use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use crate::{
+    ProcessId,
     error::LaunchError,
     indexer::{Indexer, IndexerConfig},
     logs::LogsToStdoutAndStderr,
     process::Process,
-    ProcessId,
 };
 
 /// Empty configuration

@@ -81,7 +81,9 @@ mod tests {
         // Pin the env-unset branch deterministically; otherwise this
         // test depends on whatever `TEST_BINARIES_DIR` happens to be
         // in the parent shell.
-        std::env::remove_var("TEST_BINARIES_DIR");
+        // SAFETY: nextest runs each test in its own process, so no
+        // other thread can be reading the env concurrently.
+        unsafe { std::env::remove_var("TEST_BINARIES_DIR") };
         let pick_path = pick_path("cargo", true);
         assert_eq!(pick_path, None);
     }
@@ -125,7 +127,9 @@ mod unit_tests {
             #[test]
             fn pick_path_does_not_pre_validate_with_exists() {
                 let dir = tempfile::tempdir().unwrap();
-                std::env::set_var("TEST_BINARIES_DIR", dir.path());
+                // SAFETY: nextest runs each test in its own process,
+                // so no other thread can be reading the env concurrently.
+                unsafe { std::env::set_var("TEST_BINARIES_DIR", dir.path()) };
 
                 let absent_name = "audit_a1_nonexistent_target";
                 let resolved = pick_path(absent_name, false);

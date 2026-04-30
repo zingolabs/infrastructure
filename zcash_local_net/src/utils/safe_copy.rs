@@ -33,21 +33,16 @@ use std::io;
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd};
 use std::path::{Component, Path};
 
+use nix::NixPath;
 use nix::dir::Dir;
 use nix::fcntl::{AtFlags, OFlag};
 use nix::sys::stat::{Mode, SFlag};
-use nix::NixPath;
 
 /// `nix::fcntl::openat` returns `RawFd` in 0.29 and takes `Option<RawFd>`
 /// for the directory FD. Wrap it once so call sites stay in
 /// `BorrowedFd`/`OwnedFd` and the `unsafe { from_raw_fd }` lives in
 /// exactly one place.
-fn openat_owned<P>(
-    dirfd: BorrowedFd<'_>,
-    path: &P,
-    flags: OFlag,
-    mode: Mode,
-) -> io::Result<OwnedFd>
+fn openat_owned<P>(dirfd: BorrowedFd<'_>, path: &P, flags: OFlag, mode: Mode) -> io::Result<OwnedFd>
 where
     P: ?Sized + NixPath,
 {
@@ -89,10 +84,7 @@ pub fn open_dir_no_symlinks(path: &Path) -> io::Result<OwnedFd> {
                 current = openat_owned(
                     current.as_fd(),
                     name,
-                    OFlag::O_RDONLY
-                        | OFlag::O_DIRECTORY
-                        | OFlag::O_NOFOLLOW
-                        | OFlag::O_CLOEXEC,
+                    OFlag::O_RDONLY | OFlag::O_DIRECTORY | OFlag::O_NOFOLLOW | OFlag::O_CLOEXEC,
                     Mode::empty(),
                 )?;
             }
@@ -106,20 +98,16 @@ pub fn open_dir_no_symlinks(path: &Path) -> io::Result<OwnedFd> {
 /// ancestors; the leaf is created atomically via `mkdirat`; contents
 /// are copied via `*at` syscalls relative to held FDs.
 pub fn safe_copy_into_new(trusted_src: &Path, dst: &Path) -> io::Result<()> {
-    let dst_parent = dst.parent().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "dst must have a parent")
-    })?;
-    let dst_basename = dst.file_name().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "dst must have a basename")
-    })?;
+    let dst_parent = dst
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "dst must have a parent"))?;
+    let dst_basename = dst
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "dst must have a basename"))?;
 
     let dst_parent_fd = open_dir_no_symlinks(dst_parent)?;
 
-    nix::sys::stat::mkdirat(
-        Some(dst_parent_fd.as_raw_fd()),
-        dst_basename,
-        Mode::S_IRWXU,
-    )?;
+    nix::sys::stat::mkdirat(Some(dst_parent_fd.as_raw_fd()), dst_basename, Mode::S_IRWXU)?;
 
     let dst_fd: OwnedFd = openat_owned(
         dst_parent_fd.as_fd(),
@@ -139,12 +127,12 @@ pub fn safe_copy_into_new(trusted_src: &Path, dst: &Path) -> io::Result<()> {
 /// `src.basename` itself is opened with `O_NOFOLLOW` -- so neither
 /// `src` nor any ancestor of `src` may be a symlink.
 pub fn safe_copy_into_existing(src: &Path, trusted_dst: &Path) -> io::Result<()> {
-    let src_parent = src.parent().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "src must have a parent")
-    })?;
-    let src_basename = src.file_name().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "src must have a basename")
-    })?;
+    let src_parent = src
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "src must have a parent"))?;
+    let src_basename = src
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "src must have a basename"))?;
 
     let src_parent_fd = open_dir_no_symlinks(src_parent)?;
 
@@ -187,11 +175,8 @@ fn copy_dir_contents(src_fd: BorrowedFd<'_>, dst_fd: BorrowedFd<'_>) -> io::Resu
             continue;
         }
 
-        let stat = nix::sys::stat::fstatat(
-            Some(src_fd.as_raw_fd()),
-            name,
-            AtFlags::AT_SYMLINK_NOFOLLOW,
-        )?;
+        let stat =
+            nix::sys::stat::fstatat(Some(src_fd.as_raw_fd()), name, AtFlags::AT_SYMLINK_NOFOLLOW)?;
 
         let mode_bits = Mode::from_bits_truncate(stat.st_mode);
         let file_type = stat.st_mode & SFlag::S_IFMT.bits();
@@ -236,11 +221,7 @@ fn copy_dir_contents(src_fd: BorrowedFd<'_>, dst_fd: BorrowedFd<'_>) -> io::Resu
             io::copy(&mut src_file, &mut dst_file)?;
         } else if file_type == SFlag::S_IFLNK.bits() {
             let target = nix::fcntl::readlinkat(Some(src_fd.as_raw_fd()), name)?;
-            nix::unistd::symlinkat(
-                target.as_os_str(),
-                Some(dst_fd.as_raw_fd()),
-                name,
-            )?;
+            nix::unistd::symlinkat(target.as_os_str(), Some(dst_fd.as_raw_fd()), name)?;
         } else {
             tracing::warn!(
                 ?name,
@@ -343,13 +324,7 @@ mod tests {
         safe_copy_into_existing(&src, dst_holder.path()).unwrap();
 
         assert_eq!(
-            std::fs::read(
-                dst_holder
-                    .path()
-                    .join("src_basename")
-                    .join("data.txt")
-            )
-            .unwrap(),
+            std::fs::read(dst_holder.path().join("src_basename").join("data.txt")).unwrap(),
             b"data"
         );
     }

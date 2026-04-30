@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+## [0.5.0] - 2026-04-30
+
+### Deprecated
+
+### Added
+
 - `validator::Validator::CHAIN_POLL_INTERVAL` and
   `validator::Validator::CHAIN_POLL_TIMEOUT` (associated `const`s,
   defaults `100ms` and `60s`): tunable knobs consumed by the new
@@ -131,6 +141,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     in the steady state. Catches upstream Zebra regressions that
     would let one side claim ready while the other doesn't, and
     vice versa.
+- `utils::safe_copy` module (`pub fn open_dir_no_symlinks`,
+  `pub fn safe_copy_into_new`, `pub fn safe_copy_into_existing`):
+  FD-anchored, no-symlink-following recursive directory copy. Walks
+  paths with `openat(O_NOFOLLOW|O_DIRECTORY)` from `/`, using
+  `*at` syscalls relative to held FDs so paths are not re-resolved
+  by the kernel between steps. Adopted by `Validator::cache_chain`
+  and `Validator::load_chain` to close the deterministic-exploit
+  TOCTOU vectors at issue-#256 sites A2/A3/A4. Adds `nix = "0.29"`
+  (features `["fs", "dir"]`) as a regular dependency.
+- `error::LaunchError::UnsupportedZcashdCapability` and
+  `error::LaunchError::CapabilityProbeFailed` variants. Surface
+  missing zcashd capabilities (today only `-disableshieldedproving`)
+  before any state is created, with a hint pointing at the Zingolabs
+  patched fork or the `disable_shielded_proving = false` opt-out.
+  Both fold into `LaunchError::captured_output()` returning empty
+  (no in-launch logging has happened yet).
+- `validator::zcashd::ZcashdConfig::disable_wallet` (`pub bool`,
+  default `true`): launch zcashd with `-disablewallet` to skip
+  wallet keypool generation. The harness uses zcashd for chain
+  state, not wallet operations (clients drive their own wallet via
+  zingolib/zaino). `set_test_parameters` auto-flips to `false` for
+  non-Transparent mining pools so existing shielded-coinbase tests
+  keep working without caller changes. Stock zcashd flag — no
+  capability probe required.
+- Five regression tests at
+  `validator::zcashd::unit_tests::overrideable_defaults::*` pin each
+  specced `ZcashdConfig` default with a single assertion --
+  flipping a default in code (or breaking the
+  `set_test_parameters` wallet auto-flip) breaks exactly one test
+  with a message naming the spec it violates.
+- Audit-test scaffolding under
+  `unit_tests::corrosion_mitigation::fs_path_toctou::*` (per-source
+  modules in `utils::executable_finder`, `validator`,
+  `validator::zebrad`, `validator::zcashd`) -- one test per
+  TOCTOU-on-filesystem-paths site enumerated in issue #256.
+  Eight more tests at `utils::safe_copy::tests` cover the helper's
+  primitive behaviors.
+- `rust-toolchain.toml` pinning `channel = "1.95.0"` (current
+  latest stable). Was previously unpinned.
 
 ### Changed
 
@@ -153,13 +202,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All four call sites of `launch::wait`
     (`Zcashd::launch`, `Zebrad::launch`, `Lightwalletd::launch`,
     `Zainod::launch`) now `.await` the call.
-  - **API break**: `Validator::cache_chain` is now `-> impl Future + Send`
-    (was `-> std::process::Output`). Carried the same
-    `std::thread::sleep(3s)` anti-pattern in a sync default-method body
-    reachable from `async fn` test fixtures; making it async lets the
-    sleep become `tokio::time::sleep`. Sole caller (`tests/testutils.rs`)
-    updated to `.await`.
-  - Tracked in zingolabs/infrastructure#251.
+  - **API break**: `Validator::cache_chain` is now
+    `-> impl Future<Output = io::Result<()>> + Send` (was
+    `-> std::process::Output`). The `Future` came from #251 to let the
+    `std::thread::sleep(3s)` anti-pattern in the sync default-method
+    body become `tokio::time::sleep`; the `io::Result<()>` came from
+    #256 (site A2) to surface
+    `utils::safe_copy::safe_copy_into_new`'s rejection of dst paths
+    with symlinked parent components. Sole caller
+    (`tests/testutils.rs`) updated.
+  - Tracked in zingolabs/infrastructure#251 and #256.
 - **Regtest fixture default now activates NU6.1 at height 5.**
   `validator::regtest_test_activation_heights` returns
   `nu6_1: Some(5)` (was `Some(1000)`); the matching
@@ -218,6 +270,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `network::pick_unused_port(Some(p))` now panics if `p` is already
   reserved by another caller in this process. Previously a duplicate
   fixed-port reservation would silently slip through.
+- **API break**: `Validator::load_chain` return type:
+  `io::Result<PathBuf>` (was `PathBuf`). Both `Zebrad::load_chain`
+  and `Zcashd::load_chain` now route through
+  `utils::safe_copy::safe_copy_into_existing`, which opens the
+  source's basename with `O_NOFOLLOW` and walks the parent
+  no-symlinks. Closes issue-#256 sites A3 (Zebrad's
+  `chain_cache/state` symlink vector) and A4 (Zcashd's
+  `chain_cache/regtest` symlink vector). Non-test callers in
+  `Zebrad::launch_once` and `Zcashd::launch_once` keep
+  panic-on-failure semantics via inline `.expect()`.
+- `utils::executable_finder::pick_path` no longer pre-validates the
+  resolved path with `.exists()`. Eliminates the redundant-syscall
+  TOCTOU (issue #256, site A1) and the silent `PATH` fallback when
+  `TEST_BINARIES_DIR` is set but the binary is missing -- a missing
+  binary now surfaces as `ENOENT` from
+  `Command::new(path).spawn()` at the resolved path, instead of
+  disappearing into a confusing "Failed to spawn command" produced
+  by `pick_command`'s PATH fallback.
+- `Zcashd::launch` runs a pre-launch capability probe of
+  `-disableshieldedproving` when `disable_shielded_proving` is
+  `true` (the default). Patched (Zingolabs) zcashd accepts the flag
+  from `-version` and exits 0; stock zcashd exits non-zero on the
+  unknown option. Stock binaries fail fast with
+  `LaunchError::UnsupportedZcashdCapability` and a hint pointing at
+  the Zingolabs patched fork or the
+  `disable_shielded_proving = false` opt-out, instead of producing
+  a confusing failure deep in the launch retry pipeline. Probe runs
+  before any tempdirs are created. Issue #254 follow-up.
+- `zcash_local_net` crate moved from edition `2021` to edition
+  `2024` -- the workspace is uniformly on 2024 now. The two
+  test-only `std::env::set_var`/`remove_var` calls in
+  `utils::executable_finder` are wrapped in `unsafe` blocks (sound
+  under nextest's per-test-process isolation; SAFETY notes
+  document why).
+- `lib.rs` Prerequisites section: removed the stale "binaries are
+  auto-downloaded on `cargo build/check/test`" claim (no `build.rs`
+  in tree), replaced with the actual `TEST_BINARIES_DIR`
+  resolution. Added an explicit Prerequisites entry naming the
+  Zingolabs patched zcashd fork as required for the default
+  `-disableshieldedproving` fast path.
 
 ### Removed
 
