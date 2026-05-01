@@ -42,6 +42,49 @@ async fn launch_zcashd_custom_activation_heights() {
     zcashd.print_all();
 }
 
+/// Benchmark: time `generate_blocks(100)` on a freshly-launched regtest
+/// zcashd. 100 confirmations is the coinbase maturity window, so this
+/// is the time required after launch before the genesis-mined
+/// transparent funds become spendable.
+///
+/// `Zcashd::launch_default` already mines block 1, so this advances
+/// the chain from height 1 → 101.
+///
+/// `#[ignore]`d because it is a benchmark, not a correctness check.
+/// Run with output visible:
+///
+/// ```sh
+/// cargo nextest run --no-capture -p zcash_local_net \
+///   --test integration bench_zcashd_generate_blocks_100 \
+///   --run-ignored only
+/// ```
+///
+/// The `zcashd: generate_blocks` tracing line emits `cli_ms`, `poll_ms`,
+/// and `total_ms` — useful for separating RPC/mining cost from the
+/// 100ms-granularity chain-height poll tail.
+#[ignore = "benchmark; run on demand with --no-capture"]
+#[tokio::test]
+async fn bench_zcashd_generate_blocks_100() {
+    tracing_subscriber::fmt().init();
+
+    let zcashd = Zcashd::launch_default().await.unwrap();
+
+    let start = std::time::Instant::now();
+    zcashd.generate_blocks(100).await.unwrap();
+    let elapsed = start.elapsed();
+
+    let final_height = zcashd.get_chain_height().await;
+    eprintln!(
+        "bench_zcashd_generate_blocks_100: mined 100 blocks in {:?} \
+         (final height = {final_height})",
+        elapsed,
+    );
+    assert_eq!(
+        final_height, 101,
+        "expected chain height 101 after launch + 100 blocks"
+    );
+}
+
 #[tokio::test]
 async fn launch_zebrad() {
     tracing_subscriber::fmt().init();

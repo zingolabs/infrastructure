@@ -83,6 +83,22 @@ pub struct ZcashdConfig {
     /// Unlike `disable_shielded_proving`, this is a *stock* zcashd
     /// flag — no patched fork or capability probe required.
     pub disable_wallet: bool,
+    /// Value passed to zcashd's `-regtestcoinbasematurity=<n>` flag.
+    /// Controls how many confirmations a coinbase needs before it
+    /// is spendable on regtest.
+    ///
+    /// Default `1` — the minimum the `regtest_fast` patched fork
+    /// accepts (`0` is rejected with `out of range; must be between
+    /// 1 and 100`). At `1`, the genesis coinbase is spendable after
+    /// a single additional block, so callers replace the 100-block
+    /// bootstrap with `generate_blocks(1)`.
+    ///
+    /// Stock zcashd hard-codes the 100-block maturity window on
+    /// regtest and will reject this flag entirely. The harness
+    /// assumes the `regtest_fast` branch of the Zingolabs zcash
+    /// fork (<https://github.com/zingolabs/zcash/tree/regtest_fast>)
+    /// is the resolved binary; see the crate-level docs.
+    pub regtest_coinbase_maturity: u32,
 }
 
 impl Default for ZcashdConfig {
@@ -103,6 +119,7 @@ impl Default for ZcashdConfig {
             chain_cache: None,
             disable_shielded_proving: true,
             disable_wallet: true,
+            regtest_coinbase_maturity: 1,
         }
     }
 }
@@ -222,10 +239,11 @@ fn ensure_disableshieldedproving_supported() -> Result<(), LaunchError> {
                 "Hint: this looks like stock zcashd, which does not accept ",
                 "`-disableshieldedproving`. The Zingolabs harness defaults to ",
                 "passing this flag for the proving-key-load fast path. Either ",
-                "install the Zingolabs patched fork ",
-                "(https://github.com/zingolabs/zcash) and point TEST_BINARIES_DIR ",
-                "at it, or set ZcashdConfig::disable_shielded_proving = false ",
-                "(slower; loads Sapling/Orchard proving keys at startup)."
+                "build the `regtest_fast` branch of the Zingolabs patched fork ",
+                "(https://github.com/zingolabs/zcash/tree/regtest_fast) and ",
+                "point TEST_BINARIES_DIR at it, or set ",
+                "ZcashdConfig::disable_shielded_proving = false (slower; loads ",
+                "Sapling/Orchard proving keys at startup)."
             )
             .to_string(),
         });
@@ -311,6 +329,17 @@ impl Zcashd {
         if config.disable_wallet {
             command.arg("-disablewallet");
         }
+
+        // Coinbase maturity override. Default 1 so the genesis
+        // coinbase is spendable after a single additional block
+        // (vs. the 100-block stock window). Requires the
+        // `regtest_fast` branch of the Zingolabs zcash fork; stock
+        // zcashd rejects the flag, and `regtest_fast` clamps the
+        // value to `1..=100`.
+        command.arg(format!(
+            "-regtestcoinbasematurity={}",
+            config.regtest_coinbase_maturity
+        ));
 
         let spawn_start = std::time::Instant::now();
         let mut handle = command.spawn().expect(EXPECT_SPAWN);
@@ -616,6 +645,23 @@ mod unit_tests {
                  the harness uses zcashd for chain state, not wallet \
                  operations (clients drive their own wallet via \
                  zingolib/zaino). Flipping this default requires a \
+                 deliberate spec change (see CHANGELOG)."
+            );
+        }
+
+        #[test]
+        fn default_regtest_coinbase_maturity_is_one() {
+            assert_eq!(
+                ZcashdConfig::default().regtest_coinbase_maturity,
+                1,
+                "ZcashdConfig::default().regtest_coinbase_maturity must \
+                 be 1: the harness's source-of-truth zcashd is the \
+                 `regtest_fast` branch of the Zingolabs fork, which \
+                 accepts -regtestcoinbasematurity in 1..=100 and \
+                 rejects 0 with `out of range`. 1 is the minimum the \
+                 fork accepts and is what skips the 100-block \
+                 bootstrap (genesis coinbase spendable after a single \
+                 additional block). Flipping this default requires a \
                  deliberate spec change (see CHANGELOG)."
             );
         }
