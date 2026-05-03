@@ -12,9 +12,9 @@ zcash_local_net = { path = "zcash_local_net" }
 zingo_common_components = "0.3.0"
 
 # zebra
-zebra-chain = "6.0.2"
-zebra-node-services = "4.0.0"
-zebra-rpc = "6.0.2"
+zebra-chain = "7.0.0"
+zebra-node-services = "5.0.0"
+zebra-rpc = "7.0.0"
 
 # other
 getset = "0.1.3"
