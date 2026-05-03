@@ -4,8 +4,6 @@ use std::{env, path::PathBuf};
 
 /// Functions for picking executables from env variables in the global runtime.
 pub mod executable_finder;
-/// FD-anchored, no-symlink-following recursive directory copy.
-pub mod safe_copy;
 pub(crate) mod type_conversions;
 
 /// Returns path to cargo manifest directory (project root)
