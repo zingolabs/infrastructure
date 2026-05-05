@@ -595,5 +595,46 @@ mod unit_tests {
                  know about the default."
             );
         }
+
+        #[test]
+        fn set_test_parameters_transparent_pool_keeps_shielded_proving_disabled() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
+            assert!(
+                config.disable_shielded_proving,
+                "Transparent mining does not construct shielded outputs \
+                 and so does not need the prover; set_test_parameters \
+                 must preserve the default-true `disable_shielded_proving` \
+                 for PoolType::Transparent."
+            );
+        }
+
+        #[test]
+        fn set_test_parameters_orchard_pool_enables_shielded_proving() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
+            assert!(
+                !config.disable_shielded_proving,
+                "Orchard mining constructs the shielded coinbase output \
+                 and so needs the prover; set_test_parameters must \
+                 auto-flip `disable_shielded_proving` to false for \
+                 PoolType::ORCHARD so callers don't have to know about \
+                 the default."
+            );
+        }
+
+        #[test]
+        fn set_test_parameters_sapling_pool_enables_shielded_proving() {
+            let mut config = ZcashdConfig::default();
+            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
+            assert!(
+                !config.disable_shielded_proving,
+                "Sapling mining constructs the shielded coinbase output \
+                 and so needs the prover; set_test_parameters must \
+                 auto-flip `disable_shielded_proving` to false for \
+                 PoolType::SAPLING so callers don't have to know about \
+                 the default."
+            );
+        }
     }
 }
