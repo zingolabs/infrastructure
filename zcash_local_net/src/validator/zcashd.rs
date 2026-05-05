@@ -122,11 +122,12 @@ impl ValidatorConfig for ZcashdConfig {
         self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;
         // Shielded coinbase needs the wallet to materialize the
-        // mineraddress output. Re-enable for non-Transparent pools
-        // so callers don't have to know about the disable_wallet
-        // default.
+        // mineraddress output, and the prover to construct the
+        // shielded output itself. Re-enable both for non-Transparent
+        // pools so callers don't have to know about either default.
         if !matches!(mine_to_pool, PoolType::Transparent) {
             self.disable_wallet = false;
+            self.disable_shielded_proving = false;
         }
     }
 }
