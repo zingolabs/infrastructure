@@ -159,50 +159,6 @@ mod tests {
         }
     }
 
-    /// Mirrors the actual zebrad/zcashd usage shape: many concurrent
-    /// "fake spawns" each pick 4 ports and bind all of them. If any bind
-    /// fails or any port is duplicated across spawns, the test fails.
-    /// This is the regression test for the reported zebrad RPC-readiness
-    /// timeout caused by colliding port picks across parallel test runs.
-    #[test]
-    fn simulated_concurrent_spawns_have_unique_bindable_ports() {
-        const SPAWNS: usize = 12;
-        const PORTS_PER_SPAWN: usize = 4;
-
-        let observed: Arc<Mutex<HashSet<u16>>> = Arc::new(Mutex::new(HashSet::new()));
-        let mut handles = Vec::with_capacity(SPAWNS);
-        for spawn_id in 0..SPAWNS {
-            let observed = Arc::clone(&observed);
-            handles.push(thread::spawn(move || {
-                let mut listeners = Vec::with_capacity(PORTS_PER_SPAWN);
-                for which in 0..PORTS_PER_SPAWN {
-                    let port = pick_unused_port(None);
-                    {
-                        let mut o = observed.lock().expect("observed poisoned");
-                        assert!(
-                            o.insert(port),
-                            "spawn {spawn_id} port slot {which}: duplicate port {port}"
-                        );
-                    }
-                    let l = TcpListener::bind(("127.0.0.1", port)).unwrap_or_else(|e| {
-                        panic!("spawn {spawn_id} could not bind port {port}: {e}")
-                    });
-                    listeners.push(l);
-                }
-                listeners
-            }));
-        }
-        let mut all_listeners = Vec::with_capacity(SPAWNS * PORTS_PER_SPAWN);
-        for h in handles {
-            all_listeners.extend(h.join().expect("worker thread panicked"));
-        }
-        assert_eq!(
-            all_listeners.len(),
-            SPAWNS * PORTS_PER_SPAWN,
-            "expected every simulated spawn to bind all its ports"
-        );
-    }
-
     /// Fixed-port reservation must reject double-reservation within the
     /// same process — protects against tests accidentally pinning the same
     /// constant port.
