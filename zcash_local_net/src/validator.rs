@@ -331,7 +331,7 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
     /// Polls the chain until it reaches `target_height`. Default impl
     /// polls [`Self::get_chain_height`] every
     /// [`Self::CHAIN_POLL_INTERVAL`] via the shared
-    /// [`crate::poll::poll_until`] primitive, panicking after
+    /// `poll_until` primitive, panicking after
     /// [`Self::CHAIN_POLL_TIMEOUT`] elapses. Concrete validators should
     /// not override this method — only the constants.
     fn poll_chain_height(
