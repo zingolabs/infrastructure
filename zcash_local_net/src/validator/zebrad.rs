@@ -15,7 +15,9 @@ use crate::{
 };
 use zcash_protocol::PoolType;
 use zingo_common_components::protocol::{ActivationHeights, NetworkType};
-use zingo_test_vectors::ZEBRAD_DEFAULT_MINER;
+use zingo_test_vectors::{
+    REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER,
+};
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -138,11 +140,14 @@ impl ValidatorConfig for ZebradConfig {
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
-        assert_eq!(
-            mine_to_pool,
-            PoolType::Transparent,
-            "Zebra can only mine to transparent using this test infrastructure currently, but tried to set to {mine_to_pool}"
-        );
+        self.miner_address = match mine_to_pool {
+            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
+            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            PoolType::SAPLING => {
+                panic!("zebrad does not support mining to a Sapling address; use ORCHARD or Transparent")
+            }
+        }
+        .to_string();
         self.network_type = NetworkType::Regtest(activation_heights);
         self.chain_cache = chain_cache;
     }

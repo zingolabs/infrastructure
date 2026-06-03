@@ -31,7 +31,9 @@ fn pick_path(executable_name: &str, trace_location: bool) -> Option<PathBuf> {
                 Some(path)
             } else {
                 if trace_location {
-                    tracing::info!("Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable.");
+                    tracing::info!(
+                        "Could not find {executable_name} at {path:?} set by {environment_variable_path} environment variable."
+                    );
                 }
                 None
             }
