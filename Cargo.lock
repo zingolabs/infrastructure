@@ -3272,7 +3272,7 @@ dependencies = [
  "tokio",
  "zcash_keys",
  "zcash_local_net",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_transparent",
  "zebra-node-services",
  "zebra-rpc",
@@ -5142,7 +5142,7 @@ dependencies = [
  "corez",
  "f4jumble",
  "zcash_encoding",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
 ]
 
 [[package]]
@@ -5190,7 +5190,7 @@ dependencies = [
  "tracing",
  "zcash_address",
  "zcash_encoding",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_transparent",
  "zip32",
 ]
@@ -5209,7 +5209,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "zcash_protocol",
+ "zcash_protocol 0.9.0",
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
@@ -5256,7 +5256,7 @@ dependencies = [
  "sha2 0.10.9",
  "zcash_encoding",
  "zcash_note_encryption",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_script",
  "zcash_transparent",
 ]
@@ -5289,6 +5289,19 @@ name = "zcash_protocol"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "79ef3de16a4464a574591aa3e4ea875116372638307d7ae04415279ec187ba88"
+dependencies = [
+ "corez",
+ "document-features",
+ "hex",
+ "memuse",
+ "zcash_encoding",
+]
+
+[[package]]
+name = "zcash_protocol"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bec496a0bd62dae98c4b26f51c5dab112d0c5350bbc2ccfdfd05bb3454f714d"
 dependencies = [
  "corez",
  "document-features",
@@ -5342,7 +5355,7 @@ dependencies = [
  "subtle",
  "zcash_address",
  "zcash_encoding",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_script",
  "zcash_spec",
  "zip32",
@@ -5407,7 +5420,7 @@ dependencies = [
  "zcash_history",
  "zcash_note_encryption",
  "zcash_primitives",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_script",
  "zcash_transparent",
 ]
@@ -5444,7 +5457,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "zcash_proofs",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zebra-chain",
  "zebra-node-services",
  "zebra-script",
@@ -5548,7 +5561,7 @@ dependencies = [
  "zcash_address",
  "zcash_keys",
  "zcash_primitives",
- "zcash_protocol",
+ "zcash_protocol 0.8.0",
  "zcash_script",
  "zcash_transparent",
  "zebra-chain",
