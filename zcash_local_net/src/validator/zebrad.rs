@@ -80,6 +80,7 @@ impl Default for ZebradConfig {
                 nu5: Some(1),
                 nu6: Some(1),
                 nu6_1: Some(1),
+                nu6_2: Some(1),
                 nu7: None,
             },
             miner_address: ZEBRAD_DEFAULT_MINER.to_string(),
@@ -319,6 +320,7 @@ impl Validator for Zebrad {
                     nu5: self.configured_activation_heights.nu5,
                     nu6: self.configured_activation_heights.nu6,
                     nu6_1: self.configured_activation_heights.nu6_1,
+                    nu6_2: self.configured_activation_heights.nu6_2,
                     nu7: self.configured_activation_heights.nu7,
                 }
                 .into(),

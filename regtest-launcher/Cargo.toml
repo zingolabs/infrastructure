@@ -16,7 +16,7 @@ sha2 = "0.10.9"
 tokio = { workspace = true, features = ["signal"] }
 zcash_keys = "0.12.0"
 zcash_protocol = "0.7.2"
-zcash_transparent = "0.6.3"
+zcash_transparent = { version = "0.6.3", features = ["transparent-inputs"] }
 zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc.workspace = true
 zip32 = "0.2.1"
