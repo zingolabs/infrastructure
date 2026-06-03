@@ -50,4 +50,5 @@ allowed_external_types = [
     "zingo_common_components::protocol::ActivationHeights",
     "zingo_common_components::protocol::NetworkType",
     "zebra_node_services::rpc_client::RpcRequestClient",
+    "reqwest::error::Error",
 ]
