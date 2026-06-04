@@ -46,6 +46,7 @@ pub(crate) fn write_zcashd_config(
         nu5,
         nu6,
         nu6_1,
+        nu6_2,
         .. // Ignore any future fields like nu7
     } = test_activation_heights;
 
@@ -60,11 +61,18 @@ pub(crate) fn write_zcashd_config(
 
     let nu6_activation_height = *nu6;
     let nu6_1_activation_height = *nu6_1;
+    let nu6_2_activation_height = *nu6_2;
 
     if nu6_activation_height.is_none() && nu6_1_activation_height.is_some() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1",
+        ));
+    }
+    if nu6_1_activation_height.is_none() && nu6_2_activation_height.is_some() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "NU6.2 is set but NU6.1 is None; set NU6.1 or unset NU6.2",
         ));
     }
 
@@ -87,6 +95,9 @@ nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)"
         cfg.push_str(&format!(
             "\nnuparams=4dec4df0:{h} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment"
         ));
+    }
+    if let Some(h) = nu6_2_activation_height {
+        cfg.push_str(&format!("\nnuparams=5437f330:{h} # NU6_2"));
     }
 
     cfg.push_str(&format!(
@@ -157,11 +168,16 @@ pub(crate) fn write_zebrad_config(
 
     let nu6_activation_height = activation_heights.nu6;
     let nu6_1_activation_height = activation_heights.nu6_1;
+    let nu6_2_activation_height = activation_heights.nu6_2;
 
     // Ordering is correct
     assert!(
         !(nu6_activation_height.is_none() && nu6_1_activation_height.is_some()),
         "NU6.1 is set but NU6 is None; set NU6 or unset NU6.1"
+    );
+    assert!(
+        !(nu6_1_activation_height.is_none() && nu6_2_activation_height.is_some()),
+        "NU6.2 is set but NU6.1 is None; set NU6.1 or unset NU6.2"
     );
 
     let chain_cache = cache_dir.to_str().unwrap();
@@ -246,6 +262,9 @@ NU5 = {nu5_activation_height}"
         }
         if let Some(nu6_1) = nu6_1_activation_height {
             cfg.push_str(&format!("\n\"NU6.1\" = {nu6_1}"));
+        }
+        if let Some(nu6_2) = nu6_2_activation_height {
+            cfg.push_str(&format!("\n\"NU6.2\" = {nu6_2}"));
         }
     }
 
@@ -346,6 +365,7 @@ nuparams=e9ff75a6:6 # Canopy
 nuparams=c2d6d0b4:7 # NU5 (Orchard)
 nuparams=c8e71055:8 # NU6
 nuparams=4dec4df0:9 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=5437f330:10 # NU6_2
 
 ### MetaData Storage and Retrieval
 # txindex:
