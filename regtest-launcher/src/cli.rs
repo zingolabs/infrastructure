@@ -28,6 +28,8 @@ pub struct Cli {
     pub miner_address: Option<String>,
 }
 
+// TODO: update regtest-launcher to nu6.2
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum UpgradeKey {
     BeforeOverwinter,
@@ -117,6 +119,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu5: None,
         nu6: None,
         nu6_1: None,
+        nu6_2: None,
         nu7: None,
     };
 

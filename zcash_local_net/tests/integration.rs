@@ -78,6 +78,7 @@ async fn probe_validator_with_nu6_1_at<V: zcash_local_net::validator::Validator>
         .set_nu5(Some(2))
         .set_nu6(Some(2))
         .set_nu6_1(Some(nu6_1_height))
+        .set_nu6_2(Some(nu6_1_height))
         .set_nu7(None)
         .build();
 
@@ -372,6 +373,7 @@ async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_str
         // accumulates enough subsidy fraction to cover the
         // disbursement total.
         .set_nu6_1(Some(5))
+        .set_nu6_2(Some(5))
         .set_nu7(None)
         .build();
 
@@ -411,6 +413,7 @@ async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
         .set_nu5(Some(2))
         .set_nu6(Some(2))
         .set_nu6_1(Some(2))
+        .set_nu6_2(Some(2))
         .set_nu7(None)
         .build();
 

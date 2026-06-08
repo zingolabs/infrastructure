@@ -57,6 +57,9 @@ pub(crate) fn write_zcashd_config(
     let nu6_1_activation_height = activation_heights
         .nu6_1()
         .expect("nu6.1 activation height must be specified");
+    let nu6_2_activation_height = activation_heights
+        .nu6_2()
+        .expect("nu6.2 activation height must be specified");
 
     let mut cfg = format!(
         "\
@@ -70,6 +73,7 @@ nuparams=e9ff75a6:{canopy_activation_height} # Canopy
 nuparams=c2d6d0b4:{nu5_activation_height} # NU5 (Orchard)
 nuparams=c8e71055:{nu6_activation_height} # NU6
 nuparams=4dec4df0:{nu6_1_activation_height} # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=5437f330:{nu6_2_activation_height} # NU6_2
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -234,6 +238,9 @@ enforce_on_test_networks = false",
         let nu6_1_activation_height = activation_heights
             .nu6_1()
             .expect("nu6.1 activation height must be specified");
+        let nu6_2_activation_height = activation_heights
+            .nu6_2()
+            .expect("nu6.2 activation height must be specified");
 
         cfg.push_str(&format!(
             "\n\n\
@@ -247,7 +254,8 @@ miner_address = \"{miner_address}\"
 Canopy = 1
 NU5 = {nu5_activation_height}
 NU6 = {nu6_activation_height}
-\"NU6.1\" = {nu6_1_activation_height}"
+\"NU6.1\" = {nu6_1_activation_height}
+\"NU6.2\" = {nu6_2_activation_height}"
         ));
 
         // Lockbox disbursements (ZIP-271). Required at the NU6.1
@@ -394,6 +402,7 @@ nuparams=e9ff75a6:6 # Canopy
 nuparams=c2d6d0b4:7 # NU5 (Orchard)
 nuparams=c8e71055:8 # NU6
 nuparams=4dec4df0:9 # NU6_1 https://zips.z.cash/zip-0255#nu6.1deployment
+nuparams=5437f330:10 # NU6_2
 
 ### MetaData Storage and Retrieval
 # txindex:
@@ -428,6 +437,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
             .set_nu5(Some(7))
             .set_nu6(Some(8))
             .set_nu6_1(Some(9))
+            .set_nu6_2(Some(10))
             .set_nu7(None)
             .build()
     }
