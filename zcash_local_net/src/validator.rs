@@ -59,6 +59,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
         .set_nu5(Some(2))
         .set_nu6(Some(2))
         .set_nu6_1(Some(5))
+        .set_nu6_2(Some(5))
         .set_nu7(None)
         .build()
 }
@@ -70,7 +71,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// unit test in `regtest-launcher::cli::tests`** — the test parses
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
-pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str = "all=1,nu5=2,nu6=2,nu6_1=5,nu7=off";
+pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str = "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.
@@ -255,6 +256,7 @@ fn parse_activation_heights_from_rpc(
         .set_nu5(get_height("NU5"))
         .set_nu6(get_height("NU6"))
         .set_nu6_1(get_height("NU6.1"))
+        .set_nu6_2(get_height("NU6.2"))
         .set_nu7(get_height("NU7"))
         .build();
     tracing::debug!(

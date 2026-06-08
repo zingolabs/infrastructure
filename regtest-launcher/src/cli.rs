@@ -28,6 +28,8 @@ pub struct Cli {
     pub miner_address: Option<String>,
 }
 
+// TODO: update regtest-launcher to nu6.2
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum UpgradeKey {
     BeforeOverwinter,
@@ -117,6 +119,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu5: None,
         nu6: None,
         nu6_1: None,
+        nu6_2: None,
         nu7: None,
     };
 
@@ -357,7 +360,7 @@ mod tests {
     #[test]
     fn cli_default_matches_fixture_helper() {
         use local_net::validator::{
-            REGTEST_FIXTURE_HEIGHTS_CLI_STRING, regtest_test_activation_heights,
+            regtest_test_activation_heights, REGTEST_FIXTURE_HEIGHTS_CLI_STRING,
         };
         let parsed = parse_activation_heights(REGTEST_FIXTURE_HEIGHTS_CLI_STRING)
             .expect("CLI default string must parse");

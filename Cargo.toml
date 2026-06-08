@@ -5,16 +5,22 @@ resolver = "2"
 [workspace.dependencies]
 
 # workspace
-zingo_test_vectors = { path = "zingo_test_vectors", version = "0.0.1" }
+zingo_test_vectors = { path = "zingo_test_vectors" }
 zcash_local_net = { path = "zcash_local_net" }
 
 # zingo-common
-zingo_common_components = "0.3.0"
+zingo_common_components = "0.3.1"
+
+#zcash
+zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
 
 # zebra
-zebra-chain = "7.0.0"
-zebra-node-services = "5.0.0"
-zebra-rpc = "7.0.0"
+zebra-chain = "9.0.0"
+zebra-node-services = "7.0.0"
+zebra-rpc = "9.0.0"
+
+#protocol
+bip0039 = "0.12.0"
 
 # other
 getset = "0.1.3"
