@@ -11,6 +11,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `client` module: wallet clients are now the third kind of process
+  the crate manages, alongside validators and indexers. Unlike both,
+  a client binary is not a daemon — each wallet operation is a
+  run-to-completion subprocess invocation against a persistent wallet
+  directory owned by the client struct.
+  - `client::Client` trait: `launch` (create/restore the wallet from a
+    mnemonic + birthday against a running indexer), `sync`,
+    `send(address, zats) -> txid`, `shield -> txid`,
+    `balance -> WalletBalance`, `default_address`, and `rescan`. All
+    operations run to completion before returning.
+  - `client::ClientConfig` trait with `setup_indexer_connection`,
+    mirroring `indexer::IndexerConfig::setup_validator_connection`
+    (launch order: validator → indexer → client).
+  - `client::WalletBalance`: per-pool spendable balances, total, and
+    the wallet's synced chain-tip height, in zatoshis.
+  - `client::zcash_devtool::ZcashDevtool` + `ZcashDevtoolConfig`: the
+    first `Client` implementation, driving the zcash-devtool CLI
+    (built with `--features regtest_support`; resolved via
+    `TEST_BINARIES_DIR`/`PATH` like the other managed binaries).
+    `ZcashDevtoolConfig::faucet()` (abandon-art seed, birthday 0) and
+    `::recipient()` (HOSPITAL_MUSEUM seed) provide the two standard
+    test wallets. The faucet's account-0 unified address equals
+    `zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART` — the address
+    orchard-mining validators pay to — and an integration test pins
+    that alignment live.
+  - `client::zcash_devtool::supported_regtest_activation_heights()`:
+    the regtest heights compiled into the devtool binary (pre-NU5 at
+    height 1, NU5 and later all at height 2). Launching a regtest
+    client with any other heights fails fast with
+    `error::ClientError::UnsupportedActivationHeights`. Note these
+    deliberately differ from `validator::regtest_test_activation_heights`:
+    shielded-coinbase mining requires every configured upgrade active
+    before mining begins (zebra 5.1.0 block templates fail their own
+    orchard-proof verification while a configured upgrade is still in
+    the future).
+  - `error::ClientError`: typed errors for spawn/stdin/exit-status/
+    output-parse failures; child output is never trusted blindly and
+    parse drift surfaces as `UnexpectedOutput` instead of a panic.
+
 ### Changed
 
 ### Removed

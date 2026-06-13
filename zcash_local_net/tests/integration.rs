@@ -925,3 +925,205 @@ async fn zebrad_regtest_skips_seed_peer_dns() {
         stdout.chars().take(4096).collect::<String>()
     );
 }
+
+/// zcash-devtool client management: pins the devtool CLI contract
+/// (flags, stdout shapes, regtest activation-height alignment) against
+/// the real binary, per the "behaviour drift from a contract this code
+/// mirrors" rule — the parsers in `client::zcash_devtool` are only
+/// trusted because these tests exercise them live.
+///
+/// Requires `zcash-devtool` (built with `--features regtest_support`)
+/// in `TEST_BINARIES_DIR` or on `PATH`.
+mod devtool_client {
+    use zcash_local_net::client::zcash_devtool::{
+        ZcashDevtool, ZcashDevtoolConfig, supported_regtest_activation_heights,
+    };
+    use zcash_local_net::client::{Client, ClientConfig as _};
+    use zcash_local_net::indexer::zainod::ZainodConfig;
+    use zcash_local_net::validator::Validator as _;
+    use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART};
+
+    use super::*;
+
+    /// Per-block miner reward in zats once the default regtest fixture's
+    /// post-NU6 funding stream (1% to `Deferred`, active from height 2)
+    /// starts deducting from the 6.25 ZEC subsidy.
+    const POST_NU6_MINER_REWARD: u64 = 618_750_000;
+    /// Block 1 predates the funding stream: full subsidy, mined to the
+    /// sapling receiver of the unified miner address (NU5 activates at
+    /// height 2, so block 1's coinbase cannot be orchard).
+    const BLOCK_1_SAPLING_REWARD: u64 = 625_000_000;
+
+    const SEND_VALUE: u64 = 250_000;
+
+    /// An orchard-mining zebrad + zainod stack, the environment the
+    /// devtool faucet wallet is designed for: every coinbase lands in a
+    /// pool the abandon-art wallet can spend without coinbase maturity.
+    ///
+    /// Launched with [`supported_regtest_activation_heights`] (all
+    /// upgrades active by height 2), not the default fixture heights:
+    /// they are the heights compiled into the devtool binary, and they
+    /// are also required for orchard mining itself — zebra 5.1.0's
+    /// shielded-coinbase templates fail their own orchard-proof
+    /// verification while a configured upgrade is still in the future.
+    async fn launch_orchard_net() -> LocalNet<Zebrad, Zainod> {
+        let mut validator_config = ZebradConfig::default();
+        validator_config.set_test_parameters(
+            PoolType::ORCHARD,
+            supported_regtest_activation_heights(),
+            None,
+        );
+        let indexer_config = ZainodConfig {
+            network: zcash_local_net::protocol::NetworkType::Regtest(
+                supported_regtest_activation_heights(),
+            ),
+            ..ZainodConfig::default()
+        };
+        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(validator_config, indexer_config)
+            .await
+            .unwrap()
+    }
+
+    /// Launch a devtool wallet wired to the local net's indexer.
+    async fn launch_client(
+        net: &LocalNet<Zebrad, Zainod>,
+        mut config: ZcashDevtoolConfig,
+    ) -> ZcashDevtool {
+        config.setup_indexer_connection(net.indexer());
+        ZcashDevtool::launch(config).await.unwrap()
+    }
+
+    /// Sync the wallet until its view of the chain tip reaches
+    /// `target_height`. The validator reports the target height as soon
+    /// as it mines, but the indexer serves the wallet and may still be
+    /// catching up — so poll sync rather than assume one pass suffices.
+    async fn sync_to_height(
+        client: &ZcashDevtool,
+        target_height: u32,
+    ) -> zcash_local_net::client::WalletBalance {
+        const ATTEMPTS: u32 = 120;
+        for _ in 0..ATTEMPTS {
+            client.sync().await.unwrap();
+            let balance = client.balance().await.unwrap();
+            if balance.chain_tip_height >= target_height {
+                return balance;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        }
+        panic!("wallet did not reach height {target_height} after {ATTEMPTS} sync attempts");
+    }
+
+    /// The faucet linchpin: devtool's account-0 derivation of the
+    /// abandon-art seed must yield the same unified address the
+    /// validators mine to, otherwise the "faucet" never sees a reward.
+    #[tokio::test]
+    async fn faucet_default_address_matches_miner_address() {
+        let _ = tracing_subscriber::fmt().try_init();
+        let net = launch_orchard_net().await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+
+        assert_eq!(
+            faucet.default_address().await.unwrap(),
+            REG_O_ADDR_FROM_ABANDONART,
+        );
+    }
+
+    /// Launching with regtest heights that differ from the fixture
+    /// heights compiled into the devtool binary must fail fast, before
+    /// any wallet state exists.
+    #[tokio::test]
+    async fn launch_rejects_drifted_activation_heights() {
+        let _ = tracing_subscriber::fmt().try_init();
+        let net = launch_orchard_net().await;
+
+        let mut config = ZcashDevtoolConfig::faucet();
+        config.setup_indexer_connection(net.indexer());
+        config.network = zcash_local_net::protocol::NetworkType::Regtest(
+            zcash_local_net::protocol::ActivationHeights::builder().build(),
+        );
+
+        let result = ZcashDevtool::launch(config).await;
+        assert!(matches!(
+            result,
+            Err(zcash_local_net::error::ClientError::UnsupportedActivationHeights { .. })
+        ));
+    }
+
+    /// The full faucet→recipient loop: fund by orchard mining, send
+    /// twice (once near the tip the chain starts at, once later),
+    /// receive, and survive a rescan from scratch. The sends are the
+    /// live consensus-branch-ID alignment check: they fail with a
+    /// validator rejection if the devtool binary's compiled-in regtest
+    /// heights drift from [`supported_regtest_activation_heights`].
+    #[tokio::test]
+    async fn faucet_sends_recipient_receives_and_rescans() {
+        let _ = tracing_subscriber::fmt().try_init();
+        let net = launch_orchard_net().await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+        let recipient = launch_client(&net, ZcashDevtoolConfig::recipient()).await;
+        let recipient_address = recipient.default_address().await.unwrap();
+
+        net.validator().generate_blocks(3).await.unwrap();
+        let balance = sync_to_height(&faucet, 3).await;
+        assert_eq!(
+            balance.total,
+            BLOCK_1_SAPLING_REWARD + 2 * POST_NU6_MINER_REWARD,
+        );
+        assert_eq!(balance.sapling_spendable, BLOCK_1_SAPLING_REWARD);
+        assert_eq!(balance.transparent_spendable, 0);
+
+        // First send: tip 3, one block after every upgrade activated.
+        faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
+        net.validator().generate_blocks(3).await.unwrap();
+        let received = sync_to_height(&recipient, 6).await;
+        assert_eq!(received.total, SEND_VALUE);
+
+        // Second send, from a tip composed purely of orchard rewards.
+        sync_to_height(&faucet, 6).await;
+        faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
+        net.validator().generate_blocks(2).await.unwrap();
+        let received = sync_to_height(&recipient, 8).await;
+        assert_eq!(received.total, 2 * SEND_VALUE);
+
+        // Rescan from scratch and verify the balance survives.
+        recipient.rescan().await.unwrap();
+        let rescanned = sync_to_height(&recipient, 8).await;
+        assert_eq!(rescanned.total, 2 * SEND_VALUE);
+    }
+
+    /// Shield non-coinbase transparent funds: the faucet sends to its
+    /// own transparent address, then shields the result into orchard.
+    #[tokio::test]
+    async fn faucet_shields_transparent_funds() {
+        let _ = tracing_subscriber::fmt().try_init();
+        let net = launch_orchard_net().await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+
+        net.validator().generate_blocks(5).await.unwrap();
+        sync_to_height(&faucet, 5).await;
+
+        faucet
+            .send(REG_T_ADDR_FROM_ABANDONART, SEND_VALUE)
+            .await
+            .unwrap();
+        net.validator().generate_blocks(2).await.unwrap();
+        let funded = sync_to_height(&faucet, 7).await;
+        assert_eq!(funded.transparent_spendable, SEND_VALUE);
+
+        faucet.shield().await.unwrap();
+        net.validator().generate_blocks(2).await.unwrap();
+        let shielded = sync_to_height(&faucet, 9).await;
+        assert_eq!(shielded.transparent_spendable, 0);
+        // The faucet is also the miner, so every fee it pays returns in
+        // the next block's coinbase: between the snapshots the wallet
+        // gains exactly two block rewards, and the orchard pool gains
+        // those rewards plus the shielded value (the shield's ZIP-317
+        // fee nets to zero — paid by the transaction, recouped in the
+        // coinbase of the block that mined it).
+        assert_eq!(shielded.total, funded.total + 2 * POST_NU6_MINER_REWARD);
+        assert_eq!(
+            shielded.orchard_spendable,
+            funded.orchard_spendable + 2 * POST_NU6_MINER_REWARD + SEND_VALUE,
+        );
+    }
+}
