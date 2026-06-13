@@ -25,6 +25,25 @@ pub trait ClientConfig: Default + std::fmt::Debug {
     fn setup_indexer_connection<I: Indexer>(&mut self, indexer: &I);
 }
 
+/// Which receiver of the wallet's unified address to emit from
+/// [`Client::address`].
+///
+/// A dedicated enum rather than [`zcash_protocol::PoolType`], which is
+/// `Transparent | Shielded(Sapling | Orchard)` and has no `Unified`
+/// variant — the wrong shape for "give me this receiver of my UA".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AddressReceiver {
+    /// The full unified address (all available receivers).
+    Unified,
+    /// The transparent (P2PKH) receiver, as a bare transparent address.
+    Transparent,
+    /// The Sapling receiver, as a bare Sapling address.
+    Sapling,
+    /// The Orchard receiver. Orchard receivers have no bare encoding,
+    /// so this is a unified address carrying only the Orchard receiver.
+    Orchard,
+}
+
 /// Functionality for wallet client processes.
 ///
 /// The operation set mirrors what wallet integration suites (zaino's in
@@ -66,8 +85,19 @@ pub trait Client: Sized {
     /// indexer.
     fn balance(&self) -> impl std::future::Future<Output = Result<WalletBalance, ClientError>>;
 
-    /// The wallet's default unified address.
-    fn default_address(&self) -> impl std::future::Future<Output = Result<String, ClientError>>;
+    /// The requested `receiver` of the wallet's unified address, as an
+    /// encoded address string. Reads the local wallet database without
+    /// contacting the indexer.
+    fn address(
+        &self,
+        receiver: AddressReceiver,
+    ) -> impl std::future::Future<Output = Result<String, ClientError>>;
+
+    /// The wallet's default unified address. Convenience for
+    /// [`Client::address`] with [`AddressReceiver::Unified`].
+    fn default_address(&self) -> impl std::future::Future<Output = Result<String, ClientError>> {
+        self.address(AddressReceiver::Unified)
+    }
 
     /// Wipe the wallet state and re-restore from the stored mnemonic
     /// and birthday, preserving account metadata. Equivalent to a

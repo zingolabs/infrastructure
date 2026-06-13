@@ -19,8 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `client::Client` trait: `launch` (create/restore the wallet from a
     mnemonic + birthday against a running indexer), `sync`,
     `send(address, zats) -> txid`, `shield -> txid`,
-    `balance -> WalletBalance`, `default_address`, and `rescan`. All
-    operations run to completion before returning.
+    `balance -> WalletBalance`, `address(AddressReceiver)`,
+    `default_address` (a convenience for `address(Unified)`), and
+    `rescan`. All operations run to completion before returning.
+  - `client::AddressReceiver` (`Unified | Transparent | Sapling |
+    Orchard`): selects which receiver of the wallet's unified address
+    `Client::address` emits. The bare transparent/sapling receivers
+    unblock the transparent/sapling half of zaino's send/query matrix
+    (previously only the unified address was reachable). An integration
+    test pins the faucet's transparent and sapling receivers against
+    `zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART` /
+    `REG_Z_ADDR_FROM_ABANDONART`.
   - `client::ClientConfig` trait with `setup_indexer_connection`,
     mirroring `indexer::IndexerConfig::setup_validator_connection`
     (launch order: validator → indexer → client).
@@ -49,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `error::ClientError`: typed errors for spawn/stdin/exit-status/
     output-parse failures; child output is never trusted blindly and
     parse drift surfaces as `UnexpectedOutput` instead of a panic.
+  - `ZcashDevtool::balance` parses zcash-devtool's `balance --json`
+    single-line output (keys map field-for-field to `WalletBalance`),
+    replacing the line-scrape parser that had to reverse-scan past a
+    `{:#?}` `WalletSummary` debug dump — sturdier across
+    `zcash_client_*` upgrades.
 
 ### Changed
 

@@ -6,11 +6,12 @@
 //! reject `-n regtest` (the operation fails with "Unsupported network"
 //! captured in [`crate::error::ClientError::OperationFailed`]).
 //!
-//! Output-shape contract: the parsers in this module (txid line,
-//! balance lines, default address line) mirror what the devtool binary
-//! prints today. The integration test `devtool_client` in
-//! `tests/integration.rs` pins that contract against the real binary;
-//! the unit tests below pin the parsers against recorded shapes.
+//! Output-shape contract: the parsers in this module (final-line txid,
+//! `balance --json` object, `Default Address:` / `Receiver(<pool>):`
+//! address lines) mirror what the devtool binary prints today. The
+//! integration test `devtool_client` in `tests/integration.rs` pins
+//! that contract against the real binary; the unit tests below pin the
+//! parsers against recorded shapes.
 
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -23,7 +24,7 @@ use zingo_common_components::protocol::NetworkType;
 use zingo_test_vectors::seeds::{ABANDON_ART_SEED, HOSPITAL_MUSEUM_SEED};
 
 use crate::{
-    client::{Client, ClientConfig, WalletBalance},
+    client::{AddressReceiver, Client, ClientConfig, WalletBalance},
     error::ClientError,
     indexer::Indexer,
     logs::LogsToDir,
@@ -422,24 +423,47 @@ impl Client for ZcashDevtool {
         let output = self
             .run_wallet_op(
                 "balance",
-                &["balance", "--min-confirmations", &min_confirmations],
+                &[
+                    "balance",
+                    "--json",
+                    "--min-confirmations",
+                    &min_confirmations,
+                ],
                 None,
             )
             .await?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        parse_balance_output(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+        parse_balance_json(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
             operation: "balance",
             reason,
             stdout,
         })
     }
 
-    async fn default_address(&self) -> Result<String, ClientError> {
+    async fn address(&self, receiver: AddressReceiver) -> Result<String, ClientError> {
+        let flag = match receiver {
+            AddressReceiver::Unified => "unified",
+            AddressReceiver::Transparent => "transparent",
+            AddressReceiver::Sapling => "sapling",
+            AddressReceiver::Orchard => "orchard",
+        };
         let output = self
-            .run_wallet_op("list-addresses", &["list-addresses"], None)
+            .run_wallet_op(
+                "list-addresses",
+                &["list-addresses", "--receiver", flag],
+                None,
+            )
             .await?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        parse_default_address(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+        // The unified case prints the historical `Default Address:`
+        // line; every other receiver prints `Receiver(<pool>): <addr>`.
+        let parsed = match receiver {
+            AddressReceiver::Unified => parse_default_address(&stdout),
+            AddressReceiver::Transparent => parse_receiver(&stdout, "transparent"),
+            AddressReceiver::Sapling => parse_receiver(&stdout, "sapling"),
+            AddressReceiver::Orchard => parse_receiver(&stdout, "orchard"),
+        };
+        parsed.map_err(|reason| ClientError::UnexpectedOutput {
             operation: "list-addresses",
             reason,
             stdout,
@@ -508,100 +532,76 @@ fn parse_final_txid(stdout: &str) -> Result<String, String> {
     }
 }
 
-/// Parse one `format_zec`-shaped value, e.g. `"  6.25000000 ZEC"`,
-/// into zatoshis.
-fn parse_zec_amount(value: &str) -> Result<u64, String> {
-    let number = value
-        .trim()
-        .strip_suffix(" ZEC")
-        .ok_or_else(|| format!("{value:?} does not end in \" ZEC\""))?;
-    let (zec, frac) = number
-        .split_once('.')
-        .ok_or_else(|| format!("{number:?} has no decimal point"))?;
-    let zec: u64 = zec
-        .trim()
-        .parse()
-        .map_err(|e| format!("whole-ZEC part of {number:?}: {e}"))?;
-    if frac.len() != 8 {
-        return Err(format!(
-            "fractional part of {number:?} has {} digits, expected 8",
-            frac.len()
-        ));
-    }
-    let frac: u64 = frac
-        .parse()
-        .map_err(|e| format!("fractional part of {number:?}: {e}"))?;
-    zec.checked_mul(zcash_protocol::value::COIN)
-        .and_then(|zats| zats.checked_add(frac))
-        .ok_or_else(|| format!("{number:?} overflows u64 zatoshis"))
-}
-
-/// Find the last line of `stdout` whose trimmed form starts with
-/// `prefix` and return the remainder after the prefix. Searching from
-/// the end skips the `{:#?}` wallet-summary dump that precedes the
-/// summary lines in `balance` output.
-fn last_line_value<'a>(stdout: &'a str, prefix: &str) -> Result<&'a str, String> {
-    stdout
+/// Parse the single-line JSON object emitted by `balance --json`. The
+/// object's keys match [`WalletBalance`]'s fields exactly (raw
+/// zatoshis, `chain_tip_height` a u32), so extraction is one lookup per
+/// field. Parsing via `serde_json::Value` rather than deriving
+/// `Deserialize` on `WalletBalance` keeps `serde` out of this crate's
+/// public API surface (cargo-check-external-types).
+fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
+    let line = stdout
         .lines()
-        .rev()
-        .find_map(|line| line.trim_start().strip_prefix(prefix))
         .map(str::trim)
-        .ok_or_else(|| format!("no line starting with {prefix:?}"))
-}
+        .find(|line| line.starts_with('{'))
+        .ok_or_else(|| "no JSON object line in stdout".to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(line).map_err(|e| format!("invalid JSON {line:?}: {e}"))?;
 
-/// Parse the summary lines of `balance` output.
-fn parse_balance_output(stdout: &str) -> Result<WalletBalance, String> {
-    let chain_tip_height = last_line_value(stdout, "Height:")?
-        .parse()
-        .map_err(|e| format!("Height line: {e}"))?;
+    let u64_field = |key: &str| -> Result<u64, String> {
+        value
+            .get(key)
+            .ok_or_else(|| format!("missing key {key:?}"))?
+            .as_u64()
+            .ok_or_else(|| format!("key {key:?} is not a u64"))
+    };
+    let chain_tip_height = u32::try_from(u64_field("chain_tip_height")?)
+        .map_err(|e| format!("chain_tip_height does not fit in u32: {e}"))?;
+
     Ok(WalletBalance {
-        total: parse_zec_amount(last_line_value(stdout, "Balance:")?)?,
-        sapling_spendable: parse_zec_amount(last_line_value(stdout, "Sapling Spendable:")?)?,
-        orchard_spendable: parse_zec_amount(last_line_value(stdout, "Orchard Spendable:")?)?,
-        transparent_spendable: parse_zec_amount(last_line_value(stdout, "Unshielded Spendable:")?)?,
+        total: u64_field("total")?,
+        sapling_spendable: u64_field("sapling_spendable")?,
+        orchard_spendable: u64_field("orchard_spendable")?,
+        transparent_spendable: u64_field("transparent_spendable")?,
         chain_tip_height,
     })
 }
 
-/// Parse the unified address from `list-addresses` output.
+/// Parse the unified address from `list-addresses` output: the
+/// `Default Address:` line. Reverse-scanned so a leading `Account …`
+/// line never shadows it.
 fn parse_default_address(stdout: &str) -> Result<String, String> {
-    last_line_value(stdout, "Default Address:").map(str::to_string)
+    stdout
+        .lines()
+        .rev()
+        .find_map(|line| line.trim_start().strip_prefix("Default Address:"))
+        .map(|value| value.trim().to_string())
+        .ok_or_else(|| "no line starting with \"Default Address:\"".to_string())
+}
+
+/// Parse a single `Receiver(<pool>): <address>` line from
+/// `list-addresses --receiver <pool>` output. A forward scan suffices:
+/// no `{:#?}` dump precedes these lines.
+fn parse_receiver(stdout: &str, pool: &str) -> Result<String, String> {
+    let prefix = format!("Receiver({pool}):");
+    stdout
+        .lines()
+        .find_map(|line| line.trim_start().strip_prefix(prefix.as_str()))
+        .map(|value| value.trim().to_string())
+        .ok_or_else(|| format!("no line starting with {prefix:?}"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Shape of devtool `balance` stdout after the `{:#?}` summary
-    /// dump: the dump itself contains struct fields like
-    /// `sapling_balance: Balance { ... }`, which must not confuse the
-    /// reverse-scanning line parser.
-    const BALANCE_STDOUT: &str = "\
-WalletSummary {
-    account_balances: {
-        AccountUuid(
-            0a1b2c3d-0000-0000-0000-000000000000,
-        ): AccountBalance {
-            sapling_balance: Balance {
-                spendable_value: Zatoshis(
-                    500000000,
-                ),
-            },
-        },
-    },
-}
-Some(\"uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8\")
-     Height: 6
-     Synced: 100.000%
-    Balance:  31.24999999 ZEC
-     Sapling Spendable:   5.00000000 ZEC
-     Orchard Spendable:  25.00000000 ZEC
-  Unshielded Spendable:   0.00000000 ZEC
-";
+    /// Shape of devtool `balance --json`: a single line whose keys
+    /// match `WalletBalance` field for field, raw zatoshis.
+    const BALANCE_JSON_STDOUT: &str = "{\"total\":3124999999,\"sapling_spendable\":500000000,\
+\"orchard_spendable\":2500000000,\"transparent_spendable\":0,\"chain_tip_height\":6}\n";
 
     #[test]
-    fn balance_output_parses() {
-        let balance = parse_balance_output(BALANCE_STDOUT).unwrap();
+    fn balance_json_parses() {
+        let balance = parse_balance_json(BALANCE_JSON_STDOUT).unwrap();
         assert_eq!(
             balance,
             WalletBalance {
@@ -615,15 +615,35 @@ Some(\"uregtest1zkuzfv5m3yhv2j4fmvq5rjurkxenxyq8\")
     }
 
     #[test]
-    fn zec_amounts_parse() {
-        assert_eq!(parse_zec_amount("  0.62500000 ZEC").unwrap(), 62_500_000);
+    fn balance_json_rejects_bad_shapes() {
+        assert!(parse_balance_json("no json here\n").is_err());
+        // Missing a required key.
+        assert!(parse_balance_json("{\"total\":1}\n").is_err());
+    }
+
+    /// Shape of devtool `list-addresses --receiver transparent --receiver sapling
+    /// --receiver orchard`: one `Receiver(<pool>): <addr>` line each.
+    const RECEIVERS_STDOUT: &str = "\
+Receiver(transparent): tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
+Receiver(sapling): zregtestsapling1fmq2ufux3gm0v8qf7x585wj56le4wjfsqsj27zprjghntrerntggg507hxh2ydcdkn7sx8kya7p
+Receiver(orchard): uregtest1duh3glf8uk5he5cpmlzsfvkn34de4uudyahdr7p6j0p6zs2tujgdxqmzgvtquwc5cphwufku93a0p5ksxzwx0qk92kkd5nrdzs5tngw6
+";
+
+    #[test]
+    fn receiver_lines_parse() {
         assert_eq!(
-            parse_zec_amount("625.00000001 ZEC").unwrap(),
-            62_500_000_001
+            parse_receiver(RECEIVERS_STDOUT, "transparent").unwrap(),
+            "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd"
         );
-        assert!(parse_zec_amount(" -1.00000000 ZEC").is_err());
-        assert!(parse_zec_amount("0.625 ZEC").is_err());
-        assert!(parse_zec_amount("0.62500000").is_err());
+        assert_eq!(
+            parse_receiver(RECEIVERS_STDOUT, "sapling").unwrap(),
+            "zregtestsapling1fmq2ufux3gm0v8qf7x585wj56le4wjfsqsj27zprjghntrerntggg507hxh2ydcdkn7sx8kya7p"
+        );
+        assert_eq!(
+            parse_receiver(RECEIVERS_STDOUT, "orchard").unwrap(),
+            "uregtest1duh3glf8uk5he5cpmlzsfvkn34de4uudyahdr7p6j0p6zs2tujgdxqmzgvtquwc5cphwufku93a0p5ksxzwx0qk92kkd5nrdzs5tngw6"
+        );
+        assert!(parse_receiver(RECEIVERS_STDOUT, "missing").is_err());
     }
 
     #[test]

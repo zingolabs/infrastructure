@@ -938,10 +938,12 @@ mod devtool_client {
     use zcash_local_net::client::zcash_devtool::{
         ZcashDevtool, ZcashDevtoolConfig, supported_regtest_activation_heights,
     };
-    use zcash_local_net::client::{Client, ClientConfig as _};
+    use zcash_local_net::client::{AddressReceiver, Client, ClientConfig as _};
     use zcash_local_net::indexer::zainod::ZainodConfig;
     use zcash_local_net::validator::Validator as _;
-    use zingo_test_vectors::{REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART};
+    use zingo_test_vectors::{
+        REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
+    };
 
     use super::*;
 
@@ -1014,17 +1016,42 @@ mod devtool_client {
     }
 
     /// The faucet linchpin: devtool's account-0 derivation of the
-    /// abandon-art seed must yield the same unified address the
-    /// validators mine to, otherwise the "faucet" never sees a reward.
+    /// abandon-art seed must yield the same addresses the validators
+    /// mine to, otherwise the "faucet" never sees a reward. Pins every
+    /// receiver of [`Client::address`] against the `zingo_test_vectors`
+    /// constants — the unified address (== the orchard miner address)
+    /// and the bare transparent/sapling receivers — proving the
+    /// abandon-art wallet owns the addresses the harness pays.
     #[tokio::test]
-    async fn faucet_default_address_matches_miner_address() {
+    async fn faucet_addresses_match_miner_addresses() {
         let _ = tracing_subscriber::fmt().try_init();
         let net = launch_orchard_net().await;
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
 
+        // default_address() is the convenience for address(Unified).
         assert_eq!(
             faucet.default_address().await.unwrap(),
             REG_O_ADDR_FROM_ABANDONART,
+        );
+        assert_eq!(
+            faucet.address(AddressReceiver::Unified).await.unwrap(),
+            REG_O_ADDR_FROM_ABANDONART,
+        );
+        assert_eq!(
+            faucet.address(AddressReceiver::Transparent).await.unwrap(),
+            REG_T_ADDR_FROM_ABANDONART,
+        );
+        assert_eq!(
+            faucet.address(AddressReceiver::Sapling).await.unwrap(),
+            REG_Z_ADDR_FROM_ABANDONART,
+        );
+        // The orchard receiver has no bare encoding; devtool emits a
+        // UA carrying only the orchard receiver, so it differs from the
+        // full UA but must still decode as a unified regtest address.
+        let orchard = faucet.address(AddressReceiver::Orchard).await.unwrap();
+        assert!(
+            orchard.starts_with("uregtest1"),
+            "orchard receiver should be a regtest UA, got {orchard:?}"
         );
     }
 
