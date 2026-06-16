@@ -20,8 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     mnemonic + birthday against a running indexer), `sync`,
     `send(address, zats) -> txid`, `shield -> txid`,
     `balance -> WalletBalance`, `address(AddressReceiver)`,
-    `default_address` (a convenience for `address(Unified)`), and
-    `rescan`. All operations run to completion before returning.
+    `default_address` (a convenience for `address(Unified)`),
+    `get_info -> GetInfo`, and `rescan`. All operations run to
+    completion before returning.
+  - `client::GetInfo` (`server_uri`, `chain_name`, `chain_tip_height`):
+    node/indexer information from `Client::get_info`, the `do_info`
+    analogue used as a "can the wallet reach its server" smoke check.
+    `chain_tip_height` is the server/node tip (a `u64`, matching the
+    wire `LightdInfo.block_height`), never the wallet's locally-synced
+    height. The field set is a frozen contract with the wallet binary;
+    a unit test pins the parser against a real `get-info` line captured
+    from the devtool binary, and the `connect_to_node_get_info`
+    integration test exercises it against the live binary + indexer.
   - `client::AddressReceiver` (`Unified | Transparent | Sapling |
     Orchard`): selects which receiver of the wallet's unified address
     `Client::address` emits. The bare transparent/sapling receivers

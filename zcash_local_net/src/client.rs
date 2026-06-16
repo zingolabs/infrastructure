@@ -99,10 +99,34 @@ pub trait Client: Sized {
         self.address(AddressReceiver::Unified)
     }
 
+    /// Node/indexer information reported by the configured server.
+    /// Contacts the indexer (the analogue of zingolib's `do_info`); a
+    /// smoke check that the wallet can reach and talk to its server.
+    fn get_info(&self) -> impl std::future::Future<Output = Result<GetInfo, ClientError>>;
+
     /// Wipe the wallet state and re-restore from the stored mnemonic
     /// and birthday, preserving account metadata. Equivalent to a
     /// rescan from scratch; [`Client::sync`] afterwards to rebuild.
     fn rescan(&self) -> impl std::future::Future<Output = Result<(), ClientError>>;
+}
+
+/// Node/indexer information from [`Client::get_info`].
+///
+/// The field set is a frozen contract with the wallet binary: see
+/// `client::zcash_devtool`'s get-info parser. `chain_tip_height` is the
+/// **server/node tip** the indexer reports, never the wallet's
+/// locally-synced height (which, if ever surfaced, gets its own
+/// explicitly-named field).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GetInfo {
+    /// The lightwalletd-protocol server URI the wallet connected to.
+    pub server_uri: String,
+    /// The chain name the server reports (e.g. `"main"`, `"test"`,
+    /// `"regtest"`).
+    pub chain_name: String,
+    /// The current chain tip height as the server reports it (the
+    /// node/indexer tip). `u64` to match the wire `LightdInfo.block_height`.
+    pub chain_tip_height: u64,
 }
 
 /// A wallet balance snapshot, in zatoshis.
@@ -121,7 +145,12 @@ pub struct WalletBalance {
     pub orchard_spendable: u64,
     /// Spendable transparent balance.
     pub transparent_spendable: u64,
-    /// The chain tip height the wallet has synced to.
+    /// The height of the current chain tip as the wallet sees it (the
+    /// node/indexer tip, mirroring `WalletSummary::chain_tip_height` and
+    /// the `chain_tip_height` field of the get-info contract). This is
+    /// *not* the wallet's locally-synced height — that value, if ever
+    /// surfaced, gets its own explicitly-named field (e.g.
+    /// `wallet_synced_height`).
     pub chain_tip_height: u32,
 }
 

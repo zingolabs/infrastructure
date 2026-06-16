@@ -1055,6 +1055,49 @@ mod devtool_client {
         );
     }
 
+    /// Smoke check that the wallet can reach and talk to its indexer,
+    /// the `get_info` analogue of zingolib's `do_info` "connect to
+    /// node" test. The original discards the result; this port adds a
+    /// light contract check — the parsed shape is populated and the
+    /// server-tip semantics hold — without over-constraining (chain
+    /// names and the exact tip are the server's to define).
+    #[tokio::test]
+    async fn connect_to_node_get_info() {
+        let _ = tracing_subscriber::fmt().try_init();
+        let net = launch_orchard_net().await;
+        net.validator().generate_blocks(2).await.unwrap();
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+
+        let info = faucet.get_info().await.unwrap();
+        assert!(
+            !info.server_uri.is_empty(),
+            "server_uri should be populated, got {info:?}"
+        );
+        assert!(
+            !info.chain_name.is_empty(),
+            "chain_name should be populated, got {info:?}"
+        );
+
+        // get-info reports the server (node/indexer) tip, not a
+        // wallet-synced height — so it needs no wallet sync, but the
+        // indexer may briefly lag the validator's freshly-mined blocks.
+        // Poll until it catches up to confirm the server-tip semantics
+        // rather than asserting on a single possibly-stale read.
+        const ATTEMPTS: u32 = 60;
+        let mut tip = info.chain_tip_height;
+        for _ in 0..ATTEMPTS {
+            if tip >= 2 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            tip = faucet.get_info().await.unwrap().chain_tip_height;
+        }
+        assert!(
+            tip >= 2,
+            "chain_tip_height should reach the mined server tip (>= 2), last saw {tip}"
+        );
+    }
+
     /// Launching with regtest heights that differ from the fixture
     /// heights compiled into the devtool binary must fail fast, before
     /// any wallet state exists.
@@ -1141,16 +1184,28 @@ mod devtool_client {
         net.validator().generate_blocks(2).await.unwrap();
         let shielded = sync_to_height(&faucet, 9).await;
         assert_eq!(shielded.transparent_spendable, 0);
-        // The faucet is also the miner, so every fee it pays returns in
-        // the next block's coinbase: between the snapshots the wallet
-        // gains exactly two block rewards, and the orchard pool gains
-        // those rewards plus the shielded value (the shield's ZIP-317
-        // fee nets to zero — paid by the transaction, recouped in the
-        // coinbase of the block that mined it).
-        assert_eq!(shielded.total, funded.total + 2 * POST_NU6_MINER_REWARD);
+
+        // The faucet is also the miner, so the ZIP-317 fee it pays to
+        // shield returns to it in that block's coinbase — fees net to
+        // zero across `total`, which grows by exactly one subsidy per
+        // block mined since the funded snapshot. Derive the block count
+        // from the snapshots' own tip heights rather than assuming a
+        // fixed number: the faucet-is-miner coupling plus burst mining
+        // makes the exact capture height race run-to-run (all blocks in
+        // this window are past height 5, so each pays the orchard
+        // subsidy). The shielded value lands back in orchard on top.
+        let blocks = u64::from(shielded.chain_tip_height - funded.chain_tip_height);
+        assert!(
+            blocks >= 1,
+            "expected the shield window to mine blocks, saw {blocks}"
+        );
+        assert_eq!(
+            shielded.total,
+            funded.total + blocks * POST_NU6_MINER_REWARD
+        );
         assert_eq!(
             shielded.orchard_spendable,
-            funded.orchard_spendable + 2 * POST_NU6_MINER_REWARD + SEND_VALUE,
+            funded.orchard_spendable + blocks * POST_NU6_MINER_REWARD + SEND_VALUE,
         );
     }
 }

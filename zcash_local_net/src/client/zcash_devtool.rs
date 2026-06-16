@@ -24,7 +24,7 @@ use zingo_common_components::protocol::NetworkType;
 use zingo_test_vectors::seeds::{ABANDON_ART_SEED, HOSPITAL_MUSEUM_SEED};
 
 use crate::{
-    client::{AddressReceiver, Client, ClientConfig, WalletBalance},
+    client::{AddressReceiver, Client, ClientConfig, GetInfo, WalletBalance},
     error::ClientError,
     indexer::Indexer,
     logs::LogsToDir,
@@ -219,6 +219,46 @@ impl ZcashDevtool {
         }
     }
 
+    /// Write the regtest `--activation-heights` TOML for `init` and
+    /// return its path, or `None` for main/test (which take no such
+    /// file — the devtool rejects `--activation-heights` there).
+    ///
+    /// The schema is the devtool's `data.rs::ActivationHeights`
+    /// (`deny_unknown_fields`): one optional `<upgrade> = <height>` line
+    /// per upgrade `overwinter…nu6_2`, a missing key meaning "inactive".
+    /// `nu7` is intentionally omitted — the devtool's TOML has no such
+    /// field, so emitting it would trip `deny_unknown_fields`.
+    fn write_activation_heights_toml(&self) -> Result<Option<PathBuf>, ClientError> {
+        let NetworkType::Regtest(heights) = self.config.network else {
+            return Ok(None);
+        };
+        let entries = [
+            ("overwinter", heights.overwinter()),
+            ("sapling", heights.sapling()),
+            ("blossom", heights.blossom()),
+            ("heartwood", heights.heartwood()),
+            ("canopy", heights.canopy()),
+            ("nu5", heights.nu5()),
+            ("nu6", heights.nu6()),
+            ("nu6_1", heights.nu6_1()),
+            ("nu6_2", heights.nu6_2()),
+        ];
+        let mut body = String::new();
+        for (key, value) in entries {
+            if let Some(height) = value {
+                use std::fmt::Write as _;
+                // Infallible write into a String.
+                let _ = writeln!(body, "{key} = {height}");
+            }
+        }
+        let path = self.wallet_dir.path().join("activation-heights.toml");
+        std::fs::write(&path, body).map_err(|io_error| ClientError::SpawnFailed {
+            operation: "init",
+            io_error: format!("writing activation-heights file: {io_error}"),
+        })?;
+        Ok(Some(path))
+    }
+
     /// Append one operation's captured output to the logs directory,
     /// under the same `stdout.log` / `stderr.log` names the daemon
     /// processes use, with a banner line per operation.
@@ -336,29 +376,41 @@ impl Client for ZcashDevtool {
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
         let birthday = client.config.birthday.to_string();
         let server = client.server();
+
+        let mut args = vec![
+            "init",
+            "--name",
+            &client.config.account_name,
+            "-i",
+            identity,
+            "--birthday",
+            &birthday,
+            "-n",
+            network_flag,
+            "-s",
+            &server,
+            "--connection",
+            "direct",
+        ];
+
+        // Regtest `init` requires `--activation-heights <file>`: the
+        // devtool no longer bakes regtest heights in, it reads them at
+        // init and persists them in the wallet config. We write the
+        // file from the configured heights (already validated by
+        // `network_flag` to equal `supported_regtest_activation_heights`).
+        let heights_file = client.write_activation_heights_toml()?;
+        let heights_path;
+        if let Some(path) = &heights_file {
+            heights_path = path.to_str().expect("tempdir paths are UTF-8").to_string();
+            args.push("--activation-heights");
+            args.push(&heights_path);
+        }
+
         // `init` contacts the server for the chain tip and the
         // birthday tree state before reading the mnemonic from stdin —
         // the indexer must already be serving.
         client
-            .run_wallet_op(
-                "init",
-                &[
-                    "init",
-                    "--name",
-                    &client.config.account_name,
-                    "-i",
-                    identity,
-                    "--birthday",
-                    &birthday,
-                    "-n",
-                    network_flag,
-                    "-s",
-                    &server,
-                    "--connection",
-                    "direct",
-                ],
-                Some(&client.config.mnemonic),
-            )
+            .run_wallet_op("init", &args, Some(&client.config.mnemonic))
             .await?;
 
         Ok(client)
@@ -470,6 +522,22 @@ impl Client for ZcashDevtool {
         })
     }
 
+    async fn get_info(&self) -> Result<GetInfo, ClientError> {
+        let output = self
+            .run_wallet_op(
+                "get-info",
+                &["get-info", "-s", &self.server(), "--connection", "direct"],
+                None,
+            )
+            .await?;
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        parse_getinfo_json(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+            operation: "get-info",
+            reason,
+            stdout,
+        })
+    }
+
     async fn rescan(&self) -> Result<(), ClientError> {
         let identity_file = self.identity_file();
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
@@ -566,6 +634,39 @@ fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
     })
 }
 
+/// Parse the single-line JSON object emitted by `get-info`. Field set
+/// is the frozen [`GetInfo`] contract; `chain_tip_height` is a u64 (the
+/// server tip, matching the wire `LightdInfo.block_height`).
+fn parse_getinfo_json(stdout: &str) -> Result<GetInfo, String> {
+    let line = stdout
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with('{'))
+        .ok_or_else(|| "no JSON object line in stdout".to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(line).map_err(|e| format!("invalid JSON {line:?}: {e}"))?;
+
+    let str_field = |key: &str| -> Result<String, String> {
+        value
+            .get(key)
+            .ok_or_else(|| format!("missing key {key:?}"))?
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| format!("key {key:?} is not a string"))
+    };
+    let chain_tip_height = value
+        .get("chain_tip_height")
+        .ok_or_else(|| "missing key \"chain_tip_height\"".to_string())?
+        .as_u64()
+        .ok_or_else(|| "key \"chain_tip_height\" is not a u64".to_string())?;
+
+    Ok(GetInfo {
+        server_uri: str_field("server_uri")?,
+        chain_name: str_field("chain_name")?,
+        chain_tip_height,
+    })
+}
+
 /// Parse the unified address from `list-addresses` output: the
 /// `Default Address:` line. Reverse-scanned so a leading `Account …`
 /// line never shadows it.
@@ -644,6 +745,43 @@ Receiver(orchard): uregtest1duh3glf8uk5he5cpmlzsfvkn34de4uudyahdr7p6j0p6zs2tujgd
             "uregtest1duh3glf8uk5he5cpmlzsfvkn34de4uudyahdr7p6j0p6zs2tujgdxqmzgvtquwc5cphwufku93a0p5ksxzwx0qk92kkd5nrdzs5tngw6"
         );
         assert!(parse_receiver(RECEIVERS_STDOUT, "missing").is_err());
+    }
+
+    /// A real `get-info` line captured from the devtool binary (commit
+    /// d820388) run against a regtest zebrad + zainod via the
+    /// `connect_to_node_get_info` integration test. Anchors this parser
+    /// to the frozen output, not a guess. Observed reality: keys come
+    /// out alphabetically ordered, `server_uri` has no trailing slash,
+    /// and zaino reports regtest as `chain_name: "test"` (the
+    /// `GetLightdInfo` value), not `"regtest"`. The port is ephemeral
+    /// (random per run); only the shape matters here.
+    const GETINFO_JSON_STDOUT: &str = "{\"chain_name\":\"test\",\"chain_tip_height\":3,\"server_uri\":\"http://127.0.0.1:42739\"}\n";
+
+    #[test]
+    fn getinfo_json_parses() {
+        let info = parse_getinfo_json(GETINFO_JSON_STDOUT).unwrap();
+        assert_eq!(
+            info,
+            GetInfo {
+                server_uri: "http://127.0.0.1:42739".to_string(),
+                chain_name: "test".to_string(),
+                chain_tip_height: 3,
+            }
+        );
+    }
+
+    #[test]
+    fn getinfo_json_rejects_bad_shapes() {
+        assert!(parse_getinfo_json("not json\n").is_err());
+        // Missing a required key.
+        assert!(parse_getinfo_json("{\"server_uri\":\"x\",\"chain_name\":\"regtest\"}\n").is_err());
+        // chain_tip_height must be an integer, not a string.
+        assert!(
+            parse_getinfo_json(
+                "{\"server_uri\":\"x\",\"chain_name\":\"regtest\",\"chain_tip_height\":\"6\"}\n"
+            )
+            .is_err()
+        );
     }
 
     #[test]
