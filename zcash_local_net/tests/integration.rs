@@ -1120,16 +1120,14 @@ mod devtool_client {
         let recipient = launch_client(&net, ZcashDevtoolConfig::recipient()).await;
         let recipient_address = recipient.default_address().await.unwrap();
 
-        net.validator().generate_blocks(3).await.unwrap();
-        // Zebrad::launch pre-mines one block, so the chain is at height 4
-        // here (the launch-primed block 1, plus these 3), not 3. Sync to the
-        // validator's actual tip and derive the expected balance from it.
-        // Syncing to a hardcoded height 3 left this assertion at the mercy of
-        // a wallet-sync sampling race — sync_to_height returns as soon as the
-        // wallet sees `>= target`, so it sampled either height 3 (indexer
-        // lagging) or the true tip 4 (one extra coinbase), and flaked
-        // pass/fail under load. Block 1 is the sapling reward (mined before
-        // NU5 at height 2); blocks 2..=tip are post-NU6 orchard rewards.
+        // Mining to orchard is the expensive part (~4.5-9.5s/block of Halo2
+        // coinbase proving), so mine the minimum each step needs. 2 blocks
+        // puts the first orchard coinbase (height 2) one confirmation deep,
+        // making it spendable; Zebrad::launch already pre-mined block 1
+        // (sapling, pre-NU5). Sync to the validator's real tip and derive the
+        // expected balance from it, so the reduced counts stay correct
+        // regardless of the launch-primed block.
+        net.validator().generate_blocks(2).await.unwrap();
         let tip = net.validator().get_chain_height().await;
         let balance = sync_to_height(&faucet, tip).await;
         assert_eq!(
@@ -1139,22 +1137,24 @@ mod devtool_client {
         assert_eq!(balance.sapling_spendable, BLOCK_1_SAPLING_REWARD);
         assert_eq!(balance.transparent_spendable, 0);
 
-        // First send, from a tip (height 4) well past every upgrade.
+        // First send, confirmed by one block.
         faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
-        net.validator().generate_blocks(3).await.unwrap();
-        let received = sync_to_height(&recipient, 6).await;
+        net.validator().generate_blocks(1).await.unwrap();
+        let received = sync_to_height(&recipient, net.validator().get_chain_height().await).await;
         assert_eq!(received.total, SEND_VALUE);
 
-        // Second send, from a tip composed purely of orchard rewards.
-        sync_to_height(&faucet, 6).await;
+        // One more block matures the faucet's change note, then send again.
+        net.validator().generate_blocks(1).await.unwrap();
+        sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
-        net.validator().generate_blocks(2).await.unwrap();
-        let received = sync_to_height(&recipient, 8).await;
+        net.validator().generate_blocks(1).await.unwrap();
+        let tip = net.validator().get_chain_height().await;
+        let received = sync_to_height(&recipient, tip).await;
         assert_eq!(received.total, 2 * SEND_VALUE);
 
         // Rescan from scratch and verify the balance survives.
         recipient.rescan().await.unwrap();
-        let rescanned = sync_to_height(&recipient, 8).await;
+        let rescanned = sync_to_height(&recipient, tip).await;
         assert_eq!(rescanned.total, 2 * SEND_VALUE);
     }
 
@@ -1166,20 +1166,25 @@ mod devtool_client {
         let net = launch_orchard_net().await;
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
 
-        net.validator().generate_blocks(5).await.unwrap();
-        sync_to_height(&faucet, 5).await;
+        // Mine the minimum orchard coinbase needed: 2 blocks makes the first
+        // orchard coinbase (height 2) one confirmation deep, hence spendable.
+        net.validator().generate_blocks(2).await.unwrap();
+        sync_to_height(&faucet, net.validator().get_chain_height().await).await;
 
         faucet
             .send(REG_T_ADDR_FROM_ABANDONART, SEND_VALUE)
             .await
             .unwrap();
+        // Two blocks so the new transparent output is one confirmation deep
+        // (spendable) when snapshotted.
         net.validator().generate_blocks(2).await.unwrap();
-        let funded = sync_to_height(&faucet, 7).await;
+        let funded = sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         assert_eq!(funded.transparent_spendable, SEND_VALUE);
 
         faucet.shield().await.unwrap();
+        // Two blocks so the shielded orchard output is confirmed/spendable.
         net.validator().generate_blocks(2).await.unwrap();
-        let shielded = sync_to_height(&faucet, 9).await;
+        let shielded = sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         assert_eq!(shielded.transparent_spendable, 0);
 
         // The faucet is also the miner, so the ZIP-317 fee it pays to
