@@ -1121,15 +1121,25 @@ mod devtool_client {
         let recipient_address = recipient.default_address().await.unwrap();
 
         net.validator().generate_blocks(3).await.unwrap();
-        let balance = sync_to_height(&faucet, 3).await;
+        // Zebrad::launch pre-mines one block, so the chain is at height 4
+        // here (the launch-primed block 1, plus these 3), not 3. Sync to the
+        // validator's actual tip and derive the expected balance from it.
+        // Syncing to a hardcoded height 3 left this assertion at the mercy of
+        // a wallet-sync sampling race — sync_to_height returns as soon as the
+        // wallet sees `>= target`, so it sampled either height 3 (indexer
+        // lagging) or the true tip 4 (one extra coinbase), and flaked
+        // pass/fail under load. Block 1 is the sapling reward (mined before
+        // NU5 at height 2); blocks 2..=tip are post-NU6 orchard rewards.
+        let tip = net.validator().get_chain_height().await;
+        let balance = sync_to_height(&faucet, tip).await;
         assert_eq!(
             balance.total,
-            BLOCK_1_SAPLING_REWARD + 2 * POST_NU6_MINER_REWARD,
+            BLOCK_1_SAPLING_REWARD + u64::from(tip - 1) * POST_NU6_MINER_REWARD,
         );
         assert_eq!(balance.sapling_spendable, BLOCK_1_SAPLING_REWARD);
         assert_eq!(balance.transparent_spendable, 0);
 
-        // First send: tip 3, one block after every upgrade activated.
+        // First send, from a tip (height 4) well past every upgrade.
         faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
         net.validator().generate_blocks(3).await.unwrap();
         let received = sync_to_height(&recipient, 6).await;
