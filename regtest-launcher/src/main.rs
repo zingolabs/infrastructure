@@ -54,6 +54,7 @@ async fn main() {
         .set_nu5(cli.activation_heights.nu5)
         .set_nu6(cli.activation_heights.nu6)
         .set_nu6_1(cli.activation_heights.nu6_1)
+        .set_nu6_2(cli.activation_heights.nu6_2)
         .set_nu7(cli.activation_heights.nu7)
         .build();
 
@@ -119,7 +120,7 @@ async fn main() {
 
     let seconds_per_block = 5u64;
 
-    let target_height = 101u32;
+    let target_height = 5u32;
     loop {
         let cur_height = network.validator().get_chain_height().await;
         if cur_height >= target_height {
