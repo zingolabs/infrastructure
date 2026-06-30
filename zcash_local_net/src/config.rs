@@ -258,6 +258,15 @@ NU6 = {nu6_activation_height}
 \"NU6.2\" = {nu6_2_activation_height}"
         ));
 
+        // NU6.3 (Ironwood) is emitted only when an activation height is
+        // configured. Leaving it unset stands up a pre-activation regtest
+        // (Ironwood never activates); setting it to a chosen height stands
+        // up a post-activation regtest. Must be >= NU6.2 (zebra enforces the
+        // monotonic ordering, as does the `ActivationHeights` builder).
+        if let Some(nu6_3_activation_height) = activation_heights.nu6_3() {
+            cfg.push_str(&format!("\n\"NU6.3\" = {nu6_3_activation_height}"));
+        }
+
         // Lockbox disbursements (ZIP-271). Required at the NU6.1
         // activation block; an empty list trips zebrad's
         // `subsidy_is_valid` rejection. Schema matches Zebra's

@@ -257,6 +257,7 @@ fn parse_activation_heights_from_rpc(
         .set_nu6(get_height("NU6"))
         .set_nu6_1(get_height("NU6.1"))
         .set_nu6_2(get_height("NU6.2"))
+        .set_nu6_3(get_height("NU6.3"))
         .set_nu7(get_height("NU7"))
         .build();
     tracing::debug!(

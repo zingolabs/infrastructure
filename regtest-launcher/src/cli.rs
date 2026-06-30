@@ -120,6 +120,12 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu6: None,
         nu6_1: None,
         nu6_2: None,
+        // NU6.3 (Ironwood) was added to zebra's ConfiguredActivationHeights.
+        // Like nu6_2, it is seeded here but not yet wired into the CLI key
+        // parser/cascade (see the `// TODO: update regtest-launcher to nu6.2`
+        // above — the same gap applies to nu6.3). Kept consistent with nu6_2
+        // so launcher behaviour is unchanged.
+        nu6_3: None,
         nu7: None,
     };
 

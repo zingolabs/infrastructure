@@ -148,3 +148,22 @@ attacker controls the lookup path.
   open a tracking issue rather than silently shipping the audit
   fix — the bug is older than your PR and may have caller-side
   expectations that need to change in lockstep.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked as GitHub issues in `zingolabs/infrastructure`
+via the `gh` CLI. External (non-collaborator) PRs are also a triage
+surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical label vocabulary (`needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`). See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See
+`docs/agents/domain.md`.
