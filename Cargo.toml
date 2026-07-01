@@ -9,13 +9,7 @@ zingo_test_vectors = { path = "zingo_test_vectors" }
 zcash_local_net = { path = "zcash_local_net" }
 
 # zingo-common
-# Ironwood: 0.4.0 adds the `nu6_3` activation-height field used to stand up a
-# regtest pre-/post-NU6.3. It is not yet published to crates.io nor pushed to a
-# fetchable branch (it lives on the local `commons` feat/ironwood checkout), so
-# we consume it by path for now.
-# TODO(ironwood): swap to a git rev / published 0.4.0 before cutting the tag,
-# once the zingo_common_components nu6_3 handoff lands.
-zingo_common_components = { path = "../commons/zingo_common_components" }
+zingo_common_components = "0.4.0"
 
 #zcash
 zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
