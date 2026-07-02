@@ -25,16 +25,67 @@ async fn launch_default_and_print_all<P: Process>() {
     p.print_all();
 }
 
+/// Install the test tracing subscriber. `try_init` (not `init`) so a
+/// second call in the same process is a no-op rather than a panic.
+fn init_tracing() {
+    let _ = tracing_subscriber::fmt().try_init();
+}
+
+/// Regtest activation heights with the usual pre-NU6 fixture values
+/// (everything ≤ canopy at 1, NU5 and NU6 at 2, NU7 off) and NU6.1 +
+/// NU6.2 co-activated at `nu6_1_height`. NU6.1 and NU6.2 always move
+/// together in these tests, so they take a single height.
+fn regtest_heights_nu6_1_at(nu6_1_height: u32) -> ActivationHeights {
+    ActivationHeights::builder()
+        .set_overwinter(Some(1))
+        .set_sapling(Some(1))
+        .set_blossom(Some(1))
+        .set_heartwood(Some(1))
+        .set_canopy(Some(1))
+        .set_nu5(Some(2))
+        .set_nu6(Some(2))
+        .set_nu6_1(Some(nu6_1_height))
+        .set_nu6_2(Some(nu6_1_height))
+        .set_nu7(None)
+        .build()
+}
+
+/// The four readiness-relevant RPCs zebrad exposes (it has no dedicated
+/// /healthz or /readyz — see zingolabs/infrastructure#245). The
+/// "informal readiness" contract is: live & ready iff all four return Ok.
+const READINESS_RPCS: [&str; 4] = [
+    "getinfo",
+    "getnetworkinfo",
+    "getblockchaininfo",
+    "getblocktemplate",
+];
+
+/// Call each [`READINESS_RPCS`] endpoint on `zebrad` and return a
+/// `"<endpoint>: <error>"` line for every one that fails (empty == all Ok).
+async fn readiness_rpc_failures(zebrad: &Zebrad) -> Vec<String> {
+    let mut failures = Vec::new();
+    for endpoint in READINESS_RPCS {
+        if let Err(e) = zebrad
+            .client()
+            .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
+            .await
+        {
+            failures.push(format!("{endpoint}: {e:?}"));
+        }
+    }
+    failures
+}
+
 #[tokio::test]
 async fn launch_zcashd() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<Zcashd>().await;
 }
 
 #[tokio::test]
 async fn launch_zcashd_custom_activation_heights() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     let zcashd = Zcashd::launch_default().await.unwrap();
 
@@ -44,7 +95,7 @@ async fn launch_zcashd_custom_activation_heights() {
 
 #[tokio::test]
 async fn launch_zebrad() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<Zebrad>().await;
 }
@@ -69,18 +120,7 @@ async fn probe_validator_with_nu6_1_at<V: zcash_local_net::validator::Validator>
     nu6_1_height: u32,
     mine_count: u32,
 ) {
-    let activation_heights = ActivationHeights::builder()
-        .set_overwinter(Some(1))
-        .set_sapling(Some(1))
-        .set_blossom(Some(1))
-        .set_heartwood(Some(1))
-        .set_canopy(Some(1))
-        .set_nu5(Some(2))
-        .set_nu6(Some(2))
-        .set_nu6_1(Some(nu6_1_height))
-        .set_nu6_2(Some(nu6_1_height))
-        .set_nu7(None)
-        .build();
+    let activation_heights = regtest_heights_nu6_1_at(nu6_1_height);
 
     let mut config = V::Config::default();
     config.set_test_parameters(PoolType::Transparent, activation_heights, None);
@@ -128,21 +168,21 @@ async fn probe_validator_with_nu6_1_at<V: zcash_local_net::validator::Validator>
 #[ignore = "documents empty-default failure of zebrad NU6.1 activation; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_2() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     probe_validator_with_nu6_1_at::<Zebrad>(2, 5).await;
 }
 
 #[ignore = "documents empty-default failure of zebrad NU6.1 activation; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_3() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     probe_validator_with_nu6_1_at::<Zebrad>(3, 5).await;
 }
 
 #[ignore = "documents empty-default failure of zebrad NU6.1 activation; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_50() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     probe_validator_with_nu6_1_at::<Zebrad>(50, 52).await;
 }
 
@@ -153,7 +193,7 @@ async fn launch_zebrad_with_nu6_1_at_height_50() {
 
 #[tokio::test]
 async fn launch_zcashd_with_nu6_1_at_height_2() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     probe_validator_with_nu6_1_at::<Zcashd>(2, 5).await;
 }
 
@@ -184,7 +224,7 @@ async fn probe_zebrad_rpc_endpoint(endpoint: &'static str) {
 
 #[tokio::test]
 async fn zebrad_responds_to_getinfo() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // Most permissive endpoint — answers as soon as the JSON-RPC
     // dispatcher is registered. If this fails, the process is dead
     // or the listener never bound.
@@ -193,21 +233,21 @@ async fn zebrad_responds_to_getinfo() {
 
 #[tokio::test]
 async fn zebrad_responds_to_getnetworkinfo() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // Network module loaded; peer subsystem reachable.
     probe_zebrad_rpc_endpoint("getnetworkinfo").await;
 }
 
 #[tokio::test]
 async fn zebrad_responds_to_getblockchaininfo() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // State module loaded; chain tip readable from the database.
     probe_zebrad_rpc_endpoint("getblockchaininfo").await;
 }
 
 #[tokio::test]
 async fn zebrad_responds_to_getblocktemplate() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // Mining service active and consensus is in a state where the
     // next block can be mined. Most restrictive of the four.
     probe_zebrad_rpc_endpoint("getblocktemplate").await;
@@ -215,7 +255,7 @@ async fn zebrad_responds_to_getblocktemplate() {
 
 #[tokio::test]
 async fn zebrad_healthy_endpoint_responds_200_after_launch() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // /healthy with min_connected_peers=0 (regtest default) returns
     // 200 as soon as the HTTP server has bound. Launch implies
     // wait_for_rpc_ready has already passed, so the listener must
@@ -231,7 +271,7 @@ async fn zebrad_healthy_endpoint_responds_200_after_launch() {
 
 #[tokio::test]
 async fn zebrad_ready_endpoint_responds_200_after_one_block() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // /ready requires the latest committed block to be recent
     // (within ready_max_tip_age, default 300s) and chain-tip lag
     // bounded. launch_default mines genesis as part of its
@@ -248,7 +288,7 @@ async fn zebrad_ready_endpoint_responds_200_after_one_block() {
 
 #[tokio::test]
 async fn zebrad_health_endpoints_agree_with_rpc_readiness_conjunction() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // Regression test for upstream Zebra changes that would let
     // /healthy or /ready report ready while the JSON-RPC surface
     // is actually broken (or vice versa). The harness's informal
@@ -259,22 +299,7 @@ async fn zebrad_health_endpoints_agree_with_rpc_readiness_conjunction() {
         .await
         .expect("zebrad launch_default");
 
-    let endpoints = [
-        "getinfo",
-        "getnetworkinfo",
-        "getblockchaininfo",
-        "getblocktemplate",
-    ];
-    let mut rpc_failures = Vec::new();
-    for endpoint in endpoints {
-        if let Err(e) = zebrad
-            .client()
-            .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
-            .await
-        {
-            rpc_failures.push(format!("{endpoint}: {e:?}"));
-        }
-    }
+    let rpc_failures = readiness_rpc_failures(&zebrad).await;
     let rpcs_ok = rpc_failures.is_empty();
 
     let healthy_ok = zebrad.healthy().await.expect("/healthy fetch");
@@ -291,7 +316,7 @@ async fn zebrad_health_endpoints_agree_with_rpc_readiness_conjunction() {
 
 #[tokio::test]
 async fn zebrad_passes_informal_readiness_conjunction() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     // The "informal readiness" contract from
     // zingolabs/infrastructure#245: live & ready iff all four
     // readiness-relevant RPCs return Ok. Reports which endpoints
@@ -301,22 +326,7 @@ async fn zebrad_passes_informal_readiness_conjunction() {
         .await
         .expect("zebrad launch_default");
 
-    let endpoints = [
-        "getinfo",
-        "getnetworkinfo",
-        "getblockchaininfo",
-        "getblocktemplate",
-    ];
-    let mut failures = Vec::new();
-    for endpoint in endpoints {
-        if let Err(e) = zebrad
-            .client()
-            .json_result_from_call::<serde_json::Value>(endpoint, "[]".to_string())
-            .await
-        {
-            failures.push(format!("{endpoint}: {e:?}"));
-        }
-    }
+    let failures = readiness_rpc_failures(&zebrad).await;
     assert!(
         failures.is_empty(),
         "informal readiness conjunction failed:\n{}",
@@ -359,23 +369,11 @@ async fn zebrad_passes_informal_readiness_conjunction() {
 /// require all three checks to pass.
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_streams() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
-    let activation_heights = ActivationHeights::builder()
-        .set_overwinter(Some(1))
-        .set_sapling(Some(1))
-        .set_blossom(Some(1))
-        .set_heartwood(Some(1))
-        .set_canopy(Some(1))
-        .set_nu5(Some(2))
-        .set_nu6(Some(2))
-        // NU6.1 a few blocks after NU6 so the `Deferred` value pool
-        // accumulates enough subsidy fraction to cover the
-        // disbursement total.
-        .set_nu6_1(Some(5))
-        .set_nu6_2(Some(5))
-        .set_nu7(None)
-        .build();
+    // NU6.1 a few blocks after NU6 so the `Deferred` value pool
+    // accumulates enough subsidy fraction to cover the disbursement total.
+    let activation_heights = regtest_heights_nu6_1_at(5);
 
     let mut config = ZebradConfig::default();
     config.set_test_parameters(PoolType::Transparent, activation_heights, None);
@@ -402,20 +400,9 @@ async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_str
 #[ignore = "blocked: deferred-pool empty without NU6 funding streams; see #244"]
 #[tokio::test]
 async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
-    let activation_heights = ActivationHeights::builder()
-        .set_overwinter(Some(1))
-        .set_sapling(Some(1))
-        .set_blossom(Some(1))
-        .set_heartwood(Some(1))
-        .set_canopy(Some(1))
-        .set_nu5(Some(2))
-        .set_nu6(Some(2))
-        .set_nu6_1(Some(2))
-        .set_nu6_2(Some(2))
-        .set_nu7(None)
-        .build();
+    let activation_heights = regtest_heights_nu6_1_at(2);
 
     let mut config = ZebradConfig::default();
     config.set_test_parameters(PoolType::Transparent, activation_heights, None);
@@ -463,7 +450,7 @@ async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
 #[ignore = "temporary during refactor into workspace"]
 #[tokio::test]
 async fn launch_zebrad_with_cache() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     let config = ZebradConfig {
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
@@ -481,7 +468,7 @@ async fn launch_zebrad_with_cache() {
 /// The second instance cannot open the database, due to it already being in use by the first instance.
 #[tokio::test]
 async fn launch_multiple_individual_zebrads_with_cache() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
     let config = ZebradConfig {
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
         ..Default::default()
@@ -501,7 +488,7 @@ async fn launch_multiple_individual_zebrads_with_cache() {
 /// Tests that 2 `zebrad` instances, each with a copy of the chain cache, can be launched.
 #[tokio::test]
 async fn localnet_launch_multiple_zebrads_with_cache() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     let config = ZebradConfig {
         chain_cache: Some(utils::chain_cache_dir().join("client_rpc_tests_large")),
@@ -534,28 +521,28 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
 
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<LocalNet<Zcashd, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_zainod_zebrad() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zebrad() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     launch_default_and_print_all::<LocalNet<Zebrad, Lightwalletd>>().await;
 }
@@ -563,7 +550,7 @@ async fn launch_localnet_lightwalletd_zebrad() {
 #[ignore = "not a test. generates chain cache for client_rpc tests."]
 #[tokio::test]
 async fn generate_zebrad_large_chain_cache() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     crate::testutils::generate_zebrad_large_chain_cache().await;
 }
@@ -573,7 +560,7 @@ async fn generate_zebrad_large_chain_cache() {
 #[ignore = "not a test. generates chain cache for client_rpc tests."]
 #[tokio::test]
 async fn generate_zcashd_chain_cache() {
-    tracing_subscriber::fmt().init();
+    init_tracing();
 
     crate::testutils::generate_zcashd_chain_cache().await;
 }
@@ -772,7 +759,7 @@ mod launch_recovers_from_rpc_port_collision {
 
     #[tokio::test]
     async fn zcashd() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         run_collision_test(
             "Zcashd",
             &["Unable to start HTTP server", "Unable to bind any endpoint"],
@@ -788,7 +775,7 @@ mod launch_recovers_from_rpc_port_collision {
 
     #[tokio::test]
     async fn zebrad() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         run_collision_test(
             "Zebrad",
             &["AddrInUse", "code: 98", "Address already in use"],
@@ -804,7 +791,7 @@ mod launch_recovers_from_rpc_port_collision {
 
     #[tokio::test]
     async fn zainod() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
 
         // Zainod connects to a validator's JSON-RPC port; launch one
         // first (default config, no pinning — its own retry covers
@@ -840,7 +827,7 @@ mod launch_recovers_from_rpc_port_collision {
 
     #[tokio::test]
     async fn lightwalletd() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
 
         // Lightwalletd reads its validator's RPC port from a
         // zcash.conf file; launch a zcashd (default config) and
@@ -891,7 +878,7 @@ mod launch_recovers_from_rpc_port_collision {
 /// the time `launch` returns, all DNS work is already on disk.
 #[tokio::test]
 async fn zebrad_regtest_skips_seed_peer_dns() {
-    let _ = tracing_subscriber::fmt().try_init();
+    init_tracing();
 
     let zebrad = Zebrad::launch(ZebradConfig::default())
         .await
@@ -1024,7 +1011,7 @@ mod devtool_client {
     /// abandon-art wallet owns the addresses the harness pays.
     #[tokio::test]
     async fn faucet_addresses_match_miner_addresses() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         let net = launch_orchard_net().await;
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
 
@@ -1063,7 +1050,7 @@ mod devtool_client {
     /// names and the exact tip are the server's to define).
     #[tokio::test]
     async fn connect_to_node_get_info() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         let net = launch_orchard_net().await;
         net.validator().generate_blocks(2).await.unwrap();
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
@@ -1103,7 +1090,7 @@ mod devtool_client {
     /// any wallet state exists.
     #[tokio::test]
     async fn launch_rejects_drifted_activation_heights() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         let net = launch_orchard_net().await;
 
         let mut config = ZcashDevtoolConfig::faucet();
@@ -1127,37 +1114,47 @@ mod devtool_client {
     /// heights drift from [`supported_regtest_activation_heights`].
     #[tokio::test]
     async fn faucet_sends_recipient_receives_and_rescans() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         let net = launch_orchard_net().await;
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
         let recipient = launch_client(&net, ZcashDevtoolConfig::recipient()).await;
         let recipient_address = recipient.default_address().await.unwrap();
 
-        net.validator().generate_blocks(3).await.unwrap();
-        let balance = sync_to_height(&faucet, 3).await;
+        // Mining to orchard is the expensive part (~4.5-9.5s/block of Halo2
+        // coinbase proving), so mine the minimum each step needs. 2 blocks
+        // puts the first orchard coinbase (height 2) one confirmation deep,
+        // making it spendable; Zebrad::launch already pre-mined block 1
+        // (sapling, pre-NU5). Sync to the validator's real tip and derive the
+        // expected balance from it, so the reduced counts stay correct
+        // regardless of the launch-primed block.
+        net.validator().generate_blocks(2).await.unwrap();
+        let tip = net.validator().get_chain_height().await;
+        let balance = sync_to_height(&faucet, tip).await;
         assert_eq!(
             balance.total,
-            BLOCK_1_SAPLING_REWARD + 2 * POST_NU6_MINER_REWARD,
+            BLOCK_1_SAPLING_REWARD + u64::from(tip - 1) * POST_NU6_MINER_REWARD,
         );
         assert_eq!(balance.sapling_spendable, BLOCK_1_SAPLING_REWARD);
         assert_eq!(balance.transparent_spendable, 0);
 
-        // First send: tip 3, one block after every upgrade activated.
+        // First send, confirmed by one block.
         faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
-        net.validator().generate_blocks(3).await.unwrap();
-        let received = sync_to_height(&recipient, 6).await;
+        net.validator().generate_blocks(1).await.unwrap();
+        let received = sync_to_height(&recipient, net.validator().get_chain_height().await).await;
         assert_eq!(received.total, SEND_VALUE);
 
-        // Second send, from a tip composed purely of orchard rewards.
-        sync_to_height(&faucet, 6).await;
+        // One more block matures the faucet's change note, then send again.
+        net.validator().generate_blocks(1).await.unwrap();
+        sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
-        net.validator().generate_blocks(2).await.unwrap();
-        let received = sync_to_height(&recipient, 8).await;
+        net.validator().generate_blocks(1).await.unwrap();
+        let tip = net.validator().get_chain_height().await;
+        let received = sync_to_height(&recipient, tip).await;
         assert_eq!(received.total, 2 * SEND_VALUE);
 
         // Rescan from scratch and verify the balance survives.
         recipient.rescan().await.unwrap();
-        let rescanned = sync_to_height(&recipient, 8).await;
+        let rescanned = sync_to_height(&recipient, tip).await;
         assert_eq!(rescanned.total, 2 * SEND_VALUE);
     }
 
@@ -1165,24 +1162,29 @@ mod devtool_client {
     /// own transparent address, then shields the result into orchard.
     #[tokio::test]
     async fn faucet_shields_transparent_funds() {
-        let _ = tracing_subscriber::fmt().try_init();
+        init_tracing();
         let net = launch_orchard_net().await;
         let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
 
-        net.validator().generate_blocks(5).await.unwrap();
-        sync_to_height(&faucet, 5).await;
+        // Mine the minimum orchard coinbase needed: 2 blocks makes the first
+        // orchard coinbase (height 2) one confirmation deep, hence spendable.
+        net.validator().generate_blocks(2).await.unwrap();
+        sync_to_height(&faucet, net.validator().get_chain_height().await).await;
 
         faucet
             .send(REG_T_ADDR_FROM_ABANDONART, SEND_VALUE)
             .await
             .unwrap();
+        // Two blocks so the new transparent output is one confirmation deep
+        // (spendable) when snapshotted.
         net.validator().generate_blocks(2).await.unwrap();
-        let funded = sync_to_height(&faucet, 7).await;
+        let funded = sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         assert_eq!(funded.transparent_spendable, SEND_VALUE);
 
         faucet.shield().await.unwrap();
+        // Two blocks so the shielded orchard output is confirmed/spendable.
         net.validator().generate_blocks(2).await.unwrap();
-        let shielded = sync_to_height(&faucet, 9).await;
+        let shielded = sync_to_height(&faucet, net.validator().get_chain_height().await).await;
         assert_eq!(shielded.transparent_spendable, 0);
 
         // The faucet is also the miner, so the ZIP-317 fee it pays to

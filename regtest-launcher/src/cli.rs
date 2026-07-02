@@ -5,9 +5,9 @@ use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHei
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// Comma-separated activation heights, e.g.
-    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu7=off"
+    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu7=off"
     ///
-    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all
+    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all
     /// Values: u32 or off|none|disable
     ///
     /// Default comes from
@@ -28,8 +28,6 @@ pub struct Cli {
     pub miner_address: Option<String>,
 }
 
-// TODO: update regtest-launcher to nu6.2
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum UpgradeKey {
     BeforeOverwinter,
@@ -41,10 +39,11 @@ enum UpgradeKey {
     Nu5,
     Nu6,
     Nu6_1,
+    Nu6_2,
     Nu7,
 }
 
-const UPGRADE_ORDER: [UpgradeKey; 10] = [
+const UPGRADE_ORDER: [UpgradeKey; 11] = [
     UpgradeKey::BeforeOverwinter,
     UpgradeKey::Overwinter,
     UpgradeKey::Sapling,
@@ -54,6 +53,7 @@ const UPGRADE_ORDER: [UpgradeKey; 10] = [
     UpgradeKey::Nu5,
     UpgradeKey::Nu6,
     UpgradeKey::Nu6_1,
+    UpgradeKey::Nu6_2,
     UpgradeKey::Nu7,
 ];
 
@@ -70,6 +70,7 @@ fn parse_key(k: &str) -> Option<UpgradeKey> {
         "nu5" => Some(UpgradeKey::Nu5),
         "nu6" => Some(UpgradeKey::Nu6),
         "nu6_1" | "nu6.1" | "nu61" => Some(UpgradeKey::Nu6_1),
+        "nu6_2" | "nu6.2" | "nu62" => Some(UpgradeKey::Nu6_2),
         "nu7" => Some(UpgradeKey::Nu7),
         _ => None,
     }
@@ -86,6 +87,7 @@ fn set_field(cfg: &mut ConfiguredActivationHeights, key: UpgradeKey, val: Option
         UpgradeKey::Nu5 => cfg.nu5 = val,
         UpgradeKey::Nu6 => cfg.nu6 = val,
         UpgradeKey::Nu6_1 => cfg.nu6_1 = val,
+        UpgradeKey::Nu6_2 => cfg.nu6_2 = val,
         UpgradeKey::Nu7 => cfg.nu7 = val,
     }
 }
@@ -143,7 +145,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         let from = parse_key(&key).ok_or_else(|| {
             format!(
                 "Unknown activation key '{k}'. Valid keys: \
-before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all"
+before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all"
             )
         })?;
 
@@ -378,6 +380,7 @@ mod tests {
             .set_nu5(parsed.nu5)
             .set_nu6(parsed.nu6)
             .set_nu6_1(parsed.nu6_1)
+            .set_nu6_2(parsed.nu6_2)
             .set_nu7(parsed.nu7)
             .build();
 
