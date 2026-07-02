@@ -4,6 +4,14 @@ all-features = false
 no-default-features = false
 exclude = ["bincode", "json"]
 
+[advisories]
+ignore = [
+    # proc-macro-error2 (unmaintained) arrives via getset, which orchard 0.14
+    # pins inside the zebra-rpc chain, so no local change can remove it from
+    # the lock. Compile-time-only proc-macro, not runtime code. Remove this
+    # entry once orchard/zebra drop getset upstream.
+    { id = "RUSTSEC-2026-0173", reason = "getset -> proc-macro-error2 pinned by orchard 0.14; no upgrade path" },
+]
 
 [bans]
 multiple-versions = "warn"
