@@ -3310,7 +3310,6 @@ dependencies = [
  "zcash_transparent 0.7.0",
  "zebra-node-services",
  "zebra-rpc",
- "zingo-consensus",
  "zip32",
 ]
 

@@ -367,9 +367,9 @@ mod tests {
 
         // Mirror the field-by-field conversion done in
         // regtest-launcher::main: ConfiguredActivationHeights ->
-        // zingo_consensus::ActivationHeights. `before_overwinter`
+        // local_net::protocol::ActivationHeights. `before_overwinter`
         // exists on the former but not the latter and is dropped.
-        let from_cli = zingo_consensus::ActivationHeights::builder()
+        let from_cli = local_net::protocol::ActivationHeights::builder()
             .set_overwinter(parsed.overwinter)
             .set_sapling(parsed.sapling)
             .set_blossom(parsed.blossom)
