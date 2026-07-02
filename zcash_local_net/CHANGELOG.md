@@ -11,6 +11,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `client` module: wallet clients are now the third kind of process
+  the crate manages, alongside validators and indexers. Unlike both,
+  a client binary is not a daemon — each wallet operation is a
+  run-to-completion subprocess invocation against a persistent wallet
+  directory owned by the client struct.
+  - `client::Client` trait: `launch` (create/restore the wallet from a
+    mnemonic + birthday against a running indexer), `sync`,
+    `send(address, zats) -> txid`, `shield -> txid`,
+    `balance -> WalletBalance`, `address(AddressReceiver)`,
+    `default_address` (a convenience for `address(Unified)`),
+    `get_info -> GetInfo`, and `rescan`. All operations run to
+    completion before returning.
+  - `client::GetInfo` (`server_uri`, `chain_name`, `chain_tip_height`):
+    node/indexer information from `Client::get_info`, the `do_info`
+    analogue used as a "can the wallet reach its server" smoke check.
+    `chain_tip_height` is the server/node tip (a `u64`, matching the
+    wire `LightdInfo.block_height`), never the wallet's locally-synced
+    height. The field set is a frozen contract with the wallet binary;
+    a unit test pins the parser against a real `get-info` line captured
+    from the devtool binary, and the `connect_to_node_get_info`
+    integration test exercises it against the live binary + indexer.
+  - `client::AddressReceiver` (`Unified | Transparent | Sapling |
+    Orchard`): selects which receiver of the wallet's unified address
+    `Client::address` emits. The bare transparent/sapling receivers
+    unblock the transparent/sapling half of zaino's send/query matrix
+    (previously only the unified address was reachable). An integration
+    test pins the faucet's transparent and sapling receivers against
+    `zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART` /
+    `REG_Z_ADDR_FROM_ABANDONART`.
+  - `client::ClientConfig` trait with `setup_indexer_connection`,
+    mirroring `indexer::IndexerConfig::setup_validator_connection`
+    (launch order: validator → indexer → client).
+  - `client::WalletBalance`: per-pool spendable balances, total, and
+    the wallet's synced chain-tip height, in zatoshis.
+  - `client::zcash_devtool::ZcashDevtool` + `ZcashDevtoolConfig`: the
+    first `Client` implementation, driving the zcash-devtool CLI
+    (built with `--features regtest_support`; resolved via
+    `TEST_BINARIES_DIR`/`PATH` like the other managed binaries).
+    `ZcashDevtoolConfig::faucet()` (abandon-art seed, birthday 0) and
+    `::recipient()` (HOSPITAL_MUSEUM seed) provide the two standard
+    test wallets. The faucet's account-0 unified address equals
+    `zingo_test_vectors::REG_O_ADDR_FROM_ABANDONART` — the address
+    orchard-mining validators pay to — and an integration test pins
+    that alignment live.
+  - `client::zcash_devtool::supported_regtest_activation_heights()`:
+    the regtest heights compiled into the devtool binary (pre-NU5 at
+    height 1, NU5 and later all at height 2). Launching a regtest
+    client with any other heights fails fast with
+    `error::ClientError::UnsupportedActivationHeights`. Note these
+    deliberately differ from `validator::regtest_test_activation_heights`:
+    shielded-coinbase mining requires every configured upgrade active
+    before mining begins (zebra 5.1.0 block templates fail their own
+    orchard-proof verification while a configured upgrade is still in
+    the future).
+  - `error::ClientError`: typed errors for spawn/stdin/exit-status/
+    output-parse failures; child output is never trusted blindly and
+    parse drift surfaces as `UnexpectedOutput` instead of a panic.
+  - `ZcashDevtool::balance` parses zcash-devtool's `balance --json`
+    single-line output (keys map field-for-field to `WalletBalance`),
+    replacing the line-scrape parser that had to reverse-scan past a
+    `{:#?}` `WalletSummary` debug dump — sturdier across
+    `zcash_client_*` upgrades.
+
 ### Changed
 
 ### Removed
