@@ -146,6 +146,9 @@ impl ValidatorConfig for ZebradConfig {
             PoolType::SAPLING => {
                 panic!("zebrad does not support mining to a Sapling address; use ORCHARD or Transparent")
             }
+            PoolType::IRONWOOD => {
+                panic!("zebrad does not support mining to an Ironwood address; use ORCHARD or Transparent")
+            }
         }
         .to_string();
         self.network_type = NetworkType::Regtest(activation_heights);

@@ -118,6 +118,11 @@ impl ValidatorConfig for ZcashdConfig {
             PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
             PoolType::SAPLING => REG_Z_ADDR_FROM_ABANDONART,
             PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            PoolType::IRONWOOD => {
+                panic!(
+                    "mining to an Ironwood address is not supported; use ORCHARD, SAPLING, or Transparent"
+                )
+            }
         });
         self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;

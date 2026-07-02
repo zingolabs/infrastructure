@@ -12,12 +12,12 @@ zcash_local_net = { path = "zcash_local_net" }
 zingo_common_components = "0.4.0"
 
 #zcash
-zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
+zcash_protocol = { version = "0.10.0-pre.0", features = ["local-consensus"] }
 
 # zebra
-zebra-chain = "9.0.0"
-zebra-node-services = "7.0.0"
-zebra-rpc = "9.0.0"
+zebra-chain = "10.1.0"
+zebra-node-services = "8.0.0"
+zebra-rpc = "10.0.1"
 
 #protocol
 bip0039 = "0.12.0"
@@ -49,29 +49,23 @@ libzcash_script = { git = "https://github.com/zancas/zcash_script", branch = "fi
 # (zebra-consensus, zebra-state, zebra-network, …, which also pull orchard)
 # resolve from the same fork checkout, so the whole zebra subtree moves to
 # orchard 0.15.0-pre.1.
-zebra-chain = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
-zebra-rpc = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
-zebra-node-services = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
+zebra-chain = { git = "https://github.com/zcashfoundation/zebra", branch = "nu63-ironwood" }
+zebra-rpc = { git = "https://github.com/zcashfoundation/zebra", branch = "nu63-ironwood" }
+zebra-node-services = { git = "https://github.com/zcashfoundation/zebra", branch = "nu63-ironwood" }
 
-# Ironwood (NU6.3) — librustzcash. Consume the zingolabs librustzcash fork so
-# there is a single orchard 0.15.0-pre.1 in the graph (no 0.14/0.15 split).
-# Same crate versions as crates.io — a source swap that enables the Ironwood
-# code paths behind `--cfg zcash_unstable="nu6.3"`. Mirrors zingolib's patch
-# set so the harness and its consumer build against the same revs.
-zcash_address = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_client_backend = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_encoding = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-# zcash_history carries the Ironwood V3 history-tree node data that zebra's
-# value-pool code consumes (`zcash_history::V3`). zingolib's wallet stack does
-# not touch history trees, so its patch set omits it — but zebra-chain (pulled
-# in transitively here) needs it from the fork, and a dependency's own
-# `[patch]` table is ignored: only this top-level workspace's patches apply.
-zcash_history = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_keys = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_primitives = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_proofs = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_protocol = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_transparent = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zip321 = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-equihash = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-f4jumble = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
+# librustzcash. Consume the canonical upstream `zcash/librustzcash` main
+# branch, pinned to a specific rev for reproducibility (its main is the
+# internally-consistent latest). A source swap over the same crate names;
+# `zcash_history` is included because zebra-chain (pulled in transitively)
+# consumes it and a dependency's own `[patch]` table is ignored — only this
+# top-level workspace's patches apply.
+zcash_address = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_encoding = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_history = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_keys = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_primitives = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_proofs = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_protocol = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+zcash_transparent = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+equihash = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }
+f4jumble = { git = "https://github.com/zcash/librustzcash", rev = "eb828caadb4b2be4a39823f95e50b42731a515f5" }

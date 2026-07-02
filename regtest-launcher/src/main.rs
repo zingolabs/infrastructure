@@ -110,6 +110,7 @@ async fn main() {
             lockbox_disbursements: None,
             checkpoints: None,
             extend_funding_stream_addresses_as_required: None,
+            should_allow_unshielded_coinbase_spends: None,
         })
         .unwrap(),
     ));
