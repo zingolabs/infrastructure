@@ -3,4 +3,7 @@ fail-fast = false
 
 [profile.ci]
 fail-fast = false
-default-filter = 'not (test(zebra) | test(zaino))'
+# devtool_client excluded until CI provisions the zcash-devtool binary in
+# test.yaml (the tests arrived with add_client_support and have never had
+# their binary in the runner image).
+default-filter = 'not (test(zebra) | test(zaino) | test(devtool_client))'
