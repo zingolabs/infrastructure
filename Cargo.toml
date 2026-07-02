@@ -12,7 +12,7 @@ zcash_local_net = { path = "zcash_local_net" }
 zingo_common_components = "0.4.0"
 
 #zcash
-zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
+zcash_protocol = { version = "0.10.0-pre.0", features = ["local-consensus"] }
 
 # zebra
 zebra-chain = "9.0.0"
@@ -52,26 +52,3 @@ libzcash_script = { git = "https://github.com/zancas/zcash_script", branch = "fi
 zebra-chain = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
 zebra-rpc = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
 zebra-node-services = { git = "https://github.com/zingolabs/zebra", branch = "feat/ironwood" }
-
-# Ironwood (NU6.3) — librustzcash. Consume the zingolabs librustzcash fork so
-# there is a single orchard 0.15.0-pre.1 in the graph (no 0.14/0.15 split).
-# Same crate versions as crates.io — a source swap that enables the Ironwood
-# code paths behind `--cfg zcash_unstable="nu6.3"`. Mirrors zingolib's patch
-# set so the harness and its consumer build against the same revs.
-zcash_address = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_client_backend = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_encoding = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-# zcash_history carries the Ironwood V3 history-tree node data that zebra's
-# value-pool code consumes (`zcash_history::V3`). zingolib's wallet stack does
-# not touch history trees, so its patch set omits it — but zebra-chain (pulled
-# in transitively here) needs it from the fork, and a dependency's own
-# `[patch]` table is ignored: only this top-level workspace's patches apply.
-zcash_history = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_keys = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_primitives = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_proofs = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_protocol = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zcash_transparent = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-zip321 = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-equihash = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
-f4jumble = { git = "https://github.com/zingolabs/librustzcash", branch = "feat/ironwood" }
