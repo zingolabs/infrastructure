@@ -38,7 +38,7 @@ use zebra_rpc::{
     },
     proposal_block_from_template,
 };
-use zingo_common_components::protocol::ActivationHeights;
+use zingo_consensus::ActivationHeights;
 
 use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 

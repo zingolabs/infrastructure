@@ -3310,7 +3310,7 @@ dependencies = [
  "zcash_transparent 0.7.0",
  "zebra-node-services",
  "zebra-rpc",
- "zingo_common_components",
+ "zingo-consensus",
  "zip32",
 ]
 
@@ -5289,7 +5289,7 @@ dependencies = [
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
- "zingo_common_components",
+ "zingo-consensus",
  "zingo_test_vectors",
 ]
 
@@ -5830,13 +5830,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo_common_components"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3378e81bdef45a9659736a09deaef2b5e5cb3d1556031468debfca3a21d4fa76"
-dependencies = [
- "hex",
-]
+name = "zingo-consensus"
+version = "0.1.0"
 
 [[package]]
 name = "zingo_test_vectors"

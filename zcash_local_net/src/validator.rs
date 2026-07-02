@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 use zcash_protocol::PoolType;
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, NetworkType};
 
 use crate::process::Process;
 

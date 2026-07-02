@@ -66,7 +66,7 @@ pub use zcash_protocol::PoolType;
 pub mod protocol {
     pub use zcash_protocol::PoolType;
     pub use zebra_node_services::rpc_client::RpcRequestClient;
-    pub use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+    pub use zingo_consensus::{ActivationHeights, ActivationHeightsBuilder, NetworkType};
 }
 
 /// External re-exported types.
