@@ -15,12 +15,15 @@ testing in the development of:
 - Zcashd
 - Zainod
 - Lightwalletd
+- zcash-devtool (wallet client; per-operation subprocess, see [`crate::client`])
 
 ## Prerequisites
 
 Set `TEST_BINARIES_DIR` to a directory containing the executables
 the harness needs (`zebrad`, `zcashd`, `zcash-cli`, `zainod`,
-`lightwalletd`); otherwise each binary is resolved via `PATH`.
+`lightwalletd`, `zcash-devtool`); otherwise each binary is resolved
+via `PATH`. `zcash-devtool` must be built with
+`--features regtest_support` for regtest wallets.
 Each processes `launch` fn and [`crate::LocalNet::launch`] take
 config structs for defining additional parameters; see the config
 structs for each process in `validator.rs` and `indexer.rs`.
@@ -42,6 +45,6 @@ Sapling/Orchard proving keys at startup).
 See [`crate::LocalNet`].
 
 
-Current version: 0.5.0
+Current version: 0.6.0
 
 License: MIT

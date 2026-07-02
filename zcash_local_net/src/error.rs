@@ -115,6 +115,77 @@ pub enum LaunchError {
     },
 }
 
+/// Errors associated with driving wallet client operations
+/// (run-to-completion subprocess invocations, see [`crate::client`]).
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum ClientError {
+    /// The client binary could not be spawned at all
+    /// (PATH/`TEST_BINARIES_DIR`/permission problems).
+    #[error("zcash-devtool {operation} failed to spawn: {io_error}")]
+    SpawnFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Underlying io::Error description
+        io_error: String,
+    },
+    /// Writing to the child's stdin failed (used by `init`, which
+    /// receives the mnemonic on stdin).
+    #[error("zcash-devtool {operation}: writing to child stdin failed: {io_error}")]
+    StdinWriteFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Underlying io::Error description
+        io_error: String,
+    },
+    /// The operation subprocess exited non-zero.
+    #[error(
+        "zcash-devtool {operation} failed.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
+    )]
+    OperationFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Exit status of the subprocess
+        exit_status: std::process::ExitStatus,
+        /// Captured stdout
+        stdout: String,
+        /// Captured stderr
+        stderr: String,
+    },
+    /// The operation subprocess exited zero but its stdout did not
+    /// match the expected shape (txid line, balance lines, …). This is
+    /// the contract-drift tripwire: it fires when the client binary's
+    /// output format changes out from under the harness's parsers.
+    #[error(
+        "zcash-devtool {operation} succeeded but its output could not be parsed: {reason}\nStdout: {stdout}"
+    )]
+    UnexpectedOutput {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// What the parser was looking for and didn't find
+        reason: String,
+        /// Captured stdout that failed to parse
+        stdout: String,
+    },
+    /// The config requested regtest activation heights different from
+    /// the fixture heights compiled into the client binary.
+    /// zcash-devtool's `regtest_support` feature bakes
+    /// [`crate::validator::regtest_test_activation_heights`] in at
+    /// compile time (transaction construction derives consensus branch
+    /// IDs from them), so the harness rejects any other heights up
+    /// front rather than letting the validator reject the wallet's
+    /// transactions downstream.
+    #[error(
+        "zcash-devtool regtest activation heights are fixed at compile time to {expected:?}; config specifies {configured:?}"
+    )]
+    UnsupportedActivationHeights {
+        /// The heights requested in the client config (boxed to keep
+        /// `Result<_, ClientError>` small — clippy::result_large_err)
+        configured: Box<zingo_common_components::protocol::ActivationHeights>,
+        /// The fixture heights the client binary supports
+        expected: Box<zingo_common_components::protocol::ActivationHeights>,
+    },
+}
+
 impl LaunchError {
     /// All captured child output for this error — stdout + stderr +
     /// the additional log when present, concatenated. Used by the
