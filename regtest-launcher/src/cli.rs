@@ -5,9 +5,9 @@ use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHei
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// Comma-separated activation heights, e.g.
-    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu7=off"
+    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu6_3=off,nu7=off"
     ///
-    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all
+    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all
     /// Values: u32 or off|none|disable
     ///
     /// Default comes from
@@ -46,10 +46,11 @@ enum UpgradeKey {
     Nu6,
     Nu6_1,
     Nu6_2,
+    Nu6_3,
     Nu7,
 }
 
-const UPGRADE_ORDER: [UpgradeKey; 11] = [
+const UPGRADE_ORDER: [UpgradeKey; 12] = [
     UpgradeKey::BeforeOverwinter,
     UpgradeKey::Overwinter,
     UpgradeKey::Sapling,
@@ -60,6 +61,7 @@ const UPGRADE_ORDER: [UpgradeKey; 11] = [
     UpgradeKey::Nu6,
     UpgradeKey::Nu6_1,
     UpgradeKey::Nu6_2,
+    UpgradeKey::Nu6_3,
     UpgradeKey::Nu7,
 ];
 
@@ -77,6 +79,7 @@ fn parse_key(k: &str) -> Option<UpgradeKey> {
         "nu6" => Some(UpgradeKey::Nu6),
         "nu6_1" | "nu6.1" | "nu61" => Some(UpgradeKey::Nu6_1),
         "nu6_2" | "nu6.2" | "nu62" => Some(UpgradeKey::Nu6_2),
+        "nu6_3" | "nu6.3" | "nu63" => Some(UpgradeKey::Nu6_3),
         "nu7" => Some(UpgradeKey::Nu7),
         _ => None,
     }
@@ -94,6 +97,7 @@ fn set_field(cfg: &mut ConfiguredActivationHeights, key: UpgradeKey, val: Option
         UpgradeKey::Nu6 => cfg.nu6 = val,
         UpgradeKey::Nu6_1 => cfg.nu6_1 = val,
         UpgradeKey::Nu6_2 => cfg.nu6_2 = val,
+        UpgradeKey::Nu6_3 => cfg.nu6_3 = val,
         UpgradeKey::Nu7 => cfg.nu7 = val,
     }
 }
@@ -128,11 +132,13 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu6: None,
         nu6_1: None,
         nu6_2: None,
+        nu6_3: None,
         nu7: None,
     };
 
     // Matches clap's default behaviour. Is there a better way to do this?
     set_all(&mut cfg, Some(1));
+    cfg.nu6_3 = None;
     cfg.nu7 = None;
 
     for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {
@@ -151,7 +157,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         let from = parse_key(&key).ok_or_else(|| {
             format!(
                 "Unknown activation key '{k}'. Valid keys: \
-before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all"
+before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all"
             )
         })?;
 
@@ -387,6 +393,7 @@ mod tests {
             .set_nu6(parsed.nu6)
             .set_nu6_1(parsed.nu6_1)
             .set_nu6_2(parsed.nu6_2)
+            .set_nu6_3(parsed.nu6_3)
             .set_nu7(parsed.nu7)
             .build();
 

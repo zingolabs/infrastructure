@@ -89,6 +89,9 @@ async fn main() {
             lockbox_disbursements: None,
             checkpoints: None,
             extend_funding_stream_addresses_as_required: None,
+            // Preserves pre-zebra-11 behavior (zcashd's
+            // fCoinbaseMustBeShielded default).
+            should_allow_unshielded_coinbase_spends: None,
         })
         .unwrap(),
     ));

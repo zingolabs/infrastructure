@@ -2460,9 +2460,9 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "orchard"
-version = "0.14.0"
+version = "0.15.0-pre.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a54f8d29bfb1e76a9d4e868a1a08cce2e57dd2bdc66232982822ad3114b91ab3"
+checksum = "e8e277dd4b46f5d06deae3ffb8af1a951e8622368f028c2a4d6fe59339566403"
 dependencies = [
  "aes",
  "bitvec",
@@ -5124,9 +5124,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_address"
-version = "0.12.0"
+version = "0.13.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58342d0aaa8e2fa98849636f52800ac4bf020574c944c974742fc933db58cac2"
+checksum = "8cf2918e73eff76388cda87695a6e7398f96a2e3383a0de7b77729a204ec00a0"
 dependencies = [
  "bech32",
  "bs58",
@@ -5149,9 +5149,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_history"
-version = "0.4.0"
+version = "0.5.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fde17bf53792f9c756b313730da14880257d7661b5bfc69d0571c3a7c11a76d"
+checksum = "82e8634d011026cb181cb67b2a412e601dc344a2827b9c576fe3a727fdebf441"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -5160,9 +5160,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_keys"
-version = "0.14.0"
+version = "0.15.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fbcdfbb5c8edb247439d72a397abaae9b7dd14a1c070e7e4fc3536924f9065f"
+checksum = "0a0bac3a9e5b0d954684ba1f07386d55b5ae4588b3ba2d93cad05ee09f3e0947"
 dependencies = [
  "bech32",
  "blake2b_simd",
@@ -5221,9 +5221,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_primitives"
-version = "0.28.0"
+version = "0.29.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c69e07f5eb3f682a6467b4b08ee4956f1acd1e886d70b21c4766953b3a1beba2"
+checksum = "ba7bfe66975658f44dba87d535f9ebb9fb4c9c0c4fecca3f5c40cbe1583dece6"
 dependencies = [
  "blake2b_simd",
  "block-buffer 0.11.0-rc.3",
@@ -5252,9 +5252,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_proofs"
-version = "0.28.0"
+version = "0.29.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3de6b0ca82e08a9d38b1121f87c5b180b5feac19fecba074cb582882210d2371"
+checksum = "b39b90964ffe6bdc314368c7b849aaa6dcc2b495249a3bf1b9bfbdc92ba4e4f6"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -5275,9 +5275,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_protocol"
-version = "0.9.0"
+version = "0.10.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bec496a0bd62dae98c4b26f51c5dab112d0c5350bbc2ccfdfd05bb3454f714d"
+checksum = "97f339a9801c7f70295732a5cf822346f194202cea6425fc2fc14a5af679b004"
 dependencies = [
  "corez",
  "document-features",
@@ -5314,9 +5314,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_transparent"
-version = "0.8.0"
+version = "0.9.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15df1908b428d4edeb7c7caae5692e05e2e92e5c38007a40b20ac098efdffd96"
+checksum = "4e941230f67056aad41c8fa9b926f9cc4d9d1a321f32e95c39c0b0e38e85f79b"
 dependencies = [
  "bip32",
  "bs58",
@@ -5339,9 +5339,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-chain"
-version = "9.0.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30ed3a4e00e8f0b2197f3d8fd6cad02351a25ddbffcf0a6dc1fe463d7ea4ccfa"
+checksum = "600a4c35ee81350384226f8178fab2b088e38d5e0a9f6cb0b1051caba30702d7"
 dependencies = [
  "bech32",
  "bitflags",
@@ -5403,9 +5403,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-consensus"
-version = "8.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15475adf8c271d03de99d18d622a8ae4c512c401e3e29da1f27a0ba62b22057c"
+checksum = "0aa2b2678c4ce6d18172bad73a9b72b24a4b3a65af4c2a5e9120a1470c3fc402"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -5446,9 +5446,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-network"
-version = "8.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8ba4f7dcd795eb84a5a33f5c4f29df60dd4971be363d2cd98d5fba5ce0477f2"
+checksum = "36b1e6ca4687bc8d128553ca04bb82cc38701c4dac7107f3e56717b39d4b18da"
 dependencies = [
  "bitflags",
  "byteorder",
@@ -5484,9 +5484,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-node-services"
-version = "7.0.0"
+version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abeece0fb4503a1df00c5ab736754b55c702613968f622f6aa3c2f9842aed2b2"
+checksum = "4446db9b576c0de14ff91c7fd7b38a59d340c1969a1604787185a52b8b7f53a6"
 dependencies = [
  "color-eyre",
  "jsonrpsee-types",
@@ -5500,9 +5500,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-rpc"
-version = "9.0.0"
+version = "11.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b460869e352c9f1b49a00ed9beaae04ca3e6498381c7189d4b90a79e51c260bd"
+checksum = "eb180542f1ffc0f66c20e1cd66c7741662053ccda588e3847a8ed2df8c83dae7"
 dependencies = [
  "base64",
  "chrono",
@@ -5533,6 +5533,7 @@ dependencies = [
  "serde_with",
  "strum",
  "strum_macros",
+ "subtle",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
@@ -5560,9 +5561,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-script"
-version = "8.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4fc38c19388671df8a77c767e279b135ffaecd5e7df6ed7cd096390c080b4a3"
+checksum = "8648c201e3dadb1c95022eb7605d528de4bf94b6c0cebf76537805849aee76c5"
 dependencies = [
  "libzcash_script",
  "rand 0.8.6",
@@ -5574,9 +5575,9 @@ dependencies = [
 
 [[package]]
 name = "zebra-state"
-version = "8.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57b351fde5047dce0d505c9dc26863ee818b7579e9cf8d8e44489deb9decfbb7"
+checksum = "3b95b81181253a46885e3254cc5a20e4d82b5258116c9e43db5c8e9660c6b973"
 dependencies = [
  "bincode",
  "chrono",
@@ -5601,6 +5602,7 @@ dependencies = [
  "sapling-crypto",
  "semver",
  "serde",
+ "serde-big-array",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
