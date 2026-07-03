@@ -30,6 +30,20 @@ impl std::fmt::Display for NetworkType {
     }
 }
 
+/// The pool a validator mines block rewards to.
+///
+/// Validator support differs: zcashd can mine to any variant, while zebrad
+/// supports only `Transparent` and `Orchard`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MinerPool {
+    /// Mine to a transparent (P2PKH) address.
+    Transparent,
+    /// Mine to a Sapling shielded address. Not supported by zebrad.
+    Sapling,
+    /// Mine to an Orchard shielded address.
+    Orchard,
+}
+
 /// Network upgrade activation heights for custom testnet and regtest network configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ActivationHeights {

@@ -4,13 +4,7 @@ expression: normalized_stdout
 ---
 Indexer running at: 127.0.0.1:<PORT>
 
-Mnemonic:
-<MNEMONIC>
-
-Secret Key:
-<SECRET_KEY>
-
-Transparent Address: <ADDR>
+Miner address: tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
 
 
 Mined up to chain height <HEIGHT>

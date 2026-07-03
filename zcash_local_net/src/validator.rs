@@ -2,8 +2,7 @@
 use std::path::PathBuf;
 
 use tempfile::TempDir;
-use zcash_protocol::PoolType;
-use zingo_consensus::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 
 use crate::process::Process;
 
@@ -71,7 +70,8 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// unit test in `regtest-launcher::cli::tests`** — the test parses
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
-pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str = "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu7=off";
+pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
+    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=off,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.
@@ -271,7 +271,7 @@ pub trait ValidatorConfig: Default {
     /// To set the config for common Regtest parameters.
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     );

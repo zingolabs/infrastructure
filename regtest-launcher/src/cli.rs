@@ -1,13 +1,45 @@
 use clap::Parser;
 use local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING;
-use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
+
+/// Activation heights parsed from the CLI.
+///
+/// A superset of `zingo_consensus::ActivationHeights`: the CLI also accepts
+/// zebra's `before_overwinter` slot, which the zingo type does not model
+/// (it is dropped when the parsed heights convert for the harness).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConfiguredActivationHeights {
+    /// BeforeOverwinter activation height.
+    pub before_overwinter: Option<u32>,
+    /// Overwinter activation height.
+    pub overwinter: Option<u32>,
+    /// Sapling activation height.
+    pub sapling: Option<u32>,
+    /// Blossom activation height.
+    pub blossom: Option<u32>,
+    /// Heartwood activation height.
+    pub heartwood: Option<u32>,
+    /// Canopy activation height.
+    pub canopy: Option<u32>,
+    /// NU5 activation height.
+    pub nu5: Option<u32>,
+    /// NU6 activation height.
+    pub nu6: Option<u32>,
+    /// NU6.1 activation height.
+    pub nu6_1: Option<u32>,
+    /// NU6.2 activation height.
+    pub nu6_2: Option<u32>,
+    /// NU6.3 activation height.
+    pub nu6_3: Option<u32>,
+    /// NU7 activation height.
+    pub nu7: Option<u32>,
+}
 
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// Comma-separated activation heights, e.g.
-    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu7=off"
+    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu6_3=off,nu7=off"
     ///
-    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all
+    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all
     /// Values: u32 or off|none|disable
     ///
     /// Default comes from
@@ -23,9 +55,15 @@ pub struct Cli {
     )]
     pub activation_heights: ConfiguredActivationHeights,
 
-    /// Optional miner address for receiving block rewards.
-    #[arg(long)]
-    pub miner_address: Option<String>,
+    /// Miner address for receiving block rewards.
+    ///
+    /// Defaults to the well-known ABANDONART fixture address
+    /// ([`zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART`]), whose seed
+    /// phrase is the public BIP-39 test mnemonic (abandon x23, art), so the
+    /// mined funds are spendable by importing that phrase into any wallet.
+    /// Supply your own address to mine directly to a wallet you control.
+    #[arg(long, default_value = zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART)]
+    pub miner_address: String,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -40,10 +78,11 @@ enum UpgradeKey {
     Nu6,
     Nu6_1,
     Nu6_2,
+    Nu6_3,
     Nu7,
 }
 
-const UPGRADE_ORDER: [UpgradeKey; 11] = [
+const UPGRADE_ORDER: [UpgradeKey; 12] = [
     UpgradeKey::BeforeOverwinter,
     UpgradeKey::Overwinter,
     UpgradeKey::Sapling,
@@ -54,6 +93,7 @@ const UPGRADE_ORDER: [UpgradeKey; 11] = [
     UpgradeKey::Nu6,
     UpgradeKey::Nu6_1,
     UpgradeKey::Nu6_2,
+    UpgradeKey::Nu6_3,
     UpgradeKey::Nu7,
 ];
 
@@ -71,6 +111,7 @@ fn parse_key(k: &str) -> Option<UpgradeKey> {
         "nu6" => Some(UpgradeKey::Nu6),
         "nu6_1" | "nu6.1" | "nu61" => Some(UpgradeKey::Nu6_1),
         "nu6_2" | "nu6.2" | "nu62" => Some(UpgradeKey::Nu6_2),
+        "nu6_3" | "nu6.3" | "nu63" => Some(UpgradeKey::Nu6_3),
         "nu7" => Some(UpgradeKey::Nu7),
         _ => None,
     }
@@ -88,6 +129,7 @@ fn set_field(cfg: &mut ConfiguredActivationHeights, key: UpgradeKey, val: Option
         UpgradeKey::Nu6 => cfg.nu6 = val,
         UpgradeKey::Nu6_1 => cfg.nu6_1 = val,
         UpgradeKey::Nu6_2 => cfg.nu6_2 = val,
+        UpgradeKey::Nu6_3 => cfg.nu6_3 = val,
         UpgradeKey::Nu7 => cfg.nu7 = val,
     }
 }
@@ -122,11 +164,13 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu6: None,
         nu6_1: None,
         nu6_2: None,
+        nu6_3: None,
         nu7: None,
     };
 
     // Matches clap's default behaviour. Is there a better way to do this?
     set_all(&mut cfg, Some(1));
+    cfg.nu6_3 = None;
     cfg.nu7 = None;
 
     for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {
@@ -145,7 +189,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         let from = parse_key(&key).ok_or_else(|| {
             format!(
                 "Unknown activation key '{k}'. Valid keys: \
-before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu7, all"
+before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all"
             )
         })?;
 
@@ -381,6 +425,7 @@ mod tests {
             .set_nu6(parsed.nu6)
             .set_nu6_1(parsed.nu6_1)
             .set_nu6_2(parsed.nu6_2)
+            .set_nu6_3(parsed.nu6_3)
             .set_nu7(parsed.nu7)
             .build();
 

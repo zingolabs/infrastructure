@@ -7,14 +7,10 @@ use crate::{
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::{
-        executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
-        type_conversions::zingo_to_zebra_activation_heights,
-    },
+    utils::executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
     validator::{Validator, ValidatorConfig},
 };
-use zcash_protocol::PoolType;
-use zingo_consensus::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 use zingo_test_vectors::{
     REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER,
 };
@@ -25,14 +21,8 @@ use std::{
     process::Child,
 };
 
-use getset::{CopyGetters, Getters};
+use crate::rpc_client::RpcRequestClient;
 use tempfile::TempDir;
-use zebra_chain::serialization::ZcashSerialize as _;
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource},
-    proposal_block_from_template,
-};
 
 /// Zebrad configuration
 ///
@@ -136,15 +126,15 @@ impl ZebradConfig {
 impl ValidatorConfig for ZebradConfig {
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         self.miner_address = match mine_to_pool {
-            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
-            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
-            PoolType::SAPLING => {
-                panic!("zebrad does not support mining to a Sapling address; use ORCHARD or Transparent")
+            MinerPool::Orchard => REG_O_ADDR_FROM_ABANDONART,
+            MinerPool::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            MinerPool::Sapling => {
+                panic!("zebrad does not support mining to a Sapling address; use Orchard or Transparent")
             }
         }
         .to_string();
@@ -154,26 +144,17 @@ impl ValidatorConfig for ZebradConfig {
 }
 
 /// This struct is used to represent and manage the Zebrad process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zebrad {
     /// Child process handle
     handle: Child,
     /// network listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     network_listen_port: u16,
     /// json RPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     rpc_listen_port: u16,
     /// gRPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     indexer_listen_port: u16,
     /// `[health]` HTTP listen port (serves `/healthy` and `/ready`)
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     health_listen_port: u16,
     /// Config directory
     config_dir: TempDir,
@@ -185,6 +166,58 @@ pub struct Zebrad {
     client: RpcRequestClient,
     /// Network type
     network: NetworkType,
+}
+
+impl Zebrad {
+    /// Child process handle.
+    pub fn handle(&self) -> &Child {
+        &self.handle
+    }
+
+    /// Network listen port.
+    pub fn network_listen_port(&self) -> u16 {
+        self.network_listen_port
+    }
+
+    /// JSON-RPC listen port.
+    pub fn rpc_listen_port(&self) -> u16 {
+        self.rpc_listen_port
+    }
+
+    /// gRPC listen port.
+    pub fn indexer_listen_port(&self) -> u16 {
+        self.indexer_listen_port
+    }
+
+    /// `[health]` HTTP listen port.
+    pub fn health_listen_port(&self) -> u16 {
+        self.health_listen_port
+    }
+
+    /// Config directory.
+    pub fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Data directory.
+    pub fn data_dir(&self) -> &TempDir {
+        &self.data_dir
+    }
+
+    /// RPC request client for the launched node.
+    pub fn client(&self) -> &RpcRequestClient {
+        &self.client
+    }
+
+    /// Network type the node was launched with.
+    pub fn network(&self) -> &NetworkType {
+        &self.network
+    }
 }
 
 impl LogsToDir for Zebrad {
@@ -358,7 +391,7 @@ impl Zebrad {
     .await?;
 
         let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
-        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+        let client = RpcRequestClient::new(rpc_address);
 
         // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
         // confirmed via stdout that the RPC listener bound; this confirms it
@@ -508,9 +541,6 @@ impl Validator for Zebrad {
         let NetworkType::Regtest(activation_heights) = self.network() else {
             panic!("Can only generate blocks on regtest networks!");
         };
-        let network = zebra_chain::parameters::Network::new_regtest(
-            zingo_to_zebra_activation_heights(*activation_heights).into(),
-        );
 
         // Drive the chain forward one block per outer iteration. Success
         // criterion is *chain advance*, not the RPC response: zebra returns
@@ -526,7 +556,7 @@ impl Validator for Zebrad {
             let mut last_response = String::new();
             let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
-                let block_template: BlockTemplateResponse = self
+                let block_template: crate::zebra_rpc::BlockTemplate = self
                     .client
                     .json_result_from_call("getblocktemplate", "[]".to_string())
                     .await
@@ -535,14 +565,8 @@ impl Validator for Zebrad {
                     );
 
                 let block_data = hex::encode(
-                    proposal_block_from_template(
-                        &block_template,
-                        BlockTemplateTimeSource::default(),
-                        &network,
-                    )
-                    .unwrap()
-                    .zcash_serialize_to_vec()
-                    .unwrap(),
+                    crate::zebra_rpc::proposal_block_bytes(&block_template, activation_heights)
+                        .unwrap(),
                 );
 
                 last_response = self

@@ -18,11 +18,6 @@ fn normalized_dynamic_values(s: &str) -> String {
 
     let regex_localhost_port = Regex::new(r"(127\.0\.0\.1:)\d+").unwrap();
 
-    let regex_mnemonic_line = Regex::new(r"(?m)(^Mnemonic:\s*$\n)([^\n]+)").unwrap();
-    let regex_secret_key_line = Regex::new(r"(?m)(^Secret Key:\s*$\n)([^\n]+)").unwrap();
-    let regex_taddr_inline =
-        Regex::new(r"(Transparent Address:\s*)([1-9A-HJ-NP-Za-km-z]{20,})").unwrap();
-
     let regex_mined_up_to = Regex::new(r"(Mined up to chain height\s+)\d+").unwrap();
     let regex_height_inline = Regex::new(r"(height=)\d+").unwrap();
 
@@ -30,10 +25,6 @@ fn normalized_dynamic_values(s: &str) -> String {
 
     let text = regex_ansi.replace_all(s, "");
     let text = regex_localhost_port.replace_all(&text, "$1<PORT>");
-
-    let text = regex_mnemonic_line.replace_all(&text, "$1<MNEMONIC>");
-    let text = regex_secret_key_line.replace_all(&text, "$1<SECRET_KEY>");
-    let text = regex_taddr_inline.replace_all(&text, "$1<ADDR>");
 
     let text = regex_mined_up_to.replace_all(&text, "$1<HEIGHT>");
     let text = regex_height_inline.replace_all(&text, "$1<HEIGHT>");

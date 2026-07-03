@@ -1,5 +1,4 @@
 mod cli;
-mod keygen;
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -25,22 +24,10 @@ use owo_colors::OwoColorize;
 use tokio::{signal::ctrl_c, time::interval};
 
 use local_net::protocol::ActivationHeights;
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{
-        BlockTemplateTimeSource, GetBlockTemplateResponse,
-        zebra_chain::{
-            parameters::{
-                Network,
-                testnet::{Parameters, RegtestParameters},
-            },
-            serialization::ZcashSerialize,
-        },
-    },
-    proposal_block_from_template,
-};
+use local_net::protocol::RpcRequestClient;
+use local_net::zebra_rpc::{BlockTemplate, block_hash_hex, proposal_block_bytes};
 
-use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
+use crate::cli::Cli;
 
 #[tokio::main]
 async fn main() {
@@ -58,13 +45,7 @@ async fn main() {
         .set_nu7(cli.activation_heights.nu7)
         .build();
 
-    let (mnemonic_opt, sk_opt, taddr_str) = match cli.miner_address.as_deref() {
-        Some(addr) => (None, None, addr.to_string()),
-        None => {
-            let (mnemonic, sk, taddr) = generate_regtest_transparent_keypair();
-            (Some(mnemonic), Some(sk), taddr)
-        }
-    };
+    let taddr_str = cli.miner_address.clone();
 
     let zebrad_config = ZebradConfig::default()
         .with_miner_address(taddr_str.clone())
@@ -78,22 +59,7 @@ async fn main() {
 
     println!();
 
-    if let (Some(mnemonic), Some(sk)) = (mnemonic_opt.as_ref(), sk_opt.as_ref()) {
-        println!("{}:", "Mnemonic".red().bold());
-        println!("{}", mnemonic.bold());
-        println!();
-
-        println!("{}:", "Secret Key".red().bold());
-        println!("{}", sk.display_secret().bold());
-        println!();
-
-        println!("Transparent Address: {}", taddr_str.bright_green().bold());
-    } else {
-        println!(
-            "Using provided miner address: {}",
-            taddr_str.bright_green().bold()
-        );
-    }
+    println!("Miner address: {}", taddr_str.bright_green().bold());
 
     println!();
     println!();
@@ -103,17 +69,6 @@ async fn main() {
         network.validator().rpc_listen_port(),
     );
     let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
-
-    let regtest_network = Network::Testnet(Arc::new(
-        Parameters::new_regtest(RegtestParameters {
-            activation_heights: cli.activation_heights,
-            funding_streams: None,
-            lockbox_disbursements: None,
-            checkpoints: None,
-            extend_funding_stream_addresses_as_required: None,
-        })
-        .unwrap(),
-    ));
 
     let running = Arc::new(AtomicBool::new(true));
     let running_miner = running.clone();
@@ -128,21 +83,16 @@ async fn main() {
             break;
         }
 
-        let tpl: GetBlockTemplateResponse = client
+        let tpl: BlockTemplate = client
             .json_result_from_call("getblocktemplate", "[]".to_string())
             .await
             .expect("getblocktemplate failed");
 
-        let tpl_resp = tpl.try_into_template().unwrap();
-        let block = proposal_block_from_template(
-            &tpl_resp,
-            BlockTemplateTimeSource::default(),
-            &regtest_network,
-        )
-        .expect("proposal_block_from_template failed");
+        let block_bytes =
+            proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
 
-        let submitted_hash = block.hash();
-        let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
+        let submitted_hash = block_hash_hex(&block_bytes);
+        let block_hex = hex::encode(&block_bytes);
         let submit_response = client
             .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
             .await
@@ -164,22 +114,17 @@ async fn main() {
         while running_miner.load(Ordering::Relaxed) {
             tick.tick().await;
 
-            let tpl: GetBlockTemplateResponse = client
+            let tpl: BlockTemplate = client
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("getblocktemplate failed");
 
-            let tpl_resp = tpl.try_into_template().unwrap();
-            let block = proposal_block_from_template(
-                &tpl_resp,
-                BlockTemplateTimeSource::default(),
-                &regtest_network,
-            )
-            .expect("proposal_block_from_template failed");
+            let block_bytes =
+                proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
 
-            let submitted_hash = block.hash();
+            let submitted_hash = block_hash_hex(&block_bytes);
 
-            let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
+            let block_hex = hex::encode(&block_bytes);
             let submit_response = client
                 .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
                 .await
@@ -199,7 +144,7 @@ async fn main() {
                 .expect("getbestblockhash failed");
 
             if last_tip.as_deref() != Some(&tip) {
-                println!("mined new_tip={tip} height={}", tpl_resp.height());
+                println!("mined new_tip={tip} height={}", tpl.height);
 
                 last_tip = Some(tip);
             }

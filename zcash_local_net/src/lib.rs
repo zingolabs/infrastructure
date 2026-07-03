@@ -51,8 +51,10 @@ pub mod indexer;
 pub mod logs;
 pub mod network;
 pub mod process;
+pub mod rpc_client;
 pub mod utils;
 pub mod validator;
+pub mod zebra_rpc;
 
 mod launch;
 mod poll;
@@ -64,13 +66,14 @@ use crate::{
     error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::Process,
 };
 
-pub use zcash_protocol::PoolType;
+pub use zingo_consensus::MinerPool;
 
 /// External re-exported zcash types.
 pub mod protocol {
-    pub use zcash_protocol::PoolType;
-    pub use zebra_node_services::rpc_client::RpcRequestClient;
-    pub use zingo_consensus::{ActivationHeights, ActivationHeightsBuilder, NetworkType};
+    pub use crate::rpc_client::RpcRequestClient;
+    pub use zingo_consensus::{
+        ActivationHeights, ActivationHeightsBuilder, MinerPool, NetworkType,
+    };
 }
 
 /// External re-exported types.
