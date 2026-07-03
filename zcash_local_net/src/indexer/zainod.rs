@@ -2,7 +2,6 @@
 
 use std::{path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use zingo_consensus::NetworkType;
@@ -61,19 +60,38 @@ impl IndexerConfig for ZainodConfig {
 }
 
 /// This struct is used to represent and manage the Zainod process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zainod {
     /// Child process handle
     handle: Child,
     /// RPC port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     port: u16,
     /// Logs directory
     logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
+}
+
+impl Zainod {
+    /// Child process handle.
+    pub fn handle(&self) -> &Child {
+        &self.handle
+    }
+
+    /// RPC port.
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Config directory.
+    pub fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
 }
 
 impl LogsToDir for Zainod {

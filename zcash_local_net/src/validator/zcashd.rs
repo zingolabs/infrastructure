@@ -2,7 +2,6 @@
 
 use std::{path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
@@ -131,14 +130,11 @@ impl ValidatorConfig for ZcashdConfig {
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zcashd {
     /// Child process handle
     handle: Child,
     /// RPC port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     port: u16,
     /// Config directory
     config_dir: TempDir,
@@ -146,6 +142,33 @@ pub struct Zcashd {
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
+}
+
+impl Zcashd {
+    /// Child process handle.
+    pub fn handle(&self) -> &Child {
+        &self.handle
+    }
+
+    /// RPC port.
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Config directory.
+    pub fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Data directory.
+    pub fn data_dir(&self) -> &TempDir {
+        &self.data_dir
+    }
 }
 
 impl Zcashd {

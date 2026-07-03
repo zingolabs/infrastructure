@@ -22,7 +22,6 @@ tempfile = { workspace = true }
 reqwest = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-getset = { workspace = true }
 json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }

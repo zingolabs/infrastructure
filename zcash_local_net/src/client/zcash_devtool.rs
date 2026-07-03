@@ -17,7 +17,6 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::{Child, Stdio};
 
-use getset::Getters;
 use tempfile::TempDir;
 
 use zingo_consensus::NetworkType;
@@ -168,8 +167,7 @@ impl ClientConfig for ZcashDevtoolConfig {
 /// and appends its output to the logs directory. Dropping the struct
 /// removes the wallet directory (and with it the wallet databases and
 /// the age identity file).
-#[derive(Debug, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct ZcashDevtool {
     /// Wallet directory (keys.toml, wallet databases, age identity)
     wallet_dir: TempDir,
@@ -178,6 +176,23 @@ pub struct ZcashDevtool {
     logs_dir: TempDir,
     /// Configuration the wallet was launched with
     config: ZcashDevtoolConfig,
+}
+
+impl ZcashDevtool {
+    /// Wallet directory (keys.toml, wallet databases, age identity).
+    pub fn wallet_dir(&self) -> &TempDir {
+        &self.wallet_dir
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Configuration the wallet was launched with.
+    pub fn config(&self) -> &ZcashDevtoolConfig {
+        &self.config
+    }
 }
 
 impl LogsToDir for ZcashDevtool {

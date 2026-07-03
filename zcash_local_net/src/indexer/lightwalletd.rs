@@ -1,6 +1,5 @@
 use std::{fs::File, path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use crate::{
@@ -51,14 +50,11 @@ impl IndexerConfig for LightwalletdConfig {
     }
 }
 /// This struct is used to represent and manage the Lightwalletd process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Lightwalletd {
     /// Child process handle
     handle: Child,
     /// RPC Port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     port: u16,
     /// Data directory
     _data_dir: TempDir,
@@ -66,6 +62,28 @@ pub struct Lightwalletd {
     logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
+}
+
+impl Lightwalletd {
+    /// Child process handle.
+    pub fn handle(&self) -> &Child {
+        &self.handle
+    }
+
+    /// RPC port.
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Config directory.
+    pub fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
 }
 
 impl Lightwalletd {

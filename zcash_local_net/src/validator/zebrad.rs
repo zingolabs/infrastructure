@@ -22,7 +22,6 @@ use std::{
 };
 
 use crate::rpc_client::RpcRequestClient;
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 /// Zebrad configuration
@@ -145,26 +144,17 @@ impl ValidatorConfig for ZebradConfig {
 }
 
 /// This struct is used to represent and manage the Zebrad process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zebrad {
     /// Child process handle
     handle: Child,
     /// network listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     network_listen_port: u16,
     /// json RPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     rpc_listen_port: u16,
     /// gRPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     indexer_listen_port: u16,
     /// `[health]` HTTP listen port (serves `/healthy` and `/ready`)
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     health_listen_port: u16,
     /// Config directory
     config_dir: TempDir,
@@ -176,6 +166,58 @@ pub struct Zebrad {
     client: RpcRequestClient,
     /// Network type
     network: NetworkType,
+}
+
+impl Zebrad {
+    /// Child process handle.
+    pub fn handle(&self) -> &Child {
+        &self.handle
+    }
+
+    /// Network listen port.
+    pub fn network_listen_port(&self) -> u16 {
+        self.network_listen_port
+    }
+
+    /// JSON-RPC listen port.
+    pub fn rpc_listen_port(&self) -> u16 {
+        self.rpc_listen_port
+    }
+
+    /// gRPC listen port.
+    pub fn indexer_listen_port(&self) -> u16 {
+        self.indexer_listen_port
+    }
+
+    /// `[health]` HTTP listen port.
+    pub fn health_listen_port(&self) -> u16 {
+        self.health_listen_port
+    }
+
+    /// Config directory.
+    pub fn config_dir(&self) -> &TempDir {
+        &self.config_dir
+    }
+
+    /// Logs directory.
+    pub fn logs_dir(&self) -> &TempDir {
+        &self.logs_dir
+    }
+
+    /// Data directory.
+    pub fn data_dir(&self) -> &TempDir {
+        &self.data_dir
+    }
+
+    /// RPC request client for the launched node.
+    pub fn client(&self) -> &RpcRequestClient {
+        &self.client
+    }
+
+    /// Network type the node was launched with.
+    pub fn network(&self) -> &NetworkType {
+        &self.network
+    }
 }
 
 impl LogsToDir for Zebrad {
