@@ -164,6 +164,69 @@ pub fn block_hash_hex(block_bytes: &[u8]) -> String {
     hex::encode(hash)
 }
 
+/// Error from a [`submit_template_block`] round trip: the RPC transport
+/// failed, or proposal assembly rejected the template.
+#[derive(Debug, thiserror::Error)]
+pub enum SubmitBlockError {
+    /// `getblocktemplate` or `submitblock` failed.
+    #[error(transparent)]
+    Rpc(#[from] crate::rpc_client::RpcClientError),
+    /// Proposal assembly from the fetched template failed.
+    #[error(transparent)]
+    Assembly(#[from] ZebraRpcError),
+}
+
+/// The outcome of one [`submit_template_block`] round trip.
+#[derive(Clone, Debug)]
+pub struct BlockSubmission {
+    /// Height of the submitted template.
+    pub height: u32,
+    /// Hash of the submitted block, display-order hex.
+    pub block_hash: String,
+    /// Raw `submitblock` response body, envelope included.
+    pub response: String,
+}
+
+impl BlockSubmission {
+    /// Whether zebrad reported acceptance (`"result":null` in the response).
+    ///
+    /// A non-accepted response does not prove the chain failed to advance:
+    /// zebra answers "duplicate" / "duplicate-inconclusive" when validation
+    /// outruns resubmission, without saying whether this submission
+    /// committed. Callers that must know poll chain height instead, as
+    /// `Zebrad::generate_blocks` does.
+    pub fn accepted(&self) -> bool {
+        self.response.contains(r#""result":null"#)
+    }
+}
+
+/// One `getblocktemplate` → [`proposal_block_bytes`] → `submitblock` round
+/// trip against a regtest zebrad.
+///
+/// The single implementation behind every miner in this workspace
+/// (`Zebrad::generate_blocks` and the regtest-launcher's bootstrap and
+/// steady-state loops), so template assembly and submission semantics
+/// cannot drift between them.
+pub async fn submit_template_block(
+    client: &crate::rpc_client::RpcRequestClient,
+    activation_heights: &ActivationHeights,
+) -> Result<BlockSubmission, SubmitBlockError> {
+    let template: BlockTemplate = client
+        .json_result_from_call("getblocktemplate", "[]".to_string())
+        .await?;
+    let block_bytes = proposal_block_bytes(&template, activation_heights)?;
+    let block_hash = block_hash_hex(&block_bytes);
+    let block_hex = hex::encode(&block_bytes);
+    let response = client
+        .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
+        .await?;
+    Ok(BlockSubmission {
+        height: template.height,
+        block_hash,
+        response,
+    })
+}
+
 fn hash32_from_display_hex(
     field: &'static str,
     display_hex: &str,

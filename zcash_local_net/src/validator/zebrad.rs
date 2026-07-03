@@ -556,24 +556,11 @@ impl Validator for Zebrad {
             let mut last_response = String::new();
             let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
-                let block_template: crate::zebra_rpc::BlockTemplate = self
-                    .client
-                    .json_result_from_call("getblocktemplate", "[]".to_string())
-                    .await
-                    .expect(
-                        "response should be success output with a serialized `GetBlockTemplate`",
-                    );
-
-                let block_data = hex::encode(
-                    crate::zebra_rpc::proposal_block_bytes(&block_template, activation_heights)
-                        .unwrap(),
-                );
-
-                last_response = self
-                    .client
-                    .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-                    .await
-                    .unwrap();
+                let submission =
+                    crate::zebra_rpc::submit_template_block(&self.client, activation_heights)
+                        .await
+                        .expect("template block submission should succeed");
+                last_response = submission.response;
 
                 if self.get_chain_height().await >= target_height {
                     advanced = true;

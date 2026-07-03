@@ -10,7 +10,6 @@ homepage = "https://github.com/zingolabs/infrastructure"
 
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
-hex.workspace = true
 local-net = { path = "../zcash_local_net", package = "zcash_local_net" }
 owo-colors = "4.2.3"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time"] }

@@ -25,7 +25,7 @@ use tokio::{signal::ctrl_c, time::interval};
 
 use local_net::protocol::ActivationHeights;
 use local_net::protocol::RpcRequestClient;
-use local_net::zebra_rpc::{BlockTemplate, block_hash_hex, proposal_block_bytes};
+use local_net::zebra_rpc::submit_template_block;
 
 use crate::cli::Cli;
 
@@ -83,25 +83,14 @@ async fn main() {
             break;
         }
 
-        let tpl: BlockTemplate = client
-            .json_result_from_call("getblocktemplate", "[]".to_string())
+        let submission = submit_template_block(&client, &heights)
             .await
-            .expect("getblocktemplate failed");
+            .expect("block submission failed");
 
-        let block_bytes =
-            proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
-
-        let submitted_hash = block_hash_hex(&block_bytes);
-        let block_hex = hex::encode(&block_bytes);
-        let submit_response = client
-            .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
-            .await
-            .expect("submitblock failed");
-
-        let ok = submit_response.contains(r#""result":null"#);
-        if !ok {
+        if !submission.accepted() {
             eprintln!(
-                "bootstrap submitblock rejected. submitted={submitted_hash} resp={submit_response}"
+                "bootstrap submitblock rejected. submitted={} resp={}",
+                submission.block_hash, submission.response
             );
             continue;
         }
@@ -114,26 +103,14 @@ async fn main() {
         while running_miner.load(Ordering::Relaxed) {
             tick.tick().await;
 
-            let tpl: BlockTemplate = client
-                .json_result_from_call("getblocktemplate", "[]".to_string())
+            let submission = submit_template_block(&client, &heights)
                 .await
-                .expect("getblocktemplate failed");
+                .expect("block submission failed");
 
-            let block_bytes =
-                proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
-
-            let submitted_hash = block_hash_hex(&block_bytes);
-
-            let block_hex = hex::encode(&block_bytes);
-            let submit_response = client
-                .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
-                .await
-                .expect("submitblock failed");
-
-            let ok = submit_response.contains(r#""result":null"#);
-            if !ok {
+            if !submission.accepted() {
                 eprintln!(
-                    "submitblock rejected. submitted={submitted_hash} resp={submit_response}"
+                    "submitblock rejected. submitted={} resp={}",
+                    submission.block_hash, submission.response
                 );
                 continue;
             }
@@ -144,7 +121,7 @@ async fn main() {
                 .expect("getbestblockhash failed");
 
             if last_tip.as_deref() != Some(&tip) {
-                println!("mined new_tip={tip} height={}", tpl.height);
+                println!("mined new_tip={tip} height={}", submission.height);
 
                 last_tip = Some(tip);
             }
