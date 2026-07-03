@@ -498,8 +498,13 @@ impl Validator for Zcashd {
         let output = self
             .zcash_cli_command(&["getchaintips"])
             .expect(EXPECT_SPAWN);
-        let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
-        stdout_json[0]["height"].as_u32().unwrap()
+        let stdout_json: serde_json::Value =
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
+                .expect("should parse JSON response");
+        let height = stdout_json[0]["height"]
+            .as_u64()
+            .expect("height should be a number");
+        u32::try_from(height).expect("height should fit in u32")
     }
 
     fn data_dir(&self) -> &TempDir {
