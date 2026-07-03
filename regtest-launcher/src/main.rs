@@ -25,19 +25,7 @@ use tokio::{signal::ctrl_c, time::interval};
 
 use local_net::protocol::ActivationHeights;
 use local_net::protocol::RpcRequestClient;
-use zebra_rpc::{
-    client::{
-        BlockTemplateTimeSource, GetBlockTemplateResponse,
-        zebra_chain::{
-            parameters::{
-                Network,
-                testnet::{Parameters, RegtestParameters},
-            },
-            serialization::ZcashSerialize,
-        },
-    },
-    proposal_block_from_template,
-};
+use local_net::zebra_rpc::{BlockTemplate, block_hash_hex, proposal_block_bytes};
 
 use crate::cli::Cli;
 
@@ -82,20 +70,6 @@ async fn main() {
     );
     let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
 
-    let regtest_network = Network::Testnet(Arc::new(
-        Parameters::new_regtest(RegtestParameters {
-            activation_heights: cli.activation_heights,
-            funding_streams: None,
-            lockbox_disbursements: None,
-            checkpoints: None,
-            extend_funding_stream_addresses_as_required: None,
-            // Preserves pre-zebra-11 behavior (zcashd's
-            // fCoinbaseMustBeShielded default).
-            should_allow_unshielded_coinbase_spends: None,
-        })
-        .unwrap(),
-    ));
-
     let running = Arc::new(AtomicBool::new(true));
     let running_miner = running.clone();
 
@@ -109,21 +83,16 @@ async fn main() {
             break;
         }
 
-        let tpl: GetBlockTemplateResponse = client
+        let tpl: BlockTemplate = client
             .json_result_from_call("getblocktemplate", "[]".to_string())
             .await
             .expect("getblocktemplate failed");
 
-        let tpl_resp = tpl.try_into_template().unwrap();
-        let block = proposal_block_from_template(
-            &tpl_resp,
-            BlockTemplateTimeSource::default(),
-            &regtest_network,
-        )
-        .expect("proposal_block_from_template failed");
+        let block_bytes =
+            proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
 
-        let submitted_hash = block.hash();
-        let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
+        let submitted_hash = block_hash_hex(&block_bytes);
+        let block_hex = hex::encode(&block_bytes);
         let submit_response = client
             .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
             .await
@@ -145,22 +114,17 @@ async fn main() {
         while running_miner.load(Ordering::Relaxed) {
             tick.tick().await;
 
-            let tpl: GetBlockTemplateResponse = client
+            let tpl: BlockTemplate = client
                 .json_result_from_call("getblocktemplate", "[]".to_string())
                 .await
                 .expect("getblocktemplate failed");
 
-            let tpl_resp = tpl.try_into_template().unwrap();
-            let block = proposal_block_from_template(
-                &tpl_resp,
-                BlockTemplateTimeSource::default(),
-                &regtest_network,
-            )
-            .expect("proposal_block_from_template failed");
+            let block_bytes =
+                proposal_block_bytes(&tpl, &heights).expect("proposal_block_bytes failed");
 
-            let submitted_hash = block.hash();
+            let submitted_hash = block_hash_hex(&block_bytes);
 
-            let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
+            let block_hex = hex::encode(&block_bytes);
             let submit_response = client
                 .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
                 .await
@@ -180,7 +144,7 @@ async fn main() {
                 .expect("getbestblockhash failed");
 
             if last_tip.as_deref() != Some(&tip) {
-                println!("mined new_tip={tip} height={}", tpl_resp.height());
+                println!("mined new_tip={tip} height={}", tpl.height);
 
                 last_tip = Some(tip);
             }

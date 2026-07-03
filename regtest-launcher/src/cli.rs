@@ -1,6 +1,38 @@
 use clap::Parser;
 use local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING;
-use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
+
+/// Activation heights parsed from the CLI.
+///
+/// A superset of `zingo_consensus::ActivationHeights`: the CLI also accepts
+/// zebra's `before_overwinter` slot, which the zingo type does not model
+/// (it is dropped when the parsed heights convert for the harness).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConfiguredActivationHeights {
+    /// BeforeOverwinter activation height.
+    pub before_overwinter: Option<u32>,
+    /// Overwinter activation height.
+    pub overwinter: Option<u32>,
+    /// Sapling activation height.
+    pub sapling: Option<u32>,
+    /// Blossom activation height.
+    pub blossom: Option<u32>,
+    /// Heartwood activation height.
+    pub heartwood: Option<u32>,
+    /// Canopy activation height.
+    pub canopy: Option<u32>,
+    /// NU5 activation height.
+    pub nu5: Option<u32>,
+    /// NU6 activation height.
+    pub nu6: Option<u32>,
+    /// NU6.1 activation height.
+    pub nu6_1: Option<u32>,
+    /// NU6.2 activation height.
+    pub nu6_2: Option<u32>,
+    /// NU6.3 activation height.
+    pub nu6_3: Option<u32>,
+    /// NU7 activation height.
+    pub nu7: Option<u32>,
+}
 
 #[derive(Parser, Debug)]
 pub struct Cli {

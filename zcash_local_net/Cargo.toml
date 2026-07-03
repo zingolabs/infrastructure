@@ -16,7 +16,6 @@ github = { repository = "zingolabs/infrastructure/services" }
 # zingo
 zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
-zebra-rpc = { workspace = true }
 
 # Community
 tempfile = { workspace = true }
@@ -27,13 +26,14 @@ getset = { workspace = true }
 json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
-tokio = { workspace = true }
-serde = "1.0"
+tokio = { workspace = true, features = ["io-util", "net", "rt", "time", "process"] }
+serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }
 tracing-subscriber = { workspace = true }
+zebra-rpc = "11.0"
 
 [build-dependencies]
 hex = { workspace = true }

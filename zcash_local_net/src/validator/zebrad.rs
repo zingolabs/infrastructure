@@ -7,10 +7,7 @@ use crate::{
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::{
-        executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
-        type_conversions::zingo_to_zebra_activation_heights,
-    },
+    utils::executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
     validator::{Validator, ValidatorConfig},
 };
 use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
@@ -27,11 +24,6 @@ use std::{
 use crate::rpc_client::RpcRequestClient;
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
-use zebra_rpc::client::zebra_chain::serialization::ZcashSerialize as _;
-use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource, zebra_chain},
-    proposal_block_from_template,
-};
 
 /// Zebrad configuration
 ///
@@ -507,9 +499,6 @@ impl Validator for Zebrad {
         let NetworkType::Regtest(activation_heights) = self.network() else {
             panic!("Can only generate blocks on regtest networks!");
         };
-        let network = zebra_chain::parameters::Network::new_regtest(
-            zingo_to_zebra_activation_heights(*activation_heights).into(),
-        );
 
         // Drive the chain forward one block per outer iteration. Success
         // criterion is *chain advance*, not the RPC response: zebra returns
@@ -525,7 +514,7 @@ impl Validator for Zebrad {
             let mut last_response = String::new();
             let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
-                let block_template: BlockTemplateResponse = self
+                let block_template: crate::zebra_rpc::BlockTemplate = self
                     .client
                     .json_result_from_call("getblocktemplate", "[]".to_string())
                     .await
@@ -534,14 +523,8 @@ impl Validator for Zebrad {
                     );
 
                 let block_data = hex::encode(
-                    proposal_block_from_template(
-                        &block_template,
-                        BlockTemplateTimeSource::default(),
-                        &network,
-                    )
-                    .unwrap()
-                    .zcash_serialize_to_vec()
-                    .unwrap(),
+                    crate::zebra_rpc::proposal_block_bytes(&block_template, activation_heights)
+                        .unwrap(),
                 );
 
                 last_response = self
