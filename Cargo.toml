@@ -11,7 +11,6 @@ resolver = "2"
 
 # workspace
 zingo_test_vectors = { path = "zingo_test_vectors" }
-zcash_local_net = { path = "zcash_local_net" }
 zingo-consensus = { path = "zingo-consensus" }
 
 #zcash

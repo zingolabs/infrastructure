@@ -5,10 +5,14 @@ Tiny Rust binary that launches a local Zcash regtest network (Zebrad & Zainod) a
 ## Overview
 
 - Starts a local validator + indexer using `zcash_local_net`.
-- Uses a provided miner transparent address **or** generates a fresh regtest transparent keypair.
+- Mines to a provided transparent address, defaulting to the well-known
+  ABANDONART fixture address. Its seed is the public BIP-39 test mnemonic
+  (`abandon` x23, `art`), so default-mined funds are spendable by importing
+  that phrase into any wallet. Supply `--miner-address` to mine directly to
+  a wallet you control.
 - Bootstraps the chain up to height **101**.
 - Then mines a new block every **5s**.
-- Prints indexer port + miner address, if generated.
+- Prints indexer port + miner address.
 
 ## Usage
 
@@ -24,7 +28,9 @@ Options:
           [default: all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu7=off]
 
       --miner-address <MINER_ADDRESS>
-          Optional miner address for receiving block rewards
+          Miner address for receiving block rewards
+
+          [default: tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd]
 
   -h, --help
           Print help (see a summary with '-h')

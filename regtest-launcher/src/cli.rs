@@ -23,9 +23,15 @@ pub struct Cli {
     )]
     pub activation_heights: ConfiguredActivationHeights,
 
-    /// Optional miner address for receiving block rewards.
-    #[arg(long)]
-    pub miner_address: Option<String>,
+    /// Miner address for receiving block rewards.
+    ///
+    /// Defaults to the well-known ABANDONART fixture address
+    /// ([`zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART`]), whose seed
+    /// phrase is the public BIP-39 test mnemonic (abandon x23, art), so the
+    /// mined funds are spendable by importing that phrase into any wallet.
+    /// Supply your own address to mine directly to a wallet you control.
+    #[arg(long, default_value = zingo_test_vectors::REG_T_ADDR_FROM_ABANDONART)]
+    pub miner_address: String,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
