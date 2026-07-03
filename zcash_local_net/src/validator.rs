@@ -229,10 +229,16 @@ pub fn regtest_test_post_nu6_funding_streams() -> FundingStreams {
     }
 }
 
-/// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
-fn parse_activation_heights_from_rpc(
-    upgrades: &serde_json::Map<String, serde_json::Value>,
-) -> ActivationHeights {
+/// Parse activation heights from a `getblockchaininfo` RPC response.
+/// Shared by every validator's `get_activation_heights`; only the RPC
+/// transport that fetches the response differs per validator.
+fn activation_heights_from_getblockchaininfo(response: &serde_json::Value) -> ActivationHeights {
+    let upgrades = response
+        .get("upgrades")
+        .expect("upgrades field should exist")
+        .as_object()
+        .expect("upgrades should be an object");
+
     // Helper function to extract activation height for a network upgrade by name
     let get_height = |name: &str| -> Option<u32> {
         upgrades.values().find_map(|upgrade| {

@@ -184,11 +184,6 @@ impl ZcashDevtool {
         &self.wallet_dir
     }
 
-    /// Logs directory.
-    pub fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
-    }
-
     /// Configuration the wallet was launched with.
     pub fn config(&self) -> &ZcashDevtoolConfig {
         &self.config
@@ -614,37 +609,61 @@ fn parse_final_txid(stdout: &str) -> Result<String, String> {
     }
 }
 
-/// Parse the single-line JSON object emitted by `balance --json`. The
-/// object's keys match [`WalletBalance`]'s fields exactly (raw
-/// zatoshis, `chain_tip_height` a u32), so extraction is one lookup per
-/// field. Parsing via `serde_json::Value` rather than deriving
-/// `Deserialize` on `WalletBalance` keeps `serde` out of this crate's
-/// public API surface (cargo-check-external-types).
-fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
-    let line = stdout
-        .lines()
-        .map(str::trim)
-        .find(|line| line.starts_with('{'))
-        .ok_or_else(|| "no JSON object line in stdout".to_string())?;
-    let value: serde_json::Value =
-        serde_json::from_str(line).map_err(|e| format!("invalid JSON {line:?}: {e}"))?;
+/// The single-line JSON object a devtool `--json` command prints:
+/// found by line-scan, parsed once, fields extracted by key with
+/// uniform error strings. Shared by `parse_balance_json` and
+/// `parse_getinfo_json` so field-extraction semantics cannot drift
+/// between them. Parsing via `serde_json::Value` rather than deriving
+/// `Deserialize` on the result structs keeps `serde` out of this
+/// crate's public API surface (cargo-check-external-types).
+struct JsonLine(serde_json::Value);
 
-    let u64_field = |key: &str| -> Result<u64, String> {
-        value
+impl JsonLine {
+    fn from_stdout(stdout: &str) -> Result<Self, String> {
+        let line = stdout
+            .lines()
+            .map(str::trim)
+            .find(|line| line.starts_with('{'))
+            .ok_or_else(|| "no JSON object line in stdout".to_string())?;
+        let value: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| format!("invalid JSON {line:?}: {e}"))?;
+        Ok(Self(value))
+    }
+
+    fn u64_field(&self, key: &str) -> Result<u64, String> {
+        self.0
             .get(key)
             .ok_or_else(|| format!("missing key {key:?}"))?
             .as_u64()
             .ok_or_else(|| format!("key {key:?} is not a u64"))
-    };
-    let chain_tip_height = u32::try_from(u64_field("chain_tip_height")?)
-        .map_err(|e| format!("chain_tip_height does not fit in u32: {e}"))?;
+    }
 
+    fn u32_field(&self, key: &str) -> Result<u32, String> {
+        u32::try_from(self.u64_field(key)?).map_err(|e| format!("{key} does not fit in u32: {e}"))
+    }
+
+    fn str_field(&self, key: &str) -> Result<String, String> {
+        self.0
+            .get(key)
+            .ok_or_else(|| format!("missing key {key:?}"))?
+            .as_str()
+            .map(str::to_string)
+            .ok_or_else(|| format!("key {key:?} is not a string"))
+    }
+}
+
+/// Parse the single-line JSON object emitted by `balance --json`. The
+/// object's keys match [`WalletBalance`]'s fields exactly (raw
+/// zatoshis, `chain_tip_height` a u32), so extraction is one lookup
+/// per field.
+fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
+    let json = JsonLine::from_stdout(stdout)?;
     Ok(WalletBalance {
-        total: u64_field("total")?,
-        sapling_spendable: u64_field("sapling_spendable")?,
-        orchard_spendable: u64_field("orchard_spendable")?,
-        transparent_spendable: u64_field("transparent_spendable")?,
-        chain_tip_height,
+        total: json.u64_field("total")?,
+        sapling_spendable: json.u64_field("sapling_spendable")?,
+        orchard_spendable: json.u64_field("orchard_spendable")?,
+        transparent_spendable: json.u64_field("transparent_spendable")?,
+        chain_tip_height: json.u32_field("chain_tip_height")?,
     })
 }
 
@@ -652,32 +671,11 @@ fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
 /// is the frozen [`GetInfo`] contract; `chain_tip_height` is a u64 (the
 /// server tip, matching the wire `LightdInfo.block_height`).
 fn parse_getinfo_json(stdout: &str) -> Result<GetInfo, String> {
-    let line = stdout
-        .lines()
-        .map(str::trim)
-        .find(|line| line.starts_with('{'))
-        .ok_or_else(|| "no JSON object line in stdout".to_string())?;
-    let value: serde_json::Value =
-        serde_json::from_str(line).map_err(|e| format!("invalid JSON {line:?}: {e}"))?;
-
-    let str_field = |key: &str| -> Result<String, String> {
-        value
-            .get(key)
-            .ok_or_else(|| format!("missing key {key:?}"))?
-            .as_str()
-            .map(str::to_string)
-            .ok_or_else(|| format!("key {key:?} is not a string"))
-    };
-    let chain_tip_height = value
-        .get("chain_tip_height")
-        .ok_or_else(|| "missing key \"chain_tip_height\"".to_string())?
-        .as_u64()
-        .ok_or_else(|| "key \"chain_tip_height\" is not a u64".to_string())?;
-
+    let json = JsonLine::from_stdout(stdout)?;
     Ok(GetInfo {
-        server_uri: str_field("server_uri")?,
-        chain_name: str_field("chain_name")?,
-        chain_tip_height,
+        server_uri: json.str_field("server_uri")?,
+        chain_name: json.str_field("chain_name")?,
+        chain_tip_height: json.u64_field("chain_tip_height")?,
     })
 }
 

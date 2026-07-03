@@ -160,11 +160,6 @@ impl Zcashd {
         &self.config_dir
     }
 
-    /// Logs directory.
-    pub fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
-    }
-
     /// Data directory.
     pub fn data_dir(&self) -> &TempDir {
         &self.data_dir
@@ -197,21 +192,16 @@ impl LogsToDir for Zcashd {
     }
 }
 
-/// Listen ports zcashd needs to bind during launch. A single-field
-/// counterpart to `ZebradPorts` — kept symmetric so the planned
-/// retry-on-collision helper in `launch::wait` can treat all
-/// validators uniformly and re-roll an entire validator's port set
-/// in one call rather than open-coding the picks per validator.
-#[derive(Debug, Clone, Copy)]
-struct ZcashdPorts {
-    rpc: u16,
-}
+impl launch::PortPins for ZcashdConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        self.rpc_listen_port.into_iter().collect()
+    }
 
-impl ZcashdPorts {
-    fn pick(config: &ZcashdConfig) -> Self {
-        Self {
-            rpc: network::pick_unused_port(config.rpc_listen_port),
-        }
+    fn clear_port_pins(&mut self) {
+        // Single-port validator — clear the only pin so the next
+        // attempt's pick calls `network::pick_unused_port(None)` and
+        // the kernel hands back a fresh ephemeral.
+        self.rpc_listen_port = None;
     }
 }
 
@@ -261,8 +251,8 @@ impl Zcashd {
     /// not loading from a cache. Wrapped by `Process::launch` in a
     /// bounded retry-on-port-collision loop (see
     /// `launch::with_retry_on_collision`); each retry calls this fresh
-    /// with a config whose port pins have been cleared so
-    /// `ZcashdPorts::pick` re-rolls them via `network::pick_unused_port`.
+    /// with a config whose port pin has been cleared so the pick
+    /// re-rolls via `network::pick_unused_port`.
     async fn launch_once(config: ZcashdConfig) -> Result<Self, LaunchError> {
         if config.disable_shielded_proving {
             ensure_disableshieldedproving_supported()?;
@@ -284,7 +274,7 @@ impl Zcashd {
             "Configuring zcashd to regtest with these activation heights: {activation_heights:?}"
         );
 
-        let ZcashdPorts { rpc: port } = ZcashdPorts::pick(&config);
+        let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zcashd_config(
             config_dir.path(),
@@ -299,23 +289,20 @@ impl Zcashd {
         trace_version_and_location("zcash-cli", "--version");
 
         let mut command = pick_command(executable_name, false);
-        command
-            .args([
-                "--printtoconsole",
-                format!(
-                    "--conf={}",
-                    config_file_path.to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                format!(
-                    "--datadir={}",
-                    data_dir.path().to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                "-debug=1",
-            ])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args([
+            "--printtoconsole",
+            format!(
+                "--conf={}",
+                config_file_path.to_str().expect("should be valid UTF-8")
+            )
+            .as_str(),
+            format!(
+                "--datadir={}",
+                data_dir.path().to_str().expect("should be valid UTF-8")
+            )
+            .as_str(),
+            "-debug=1",
+        ]);
 
         // Skip Sapling/Orchard proving-key load when no test on this
         // launch needs zcashd to build a shielded proof. Default-true
@@ -333,17 +320,9 @@ impl Zcashd {
             command.arg("-disablewallet");
         }
 
-        let spawn_start = std::time::Instant::now();
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        tracing::info!(
-            elapsed_ms = spawn_start.elapsed().as_millis() as u64,
-            "zcashd: process spawned"
-        );
-
-        let wait_start = std::time::Instant::now();
-        launch::wait(
+        let handle = launch::spawn_and_wait(
             ProcessId::Zcashd,
-            &mut handle,
+            &mut command,
             &logs_dir,
             None,
             &["init message: Done loading"],
@@ -351,10 +330,6 @@ impl Zcashd {
             &[],
         )
         .await?;
-        tracing::info!(
-            elapsed_ms = wait_start.elapsed().as_millis() as u64,
-            "zcashd: launch::wait returned (Done loading observed)"
-        );
 
         let zcashd = Zcashd {
             handle,
@@ -398,21 +373,12 @@ impl Process for Zcashd {
             "AddrInUse",
             "Address already in use",
         ];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "zcashd",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &ZcashdConfig| c.rpc_listen_port.into_iter().collect(),
-            |c: &mut ZcashdConfig| {
-                // Single-port validator — clear the only pin so the
-                // next attempt's `ZcashdPorts::pick` calls
-                // `network::pick_unused_port(None)` and the kernel
-                // hands back a fresh ephemeral.
-                c.rpc_listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
@@ -464,13 +430,7 @@ impl Validator for Zcashd {
             serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
                 .expect("should parse JSON response");
 
-        let upgrades = response
-            .get("upgrades")
-            .expect("upgrades field should exist")
-            .as_object()
-            .expect("upgrades should be an object");
-
-        crate::validator::parse_activation_heights_from_rpc(upgrades)
+        crate::validator::activation_heights_from_getblockchaininfo(&response)
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;

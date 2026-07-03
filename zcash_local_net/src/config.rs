@@ -1,7 +1,7 @@
 //! Module for configuring processes and writing configuration files
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use zingo_consensus::{ActivationHeights, NetworkType};
@@ -21,6 +21,20 @@ pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
+/// Create `filename` inside `config_dir` with `contents`, returning the
+/// file's path. The single write path for every process config file.
+fn write_config_file(
+    config_dir: &Path,
+    filename: &str,
+    contents: &str,
+) -> std::io::Result<PathBuf> {
+    let config_file_path = config_dir.join(filename);
+    let mut config_file = File::create(&config_file_path)?;
+    config_file.write_all(contents.as_bytes())?;
+    config_file.flush()?;
+    Ok(config_file_path)
+}
+
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
 pub(crate) fn write_zcashd_config(
@@ -29,10 +43,6 @@ pub(crate) fn write_zcashd_config(
     activation_heights: ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = config_dir.join(ZCASHD_FILENAME);
-    let file = File::create(config_file_path.clone())?;
-    let mut config_file = BufWriter::new(file);
-
     let overwinter_activation_height = activation_heights
         .overwinter()
         .expect("overwinter activation height must be specified");
@@ -108,10 +118,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
         ));
     }
 
-    config_file.write_all(cfg.as_bytes())?;
-    config_file.flush()?;
-
-    Ok(config_file_path)
+    write_config_file(config_dir, ZCASHD_FILENAME, &cfg)
 }
 
 /// Writes the Zebrad config file to the specified config directory.
@@ -132,8 +139,6 @@ pub(crate) fn write_zebrad_config(
     post_nu6_funding_streams: Option<&crate::validator::FundingStreams>,
     min_connected_peers: usize,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
     let chain_cache = cache_dir.to_str().unwrap();
     let network_string = network_type_to_string(network);
 
@@ -306,10 +311,7 @@ NU6 = {nu6_activation_height}
         }
     }
 
-    config_file.write_all(cfg.as_bytes())?;
-    config_file.flush()?;
-
-    Ok(config_file_path)
+    write_config_file(&output_config_dir, ZEBRAD_FILENAME, &cfg)
 }
 
 /// Writes the Zainod config file to the specified config directory.
@@ -322,17 +324,13 @@ pub(crate) fn write_zainod_config(
     validator_port: u16,
     network: NetworkType,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = config_dir.join(ZAINOD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
-
     let zaino_cache_dir = validator_cache_dir.join("zaino");
     let chain_cache = zaino_cache_dir.to_str().unwrap();
 
     let network_string = network_type_to_string(network);
 
-    config_file.write_all(
-        format!(
-            "\
+    let cfg = format!(
+        "\
 backend = \"fetch\"
 network = \"{network_string}\"
 
@@ -346,11 +344,9 @@ validator_password = \"xxxxxx\"
 
 [storage]
 database.path = \"{chain_cache}\""
-        )
-        .as_bytes(),
-    )?;
+    );
 
-    Ok(config_file_path)
+    write_config_file(config_dir, ZAINOD_FILENAME, &cfg)
 }
 
 /// Writes the Lightwalletd config file to the specified config directory.
@@ -365,22 +361,16 @@ pub(crate) fn write_lightwalletd_config(
     let zcashd_conf = zcashd_conf.to_str().unwrap();
     let log_file = log_file.to_str().unwrap();
 
-    let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
-
-    config_file.write_all(
-        format!(
-            "\
+    let cfg = format!(
+        "\
 grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
 cache-size: 10
 log-file: {log_file}
 log-level: 10
 zcash-conf-path: {zcashd_conf}"
-        )
-        .as_bytes(),
-    )?;
+    );
 
-    Ok(config_file_path)
+    write_config_file(config_dir, LIGHTWALLETD_FILENAME, &cfg)
 }
 
 #[cfg(test)]

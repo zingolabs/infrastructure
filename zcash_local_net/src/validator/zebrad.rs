@@ -7,7 +7,7 @@ use crate::{
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
     network,
     process::Process,
-    utils::executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
+    utils::executable_finder::{pick_command, trace_version_and_location},
     validator::{Validator, ValidatorConfig},
 };
 use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
@@ -199,11 +199,6 @@ impl Zebrad {
         &self.config_dir
     }
 
-    /// Logs directory.
-    pub fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
-    }
-
     /// Data directory.
     pub fn data_dir(&self) -> &TempDir {
         &self.data_dir
@@ -250,11 +245,8 @@ impl Zebrad {
 }
 
 /// Listen ports zebrad needs to bind during launch. Picked atomically
-/// as a unit so the planned retry-on-collision helper in `launch::wait`
-/// can re-roll all four in a single call rather than open-coding the
-/// picks per validator. Re-rolling individual fields would risk one of
-/// the surviving picks being a port a sibling test subprocess just
-/// claimed (the cross-process TOCTOU these tests document).
+/// as a unit; see `PortPins::clear_port_pins` for why the retry helper
+/// re-rolls all four together rather than individually.
 #[derive(Debug, Clone, Copy)]
 struct ZebradPorts {
     network: u16,
@@ -271,6 +263,32 @@ impl ZebradPorts {
             indexer: network::pick_unused_port(config.indexer_listen_port),
             health: network::pick_unused_port(config.health_listen_port),
         }
+    }
+}
+
+impl launch::PortPins for ZebradConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        [
+            self.network_listen_port,
+            self.rpc_listen_port,
+            self.indexer_listen_port,
+            self.health_listen_port,
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
+    fn clear_port_pins(&mut self) {
+        // Four-port validator — clear all four pins. Re-rolling only
+        // the conflicted port would leave the surviving three exposed
+        // to a sibling test subprocess that may have just claimed one
+        // of them; cheaper to re-pick the whole set than to
+        // detect-which-one and partial-clear.
+        self.network_listen_port = None;
+        self.rpc_listen_port = None;
+        self.indexer_listen_port = None;
+        self.health_listen_port = None;
     }
 }
 
@@ -335,24 +353,15 @@ impl Zebrad {
         let executable_name = "zebrad";
         trace_version_and_location(executable_name, "--version");
         let mut command = pick_command(executable_name, false);
-        command
-            .args([
-                "--config",
-                config_file_path
-                    .to_str()
-                    .expect("should be valid UTF-8")
-                    .to_string()
-                    .as_str(),
-                "start",
-            ])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args([
+            "--config",
+            config_file_path.to_str().expect("should be valid UTF-8"),
+            "start",
+        ]);
 
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-
-        launch::wait(
+        let handle = launch::spawn_and_wait(
         ProcessId::Zebrad,
-        &mut handle,
+        &mut command,
         &logs_dir,
         None,
         // Only the indexer-RPC indicator is reliably *post-bind* for
@@ -439,35 +448,12 @@ impl Process for Zebrad {
         // includes "AddrInUse" in its `{:?}` rendering. All four
         // bind paths funnel through one of these strings.
         const COLLISION_SIGNATURES: &[&str] = &["AddrInUse", "code: 98", "Address already in use"];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "zebrad",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &ZebradConfig| {
-                [
-                    c.network_listen_port,
-                    c.rpc_listen_port,
-                    c.indexer_listen_port,
-                    c.health_listen_port,
-                ]
-                .into_iter()
-                .flatten()
-                .collect()
-            },
-            |c: &mut ZebradConfig| {
-                // Four-port validator — clear all four pins. Re-rolling
-                // only the conflicted port would leave the surviving
-                // three exposed to a sibling test subprocess that may
-                // have just claimed one of them; cheaper to re-pick the
-                // whole set than to detect-which-one and partial-clear.
-                c.network_listen_port = None;
-                c.rpc_listen_port = None;
-                c.indexer_listen_port = None;
-                c.health_listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
@@ -527,13 +513,7 @@ impl Validator for Zebrad {
             .await
             .expect("getblockchaininfo should succeed");
 
-        let upgrades = response
-            .get("upgrades")
-            .expect("upgrades field should exist")
-            .as_object()
-            .expect("upgrades should be an object");
-
-        crate::validator::parse_activation_heights_from_rpc(upgrades)
+        crate::validator::activation_heights_from_getblockchaininfo(&response)
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {

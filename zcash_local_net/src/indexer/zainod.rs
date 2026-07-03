@@ -16,7 +16,7 @@ use crate::{
     launch,
     network::{self},
     process::Process,
-    utils::executable_finder::{EXPECT_SPAWN, pick_command},
+    utils::executable_finder::pick_command,
 };
 
 /// Zainod configuration
@@ -83,11 +83,6 @@ impl Zainod {
         self.port
     }
 
-    /// Logs directory.
-    pub fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
-    }
-
     /// Config directory.
     pub fn config_dir(&self) -> &TempDir {
         &self.config_dir
@@ -100,20 +95,16 @@ impl LogsToDir for Zainod {
     }
 }
 
-/// Listen ports zainod needs to bind during launch. Single-field
-/// counterpart to the validator `*Ports` aggregators — kept symmetric
-/// so `launch::with_retry_on_collision` re-rolls every process's port
-/// set through the same `*Ports::pick(&config)` shape.
-#[derive(Debug, Clone, Copy)]
-struct ZainodPorts {
-    listen: u16,
-}
+impl launch::PortPins for ZainodConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        self.listen_port.into_iter().collect()
+    }
 
-impl ZainodPorts {
-    fn pick(config: &ZainodConfig) -> Self {
-        Self {
-            listen: network::pick_unused_port(config.listen_port),
-        }
+    fn clear_port_pins(&mut self) {
+        // Single-port indexer — clear the only pin so the next
+        // attempt's pick calls `network::pick_unused_port(None)` and
+        // the kernel hands back a fresh ephemeral.
+        self.listen_port = None;
     }
 }
 
@@ -122,13 +113,13 @@ impl Zainod {
     /// zainod, wait for the readiness indicator. Wrapped by
     /// `Process::launch` in a bounded retry-on-port-collision loop
     /// (see `launch::with_retry_on_collision`); each retry calls this
-    /// fresh with a config whose port pin has been cleared so
-    /// `ZainodPorts::pick` re-rolls via `network::pick_unused_port`.
+    /// fresh with a config whose port pin has been cleared so the pick
+    /// re-rolls via `network::pick_unused_port`.
     async fn launch_once(config: ZainodConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
-        let ZainodPorts { listen: port } = ZainodPorts::pick(&config);
+        let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
 
         let cache_dir = if let Some(cache) = config.chain_cache.clone() {
@@ -149,19 +140,15 @@ impl Zainod {
         let executable_name = "zainod";
         trace_version_and_location(executable_name, "--version");
         let mut command = pick_command(executable_name, false);
-        command
-            .args([
-                "start",
-                "--config",
-                config_file_path.to_str().expect("should be valid UTF-8"),
-            ])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args([
+            "start",
+            "--config",
+            config_file_path.to_str().expect("should be valid UTF-8"),
+        ]);
 
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        launch::wait(
+        let mut handle = launch::spawn_and_wait(
             ProcessId::Zainod,
-            &mut handle,
+            &mut command,
             &logs_dir,
             None,
             &["Zaino Indexer started successfully."],
@@ -206,21 +193,12 @@ impl Process for Zainod {
             "Address already in use",
             "AddrInUse",
         ];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "zainod",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &ZainodConfig| c.listen_port.into_iter().collect(),
-            |c: &mut ZainodConfig| {
-                // Single-port indexer — clear the only pin so the
-                // next attempt's `ZainodPorts::pick` calls
-                // `network::pick_unused_port(None)` and the kernel
-                // hands back a fresh ephemeral.
-                c.listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
