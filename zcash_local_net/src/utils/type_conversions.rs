@@ -1,4 +1,4 @@
-use zebra_chain::parameters::testnet::ConfiguredActivationHeights;
+use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use zingo_consensus::ActivationHeights;
 
 pub(crate) fn zingo_to_zebra_activation_heights(

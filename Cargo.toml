@@ -12,9 +12,6 @@ resolver = "2"
 # workspace
 zingo_test_vectors = { path = "zingo_test_vectors" }
 zingo-consensus = { path = "zingo-consensus" }
-
-# zebra
-zebra-chain = "9.0.0"
 zebra-node-services = "7.0.0"
 zebra-rpc = "9.0.0"
 

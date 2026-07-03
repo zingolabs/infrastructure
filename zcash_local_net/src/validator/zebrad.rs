@@ -26,10 +26,10 @@ use std::{
 
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
-use zebra_chain::serialization::ZcashSerialize as _;
 use zebra_node_services::rpc_client::RpcRequestClient;
+use zebra_rpc::client::zebra_chain::serialization::ZcashSerialize as _;
 use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource},
+    client::{BlockTemplateResponse, BlockTemplateTimeSource, zebra_chain},
     proposal_block_from_template,
 };
 

@@ -5201,7 +5201,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",
  "zingo-consensus",

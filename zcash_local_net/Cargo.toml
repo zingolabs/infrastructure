@@ -18,9 +18,8 @@ zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
 
 # zebra
-zebra-node-services = { workspace = true }
+zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc = { workspace = true }
-zebra-chain = { workspace = true }
 
 # Community
 tempfile = { workspace = true }
