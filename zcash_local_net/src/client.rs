@@ -28,9 +28,9 @@ pub trait ClientConfig: Default + std::fmt::Debug {
 /// Which receiver of the wallet's unified address to emit from
 /// [`Client::address`].
 ///
-/// A dedicated enum rather than [`zcash_protocol::PoolType`], which is
-/// `Transparent | Shielded(Sapling | Orchard)` and has no `Unified`
-/// variant — the wrong shape for "give me this receiver of my UA".
+/// A dedicated enum rather than [`zingo_consensus::MinerPool`], which
+/// has no `Unified` variant — the wrong shape for "give me this
+/// receiver of my UA".
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AddressReceiver {
     /// The full unified address (all available receivers).

@@ -13,9 +13,6 @@ resolver = "2"
 zingo_test_vectors = { path = "zingo_test_vectors" }
 zingo-consensus = { path = "zingo-consensus" }
 
-#zcash
-zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
-
 # zebra
 zebra-chain = "9.0.0"
 zebra-node-services = "7.0.0"

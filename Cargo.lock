@@ -5201,7 +5201,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "zcash_protocol",
  "zebra-chain",
  "zebra-node-services",
  "zebra-rpc",

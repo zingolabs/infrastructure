@@ -5,9 +5,7 @@ use std::{path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
-use zcash_protocol::PoolType;
-
-use zingo_consensus::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 use zingo_test_vectors::{
     REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
 };
@@ -98,7 +96,7 @@ impl Default for ZcashdConfig {
             // use the funds — the proving cost was pure overhead.
             // Tests that need shielded-mined funds opt in via
             // `ValidatorConfig::set_test_parameters` with
-            // `PoolType::ORCHARD` or `PoolType::SAPLING`.
+            // `MinerPool::Orchard` or `MinerPool::Sapling`.
             miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
             disable_shielded_proving: true,
@@ -110,14 +108,14 @@ impl Default for ZcashdConfig {
 impl ValidatorConfig for ZcashdConfig {
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         self.miner_address = Some(match mine_to_pool {
-            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
-            PoolType::SAPLING => REG_Z_ADDR_FROM_ABANDONART,
-            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            MinerPool::Orchard => REG_O_ADDR_FROM_ABANDONART,
+            MinerPool::Sapling => REG_Z_ADDR_FROM_ABANDONART,
+            MinerPool::Transparent => REG_T_ADDR_FROM_ABANDONART,
         });
         self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;
@@ -125,7 +123,7 @@ impl ValidatorConfig for ZcashdConfig {
         // mineraddress output, and the prover to construct the
         // shielded output itself. Re-enable both for non-Transparent
         // pools so callers don't have to know about either default.
-        if !matches!(mine_to_pool, PoolType::Transparent) {
+        if !matches!(mine_to_pool, MinerPool::Transparent) {
             self.disable_wallet = false;
             self.disable_shielded_proving = false;
         }
@@ -558,26 +556,26 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_transparent_pool_keeps_wallet_disabled() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Transparent, ActivationHeights::default(), None);
             assert!(
                 config.disable_wallet,
                 "Transparent mining does not need zcashd's wallet to \
                  materialize coinbase outputs; set_test_parameters must \
                  preserve the default-true `disable_wallet` for \
-                 PoolType::Transparent."
+                 MinerPool::Transparent."
             );
         }
 
         #[test]
         fn set_test_parameters_orchard_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Orchard, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Orchard mining needs zcashd's wallet to materialize the \
                  shielded coinbase output from `mineraddress`; \
                  set_test_parameters must auto-flip `disable_wallet` to \
-                 false for PoolType::ORCHARD so callers don't have to \
+                 false for MinerPool::Orchard so callers don't have to \
                  know about the default."
             );
         }
@@ -585,13 +583,13 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_sapling_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Sapling, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Sapling mining needs zcashd's wallet to materialize \
                  the shielded coinbase output from `mineraddress`; \
                  set_test_parameters must auto-flip `disable_wallet` to \
-                 false for PoolType::SAPLING so callers don't have to \
+                 false for MinerPool::Sapling so callers don't have to \
                  know about the default."
             );
         }
@@ -599,26 +597,26 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_transparent_pool_keeps_shielded_proving_disabled() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Transparent, ActivationHeights::default(), None);
             assert!(
                 config.disable_shielded_proving,
                 "Transparent mining does not construct shielded outputs \
                  and so does not need the prover; set_test_parameters \
                  must preserve the default-true `disable_shielded_proving` \
-                 for PoolType::Transparent."
+                 for MinerPool::Transparent."
             );
         }
 
         #[test]
         fn set_test_parameters_orchard_pool_enables_shielded_proving() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Orchard, ActivationHeights::default(), None);
             assert!(
                 !config.disable_shielded_proving,
                 "Orchard mining constructs the shielded coinbase output \
                  and so needs the prover; set_test_parameters must \
                  auto-flip `disable_shielded_proving` to false for \
-                 PoolType::ORCHARD so callers don't have to know about \
+                 MinerPool::Orchard so callers don't have to know about \
                  the default."
             );
         }
@@ -626,13 +624,13 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_sapling_pool_enables_shielded_proving() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Sapling, ActivationHeights::default(), None);
             assert!(
                 !config.disable_shielded_proving,
                 "Sapling mining constructs the shielded coinbase output \
                  and so needs the prover; set_test_parameters must \
                  auto-flip `disable_shielded_proving` to false for \
-                 PoolType::SAPLING so callers don't have to know about \
+                 MinerPool::Sapling so callers don't have to know about \
                  the default."
             );
         }

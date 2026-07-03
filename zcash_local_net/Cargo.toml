@@ -17,9 +17,6 @@ github = { repository = "zingolabs/infrastructure/services" }
 zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
 
-# zcash
-zcash_protocol = { workspace = true }
-
 # zebra
 zebra-node-services = { workspace = true }
 zebra-rpc = { workspace = true }
@@ -46,9 +43,9 @@ tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
 [package.metadata.cargo_check_external_types]
 allowed_external_types = [
     "tempfile::dir::TempDir",
-    "zcash_protocol::PoolType",
     "zingo_consensus::ActivationHeights",
     "zingo_consensus::ActivationHeightsBuilder",
+    "zingo_consensus::MinerPool",
     "zingo_consensus::NetworkType",
     "zebra_node_services::rpc_client::RpcRequestClient",
     "reqwest::error::Error",

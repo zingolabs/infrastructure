@@ -18,7 +18,7 @@ use zcash_local_net::{
         zebrad::{Zebrad, ZebradConfig},
     },
 };
-use zcash_protocol::PoolType;
+use zingo_consensus::MinerPool;
 
 async fn launch_default_and_print_all<P: Process>() {
     let p = P::launch_default().await.expect("Process launching!");
@@ -123,7 +123,7 @@ async fn probe_validator_with_nu6_1_at<V: zcash_local_net::validator::Validator>
     let activation_heights = regtest_heights_nu6_1_at(nu6_1_height);
 
     let mut config = V::Config::default();
-    config.set_test_parameters(PoolType::Transparent, activation_heights, None);
+    config.set_test_parameters(MinerPool::Transparent, activation_heights, None);
 
     let validator = V::launch(config).await.unwrap_or_else(|e| {
         panic!(
@@ -376,7 +376,7 @@ async fn launch_zebrad_with_nu6_1_at_height_5_with_disbursements_and_funding_str
     let activation_heights = regtest_heights_nu6_1_at(5);
 
     let mut config = ZebradConfig::default();
-    config.set_test_parameters(PoolType::Transparent, activation_heights, None);
+    config.set_test_parameters(MinerPool::Transparent, activation_heights, None);
     config.lockbox_disbursements = zcash_local_net::validator::regtest_test_lockbox_disbursements();
     config.post_nu6_funding_streams =
         Some(zcash_local_net::validator::regtest_test_post_nu6_funding_streams());
@@ -405,7 +405,7 @@ async fn launch_zebrad_with_nu6_1_at_height_2_and_dummy_disbursements() {
     let activation_heights = regtest_heights_nu6_1_at(2);
 
     let mut config = ZebradConfig::default();
-    config.set_test_parameters(PoolType::Transparent, activation_heights, None);
+    config.set_test_parameters(MinerPool::Transparent, activation_heights, None);
     config.lockbox_disbursements = zcash_local_net::validator::regtest_test_lockbox_disbursements();
 
     let zebrad = Zebrad::launch(config)
@@ -958,7 +958,7 @@ mod devtool_client {
     async fn launch_orchard_net() -> LocalNet<Zebrad, Zainod> {
         let mut validator_config = ZebradConfig::default();
         validator_config.set_test_parameters(
-            PoolType::ORCHARD,
+            MinerPool::Orchard,
             supported_regtest_activation_heights(),
             None,
         );

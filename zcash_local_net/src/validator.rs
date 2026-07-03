@@ -2,8 +2,7 @@
 use std::path::PathBuf;
 
 use tempfile::TempDir;
-use zcash_protocol::PoolType;
-use zingo_consensus::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 
 use crate::process::Process;
 
@@ -271,7 +270,7 @@ pub trait ValidatorConfig: Default {
     /// To set the config for common Regtest parameters.
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     );
