@@ -24,9 +24,9 @@ use std::{
     process::Child,
 };
 
+use crate::rpc_client::RpcRequestClient;
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
-use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::client::zebra_chain::serialization::ZcashSerialize as _;
 use zebra_rpc::{
     client::{BlockTemplateResponse, BlockTemplateTimeSource, zebra_chain},
@@ -357,7 +357,7 @@ impl Zebrad {
     .await?;
 
         let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
-        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+        let client = RpcRequestClient::new(rpc_address);
 
         // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
         // confirmed via stdout that the RPC listener bound; this confirms it

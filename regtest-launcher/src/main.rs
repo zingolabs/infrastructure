@@ -24,7 +24,7 @@ use owo_colors::OwoColorize;
 use tokio::{signal::ctrl_c, time::interval};
 
 use local_net::protocol::ActivationHeights;
-use zebra_node_services::rpc_client::RpcRequestClient;
+use local_net::protocol::RpcRequestClient;
 use zebra_rpc::{
     client::{
         BlockTemplateTimeSource, GetBlockTemplateResponse,

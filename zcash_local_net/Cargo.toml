@@ -16,9 +16,6 @@ github = { repository = "zingolabs/infrastructure/services" }
 # zingo
 zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
-
-# zebra
-zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc = { workspace = true }
 
 # Community
@@ -31,8 +28,10 @@ json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
+serde = "1.0.228"
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }
 tracing-subscriber = { workspace = true }
 
 [build-dependencies]
@@ -46,6 +45,5 @@ allowed_external_types = [
     "zingo_consensus::ActivationHeightsBuilder",
     "zingo_consensus::MinerPool",
     "zingo_consensus::NetworkType",
-    "zebra_node_services::rpc_client::RpcRequestClient",
     "reqwest::error::Error",
 ]
