@@ -54,6 +54,7 @@ pub mod process;
 pub mod rpc_client;
 pub mod utils;
 pub mod validator;
+pub mod zebra_rpc;
 
 mod launch;
 mod poll;

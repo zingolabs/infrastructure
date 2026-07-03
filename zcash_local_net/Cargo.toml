@@ -28,7 +28,8 @@ json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
-serde = "1.0.228"
+serde = "1.0"
+sha2 = "0.10"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }
