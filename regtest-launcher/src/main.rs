@@ -24,6 +24,7 @@ use owo_colors::OwoColorize;
 
 use tokio::{signal::ctrl_c, time::interval};
 
+use local_net::protocol::ActivationHeights;
 use zebra_node_services::rpc_client::RpcRequestClient;
 use zebra_rpc::{
     client::{
@@ -38,7 +39,6 @@ use zebra_rpc::{
     },
     proposal_block_from_template,
 };
-use zingo_common_components::protocol::ActivationHeights;
 
 use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
 

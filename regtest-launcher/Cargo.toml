@@ -24,7 +24,6 @@ zcash_transparent = { version = "0.7.0", features = ["transparent-inputs"] }
 zebra-node-services = { workspace = true, features = ["rpc-client"] }
 zebra-rpc.workspace = true
 zip32 = "0.2.1"
-zingo_common_components = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.100"

@@ -52,7 +52,9 @@ jobs:
           tool: cargo-binstall
 
       - name: Install cargo-check-external-types
-        run: cargo binstall cargo-check-external-types -y --force
+        # Pinned to match PINNED_NIGHTLY (nightly-2025-10-18, rustdoc JSON
+        # format 56). 0.5.0 requires format 57; bump both together.
+        run: cargo binstall cargo-check-external-types@0.4.0 -y --force
 
       - name: Run checks
         run: just check-external-types

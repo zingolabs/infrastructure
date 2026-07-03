@@ -20,7 +20,7 @@ use std::process::{Child, Stdio};
 use getset::Getters;
 use tempfile::TempDir;
 
-use zingo_common_components::protocol::NetworkType;
+use zingo_consensus::NetworkType;
 use zingo_test_vectors::seeds::{ABANDON_ART_SEED, HOSPITAL_MUSEUM_SEED};
 
 use crate::{
@@ -56,9 +56,8 @@ const AGE_IDENTITY_FILENAME: &str = "age-identity.txt";
 /// mining begins, i.e. all-at-2. The NU6.1 lockbox requirement is
 /// still satisfiable at height 2 because the default `ZebradConfig`
 /// funding stream starts depositing at the activation block itself.
-pub fn supported_regtest_activation_heights() -> zingo_common_components::protocol::ActivationHeights
-{
-    zingo_common_components::protocol::ActivationHeights::builder()
+pub fn supported_regtest_activation_heights() -> zingo_consensus::ActivationHeights {
+    zingo_consensus::ActivationHeights::builder()
         .set_overwinter(Some(1))
         .set_sapling(Some(1))
         .set_blossom(Some(1))

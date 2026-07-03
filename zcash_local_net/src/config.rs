@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, NetworkType};
 
 /// Convert `NetworkKind` to its config string representation
 fn network_type_to_string(network: NetworkType) -> &'static str {
@@ -387,7 +387,7 @@ zcash-conf-path: {zcashd_conf}"
 mod tests {
     use std::path::PathBuf;
 
-    use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+    use zingo_consensus::{ActivationHeights, NetworkType};
 
     use crate::logs;
 

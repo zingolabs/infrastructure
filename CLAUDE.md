@@ -3,6 +3,16 @@
 This file collects conventions that AI contributors (and humans
 reviewing AI-authored work) should apply to PRs in this repository.
 
+## Tool selection
+
+Always prefer Rust-native tools in domains where they are designed to
+operate. Dependency and manifest changes go through `cargo add` /
+`cargo remove` / `cargo update`. Code navigation and refactors go
+through rust-analyzer. Verification goes through `cargo check` /
+`cargo clippy` / `cargo fmt` / `cargo nextest`. Do not reach for
+Python, sed, or regex sweeps over Rust source or `Cargo.toml` when a
+Rust tool covers the job.
+
 ## Code-review checklist: bugs Rust won't catch
 
 Memory-safety guarantees and the type system catch a lot, but the

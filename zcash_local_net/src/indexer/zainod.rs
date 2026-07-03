@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::Child};
 use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
-use zingo_common_components::protocol::NetworkType;
+use zingo_consensus::NetworkType;
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;

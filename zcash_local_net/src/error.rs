@@ -180,9 +180,9 @@ pub enum ClientError {
     UnsupportedActivationHeights {
         /// The heights requested in the client config (boxed to keep
         /// `Result<_, ClientError>` small — clippy::result_large_err)
-        configured: Box<zingo_common_components::protocol::ActivationHeights>,
+        configured: Box<zingo_consensus::ActivationHeights>,
         /// The fixture heights the client binary supports
-        expected: Box<zingo_common_components::protocol::ActivationHeights>,
+        expected: Box<zingo_consensus::ActivationHeights>,
     },
 }
 

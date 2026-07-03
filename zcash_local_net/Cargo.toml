@@ -14,7 +14,7 @@ github = { repository = "zingolabs/infrastructure/services" }
 [dependencies]
 
 # zingo
-zingo_common_components = { workspace = true }
+zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
 
 # zcash
@@ -47,8 +47,9 @@ tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
 allowed_external_types = [
     "tempfile::dir::TempDir",
     "zcash_protocol::PoolType",
-    "zingo_common_components::protocol::ActivationHeights",
-    "zingo_common_components::protocol::NetworkType",
+    "zingo_consensus::ActivationHeights",
+    "zingo_consensus::ActivationHeightsBuilder",
+    "zingo_consensus::NetworkType",
     "zebra_node_services::rpc_client::RpcRequestClient",
     "reqwest::error::Error",
 ]
