@@ -64,22 +64,17 @@ pub struct Lightwalletd {
     config_dir: TempDir,
 }
 
-impl Lightwalletd {
+crate::macros::ref_getters!(Lightwalletd {
     /// Child process handle.
-    pub fn handle(&self) -> &Child {
-        &self.handle
-    }
-
-    /// RPC port.
-    pub fn port(&self) -> u16 {
-        self.port
-    }
-
+    handle: Child,
     /// Config directory.
-    pub fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-}
+    config_dir: TempDir,
+});
+
+crate::macros::copy_getters!(Lightwalletd {
+    /// RPC port.
+    port: u16,
+});
 
 impl Lightwalletd {
     /// Prints the stdout log.
@@ -229,8 +224,4 @@ impl Indexer for Lightwalletd {
     }
 }
 
-impl Drop for Lightwalletd {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Lightwalletd);

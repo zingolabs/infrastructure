@@ -144,27 +144,17 @@ pub struct Zcashd {
     data_dir: TempDir,
 }
 
-impl Zcashd {
+crate::macros::ref_getters!(Zcashd {
     /// Child process handle.
-    pub fn handle(&self) -> &Child {
-        &self.handle
-    }
-
-    /// RPC port.
-    pub fn port(&self) -> u16 {
-        self.port
-    }
-
+    handle: Child,
     /// Config directory.
-    pub fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
+    config_dir: TempDir,
+});
 
-    /// Data directory.
-    pub fn data_dir(&self) -> &TempDir {
-        &self.data_dir
-    }
-}
+crate::macros::copy_getters!(Zcashd {
+    /// RPC port.
+    port: u16,
+});
 
 impl Zcashd {
     /// Returns path to config file.
@@ -501,11 +491,7 @@ impl Validator for Zcashd {
     }
 }
 
-impl Drop for Zcashd {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Zcashd);
 
 #[cfg(test)]
 mod unit_tests {

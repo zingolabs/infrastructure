@@ -168,52 +168,27 @@ pub struct Zebrad {
     network: NetworkType,
 }
 
-impl Zebrad {
+crate::macros::ref_getters!(Zebrad {
     /// Child process handle.
-    pub fn handle(&self) -> &Child {
-        &self.handle
-    }
-
-    /// Network listen port.
-    pub fn network_listen_port(&self) -> u16 {
-        self.network_listen_port
-    }
-
-    /// JSON-RPC listen port.
-    pub fn rpc_listen_port(&self) -> u16 {
-        self.rpc_listen_port
-    }
-
-    /// gRPC listen port.
-    pub fn indexer_listen_port(&self) -> u16 {
-        self.indexer_listen_port
-    }
-
-    /// `[health]` HTTP listen port.
-    pub fn health_listen_port(&self) -> u16 {
-        self.health_listen_port
-    }
-
+    handle: Child,
     /// Config directory.
-    pub fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-
-    /// Data directory.
-    pub fn data_dir(&self) -> &TempDir {
-        &self.data_dir
-    }
-
+    config_dir: TempDir,
     /// RPC request client for the launched node.
-    pub fn client(&self) -> &RpcRequestClient {
-        &self.client
-    }
-
+    client: RpcRequestClient,
     /// Network type the node was launched with.
-    pub fn network(&self) -> &NetworkType {
-        &self.network
-    }
-}
+    network: NetworkType,
+});
+
+crate::macros::copy_getters!(Zebrad {
+    /// Network listen port.
+    network_listen_port: u16,
+    /// JSON-RPC listen port.
+    rpc_listen_port: u16,
+    /// gRPC listen port.
+    indexer_listen_port: u16,
+    /// `[health]` HTTP listen port.
+    health_listen_port: u16,
+});
 
 impl LogsToDir for Zebrad {
     fn logs_dir(&self) -> &TempDir {
@@ -615,8 +590,4 @@ impl Validator for Zebrad {
     }
 }
 
-impl Drop for Zebrad {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Zebrad);

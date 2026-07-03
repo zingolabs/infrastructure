@@ -178,17 +178,12 @@ pub struct ZcashDevtool {
     config: ZcashDevtoolConfig,
 }
 
-impl ZcashDevtool {
+crate::macros::ref_getters!(ZcashDevtool {
     /// Wallet directory (keys.toml, wallet databases, age identity).
-    pub fn wallet_dir(&self) -> &TempDir {
-        &self.wallet_dir
-    }
-
+    wallet_dir: TempDir,
     /// Configuration the wallet was launched with.
-    pub fn config(&self) -> &ZcashDevtoolConfig {
-        &self.config
-    }
-}
+    config: ZcashDevtoolConfig,
+});
 
 impl LogsToDir for ZcashDevtool {
     fn logs_dir(&self) -> &TempDir {

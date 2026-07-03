@@ -57,6 +57,7 @@ pub mod validator;
 pub mod zebra_rpc;
 
 mod launch;
+mod macros;
 mod poll;
 
 use indexer::Indexer;
