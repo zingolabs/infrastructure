@@ -4,9 +4,11 @@
 //! `proposal_block_from_template` for the ways this repo actually uses them:
 //! parse the nine template fields the assembly needs, build the serialized
 //! block a regtest zebrad will accept from `submitblock`, and report the
-//! block hash. Equivalence with zebra-rpc is proven by oracle tests
-//! (`tests/zebra_rpc_oracle.rs`) and pinned by golden fixtures captured from
-//! the oracle's outputs.
+//! block hash. Equivalence with zebra-rpc was proven by a live differential
+//! oracle suite (`tests/zebra_rpc_oracle.rs` in git history, deleted along
+//! with the zebra-rpc dev-dependency) and is pinned permanently by the
+//! golden fixtures in `tests/fixtures/zebra_rpc/`, replayed by
+//! `tests/zebra_rpc_golden.rs` with no dependency and no binary.
 //!
 //! Wire facts inherited from zebra (verified against zebra-chain 11.0.0):
 //! all 32-byte hash fields appear in RPC JSON as byte-reversed display hex;
