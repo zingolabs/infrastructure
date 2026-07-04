@@ -1,7 +1,3 @@
----
-source: regtest-launcher/tests/e2e.rs
-expression: normalized_stdout
----
 Indexer running at: 127.0.0.1:<PORT>
 
 Miner address: tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd

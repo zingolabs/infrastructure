@@ -102,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests use the zebrad-generated `client_rpc_tests_large`).
 - `cert/cert.pem`: no consumer anywhere in the tree (lightwalletd is
   launched with `--no-tls-very-insecure`).
+- The `[build-dependencies]` section (`hex`, `tokio`): the crate has
+  no `build.rs`, so the section was inert.
 
 ## [0.6.0] - 2026-06-08
 

@@ -17,8 +17,6 @@ zingo_test_vectors.workspace = true
 
 [dev-dependencies]
 anyhow = "1.0.100"
-assert_cmd = "2.1.1"
-insta = "1.44.3"
 nix = { version = "0.30.1", features = ["signal", "process"] }
 regex = "1.12.2"
 tokio = { workspace = true, features = [

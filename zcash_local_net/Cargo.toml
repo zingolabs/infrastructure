@@ -40,10 +40,6 @@ sha2 = "0.10"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }
 tracing-subscriber = { workspace = true }
 
-[build-dependencies]
-hex = { workspace = true }
-tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
-
 [package.metadata.cargo_check_external_types]
 allowed_external_types = [
     "tempfile::dir::TempDir",
