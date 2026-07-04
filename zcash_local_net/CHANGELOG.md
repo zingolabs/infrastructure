@@ -106,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pinned Rust toolchain bumped 1.95.0 -> 1.96.0
+  (`rust-toolchain.toml`).
 - **Breaking** — consensus/network vocabulary types
   (`ActivationHeights`, `ActivationHeightsBuilder`, `NetworkType`)
   now come from the new zero-dependency `zingo-consensus` workspace
