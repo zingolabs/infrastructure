@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-03
+
 ### Deprecated
 
 - **Breaking** — the legacy stack (the `Zcashd` validator and
@@ -25,6 +27,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `rpc_client::RpcRequestClient`: a hand-rolled JSON-RPC 2.0 client
+  replacing `zebra_node_services::rpc_client::RpcRequestClient` —
+  same name, method surface, and spliced wire format, so call sites
+  change imports only. Unit tests pin the wire shape, result-payload
+  delivery, error-envelope-to-`Err` mapping (readiness polling
+  depends on it), and byte-faithful text passthrough. Re-exported
+  via `protocol`.
+- `zebra_rpc` module: block-template-to-block assembly and
+  `submit_template_block`, the mining path formerly borrowed from
+  zebra crates. All three commitment-branch cases (NU5+, lockbox
+  activation, Canopy) are pinned offline by golden fixtures in
+  `zebra_rpc_golden.rs`, captured from a live byte-for-byte
+  differential run against the real zebrad before the oracle
+  dev-dependency was deleted.
 - `client` module: wallet clients are now the third kind of process
   the crate manages, alongside validators and indexers. Unlike both,
   a client binary is not a daemon — each wallet operation is a
@@ -90,12 +106,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking** — consensus/network vocabulary types
+  (`ActivationHeights`, `ActivationHeightsBuilder`, `NetworkType`)
+  now come from the new zero-dependency `zingo-consensus` workspace
+  crate, replacing `zingo_common_components`. The all-heights-one
+  regtest schedule is the documented `Default` impl.
+- **Breaking** — `zingo_consensus::MinerPool` replaces
+  `zcash_protocol::PoolType` as the mine-to-pool selector. The
+  borrowed shape never fit (zebrad panics on its Sapling variant) and
+  it chained this crate's API to librustzcash's release cadence.
+- getset-derived accessors are replaced by hand-written impls with
+  identical names and signatures (later DRYed into in-repo
+  `macro_rules!`), except `Lightwalletd`'s never-callable
+  `_data_dir()` getter, which is not reproduced.
 - The `generate_zebrad_large_chain_cache` test fixture launches a bare
   `Zebrad` instead of `LocalNet<Zebrad, Lightwalletd>` — the indexer
   contributed nothing to cache generation.
 
 ### Removed
 
+- Every zebra / librustzcash / zcash ecosystem dependency:
+  `zebra-node-services` (replaced by `rpc_client`), the `zebra-rpc`
+  differential-oracle dev-dependency (replaced by golden fixtures),
+  `zcash_protocol`, and `zingo_common_components`. The lockfile
+  contains zero zebra or librustzcash entries — the harness still
+  *drives* the zebrad binary, but no longer links its code.
+- `bip0039` (existed only to re-derive a hardcoded seed constant in
+  one unit test; ~18 transitive crates), the unmaintained `json`
+  crate (single call site, migrated to `serde_json`), and `getset`
+  (with it, the unmaintained `proc-macro-error2`, RUSTSEC-2026-0173,
+  whose cargo-deny ignore is deleted — cargo deny passes with no
+  ignored advisories).
 - The checked-in zcashd-generated chain cache
   (`chain_cache/client_rpc_tests/`) and its generator
   (`generate_zcashd_chain_cache`): no in-repo consumer remained (the
