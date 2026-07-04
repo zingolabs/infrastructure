@@ -1,15 +1,23 @@
 [package]
 name = "zcash_local_net"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
-description = "Utilities for launching and managing local Zcash processes (zebrad, zcashd, zainod, lightwalletd) for integration testing."
+description = "Utilities for launching and managing local Zcash processes (zebrad, zainod, zcash-devtool) for integration testing."
 authors = ["Zingolabs <zingo@zingolabs.org>"]
 repository = "https://github.com/zingolabs/infrastructure"
 homepage = "https://github.com/zingolabs/infrastructure"
 
 [badges]
 github = { repository = "zingolabs/infrastructure/services" }
+
+[features]
+# UNSUPPORTED and UNTESTED: opt-in gate for the legacy stack (the
+# `Zcashd` validator and `Lightwalletd` indexer), scheduled for complete
+# removal (see docs/adr/0001-excise-legacy-stack.md). CI never enables
+# this feature; it exists only as a short-lived migration stopgap for
+# consumers still constructing the legacy processes.
+legacy-stack = []
 
 [dependencies]
 

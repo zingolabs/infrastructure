@@ -4,7 +4,9 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use zingo_consensus::{ActivationHeights, NetworkType};
+#[cfg(feature = "legacy-stack")]
+use zingo_consensus::ActivationHeights;
+use zingo_consensus::NetworkType;
 
 /// Convert `NetworkKind` to its config string representation
 fn network_type_to_string(network: NetworkType) -> &'static str {
@@ -16,9 +18,11 @@ fn network_type_to_string(network: NetworkType) -> &'static str {
 }
 
 /// Used in subtree roots tests in `zaino_testutils`.  Fix later.
+#[cfg(feature = "legacy-stack")]
 pub const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
+#[cfg(feature = "legacy-stack")]
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
 
 /// Create `filename` inside `config_dir` with `contents`, returning the
@@ -37,6 +41,11 @@ fn write_config_file(
 
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
+///
+/// Doubles as the "compatibility conf" writer: zebrad produces one of
+/// these purely so lightwalletd can discover its backend, so the
+/// function lives and dies with the legacy stack.
+#[cfg(feature = "legacy-stack")]
 pub(crate) fn write_zcashd_config(
     config_dir: &Path,
     rpc_port: u16,
@@ -351,7 +360,7 @@ database.path = \"{chain_cache}\""
 
 /// Writes the Lightwalletd config file to the specified config directory.
 /// Returns the path to the config file.
-#[allow(dead_code)]
+#[cfg(feature = "legacy-stack")]
 pub(crate) fn write_lightwalletd_config(
     config_dir: &Path,
     grpc_bind_addr_port: u16,
@@ -375,12 +384,15 @@ zcash-conf-path: {zcashd_conf}"
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "legacy-stack")]
     use std::path::PathBuf;
 
     use zingo_consensus::{ActivationHeights, NetworkType};
 
+    #[cfg(feature = "legacy-stack")]
     use crate::logs;
 
+    #[cfg(feature = "legacy-stack")]
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
 regtest=1
@@ -417,6 +429,7 @@ listen=0
 
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
 
+    #[cfg(feature = "legacy-stack")]
     fn sequential_activation_heights() -> ActivationHeights {
         ActivationHeights::builder()
             .set_overwinter(Some(2))
@@ -432,6 +445,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
             .build()
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
@@ -445,6 +459,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
         );
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
@@ -507,6 +522,7 @@ database.path = \"{zaino_test_path}\""
         );
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn lightwalletd() {
         let config_dir = tempfile::tempdir().unwrap();

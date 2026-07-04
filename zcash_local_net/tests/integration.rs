@@ -1,12 +1,15 @@
 mod testutils;
 
 use zcash_local_net::LocalNetConfig;
+#[cfg(feature = "legacy-stack")]
 use zcash_local_net::indexer::lightwalletd::Lightwalletd;
 use zcash_local_net::logs::LogsToDir as _;
 use zcash_local_net::process::Process;
 use zcash_local_net::protocol::ActivationHeights;
 use zcash_local_net::validator::Validator as _;
 use zcash_local_net::validator::ValidatorConfig as _;
+#[cfg(feature = "legacy-stack")]
+use zcash_local_net::validator::zcashd::Zcashd;
 use zcash_local_net::{
     LocalNet,
     indexer::{
@@ -14,10 +17,7 @@ use zcash_local_net::{
         zainod::Zainod,
     },
     utils,
-    validator::{
-        zcashd::Zcashd,
-        zebrad::{Zebrad, ZebradConfig},
-    },
+    validator::zebrad::{Zebrad, ZebradConfig},
 };
 use zingo_consensus::MinerPool;
 
@@ -77,6 +77,7 @@ async fn readiness_rpc_failures(zebrad: &Zebrad) -> Vec<String> {
     failures
 }
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_zcashd() {
     init_tracing();
@@ -84,6 +85,7 @@ async fn launch_zcashd() {
     launch_default_and_print_all::<Zcashd>().await;
 }
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_zcashd_custom_activation_heights() {
     init_tracing();
@@ -192,6 +194,7 @@ async fn launch_zebrad_with_nu6_1_at_height_50() {
 // check today). One test is enough; higher heights all pass for the
 // same reason.
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_zcashd_with_nu6_1_at_height_2() {
     init_tracing();
@@ -520,6 +523,7 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     zebrad_2.print_all();
 }
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
     init_tracing();
@@ -534,6 +538,7 @@ async fn launch_localnet_zainod_zebrad() {
     launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
     init_tracing();
@@ -541,6 +546,7 @@ async fn launch_localnet_lightwalletd_zcashd() {
     launch_default_and_print_all::<LocalNet<Zcashd, Lightwalletd>>().await;
 }
 
+#[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zebrad() {
     init_tracing();
@@ -554,16 +560,6 @@ async fn generate_zebrad_large_chain_cache() {
     init_tracing();
 
     crate::testutils::generate_zebrad_large_chain_cache().await;
-}
-
-// FIXME: This is not a test, so it shouldn't be marked as one.
-// and TODO: Pre-test setups should be moved elsewhere.
-#[ignore = "not a test. generates chain cache for client_rpc tests."]
-#[tokio::test]
-async fn generate_zcashd_chain_cache() {
-    init_tracing();
-
-    crate::testutils::generate_zcashd_chain_cache().await;
 }
 
 /// Regression tests for the cross-test-subprocess port-pick race
@@ -620,8 +616,10 @@ mod launch_recovers_from_rpc_port_collision {
     use super::*;
     use std::net::TcpListener;
     use zcash_local_net::error::LaunchError;
+    #[cfg(feature = "legacy-stack")]
     use zcash_local_net::indexer::lightwalletd::LightwalletdConfig;
     use zcash_local_net::indexer::zainod::ZainodConfig;
+    #[cfg(feature = "legacy-stack")]
     use zcash_local_net::validator::zcashd::ZcashdConfig;
 
     /// Run `launch_fut` and, on failure, panic with a multi-line
@@ -758,6 +756,7 @@ mod launch_recovers_from_rpc_port_collision {
         drop(squatter);
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[tokio::test]
     async fn zcashd() {
         init_tracing();
@@ -826,6 +825,7 @@ mod launch_recovers_from_rpc_port_collision {
         drop(zebrad);
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[tokio::test]
     async fn lightwalletd() {
         init_tracing();

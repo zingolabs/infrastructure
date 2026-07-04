@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
+- **Breaking** — the legacy stack (the `Zcashd` validator and
+  `Lightwalletd` indexer) is now gated behind the new non-default
+  `legacy-stack` cargo feature, together with everything that exists
+  only to serve it: `validator::zcashd`, `indexer::lightwalletd`,
+  `ProcessId::{Zcashd, Lightwalletd}`,
+  `LaunchError::{UnsupportedZcashdCapability, CapabilityProbeFailed}`,
+  `Validator::get_zcashd_conf_path` (whose only consumer is
+  lightwalletd), `config::ZCASHD_FILENAME`, and the `zcash.conf`
+  compatibility file zebrad wrote solely for lightwalletd's backend
+  discovery. The feature is **unsupported and untested** — CI never
+  enables it — and exists only as a short-lived migration stopgap:
+  both processes are scheduled for complete removal in the next
+  breaking release (see `docs/adr/0001-excise-legacy-stack.md`).
+
 ### Added
 
 - `client` module: wallet clients are now the third kind of process
@@ -76,7 +90,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `generate_zebrad_large_chain_cache` test fixture launches a bare
+  `Zebrad` instead of `LocalNet<Zebrad, Lightwalletd>` — the indexer
+  contributed nothing to cache generation.
+
 ### Removed
+
+- The checked-in zcashd-generated chain cache
+  (`chain_cache/client_rpc_tests/`) and its generator
+  (`generate_zcashd_chain_cache`): no in-repo consumer remained (the
+  tests use the zebrad-generated `client_rpc_tests_large`).
+- `cert/cert.pem`: no consumer anywhere in the tree (lightwalletd is
+  launched with `--no-tls-very-insecure`).
 
 ## [0.6.0] - 2026-06-08
 

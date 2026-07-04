@@ -313,6 +313,7 @@ impl Zebrad {
         )
         .unwrap();
         // create zcashd conf necessary for lightwalletd
+        #[cfg(feature = "legacy-stack")]
         config::write_zcashd_config(
             config_dir.path(),
             rpc_listen_port,
@@ -556,6 +557,7 @@ impl Validator for Zebrad {
         &self.data_dir
     }
 
+    #[cfg(feature = "legacy-stack")]
     fn get_zcashd_conf_path(&self) -> PathBuf {
         self.config_dir.path().join(config::ZCASHD_FILENAME)
     }

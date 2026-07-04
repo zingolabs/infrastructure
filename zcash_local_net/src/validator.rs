@@ -6,6 +6,7 @@ use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 
 use crate::process::Process;
 
+#[cfg(feature = "legacy-stack")]
 pub mod zcashd;
 pub mod zebrad;
 
@@ -362,12 +363,14 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
 
     /// Returns path to zcashd-like config file.
     /// Lightwalletd pulls some information from the config file that zcashd builds. When running zebra-lightwalletd, we create compatibility zcash.conf. This is the path to that.
+    /// Lightwalletd is the only consumer; the method dies with the legacy stack.
+    #[cfg(feature = "legacy-stack")]
     fn get_zcashd_conf_path(&self) -> PathBuf;
 
     /// Network type
     fn network(&self) -> NetworkType;
 
-    /// Caches chain. This stops the zcashd process.
+    /// Caches chain. This stops the validator process.
     fn cache_chain(
         &mut self,
         chain_cache: PathBuf,
