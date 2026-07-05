@@ -1195,9 +1195,12 @@ mod devtool_client {
         // block mined since the funded snapshot. Derive the block count
         // from the snapshots' own tip heights rather than assuming a
         // fixed number: the faucet-is-miner coupling plus burst mining
-        // makes the exact capture height race run-to-run (all blocks in
-        // this window are past height 5, so each pays the orchard
-        // subsidy). The shielded value lands back in orchard on top.
+        // makes the exact capture height race run-to-run. NU6.3 is
+        // active for this whole window (all-at-2 heights), so every
+        // coinbase subsidy and the shielded value itself land in the
+        // ironwood pool — consensus forbids value entering orchard from
+        // NU6.3 onward, and zebra routes the orchard-receiver miner
+        // address to the ironwood output builder.
         let blocks = u64::from(shielded.chain_tip_height - funded.chain_tip_height);
         assert!(
             blocks >= 1,
@@ -1208,8 +1211,12 @@ mod devtool_client {
             funded.total + blocks * POST_NU6_MINER_REWARD
         );
         assert_eq!(
-            shielded.orchard_spendable,
-            funded.orchard_spendable + blocks * POST_NU6_MINER_REWARD + SEND_VALUE,
+            shielded.ironwood_spendable,
+            funded.ironwood_spendable + blocks * POST_NU6_MINER_REWARD + SEND_VALUE,
+        );
+        assert_eq!(
+            shielded.orchard_spendable, 0,
+            "no value may enter the orchard pool from NU6.3 onward",
         );
     }
 }
