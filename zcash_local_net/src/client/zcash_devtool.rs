@@ -37,12 +37,14 @@ const EXECUTABLE_NAME: &str = "zcash-devtool";
 const AGE_IDENTITY_FILENAME: &str = "age-identity.txt";
 
 /// The regtest activation heights this client passes to zcash-devtool
-/// (mirroring the `DEFAULT_REGTEST` constant in its `data.rs`, as of
-/// zcash-devtool PR #205): pre-NU5 upgrades at height 1, everything
-/// NU5 and later at height 2, NU6.3 included. Requires a devtool
-/// binary whose activation-heights schema knows `nu6_3` — older
-/// binaries reject the emitted TOML via `deny_unknown_fields` — and a
-/// zebrad >= 6.0.0 that accepts the `"NU6.3"` config key.
+/// (mirroring the `DEFAULT_REGTEST` constant in its `data.rs`):
+/// pre-NU5 upgrades at height 1, everything NU5 and later at height 2,
+/// NU6.3 included. The tested devtool is zingolabs/zcash-devtool
+/// `support_ironwood_scan_model` @ `8eccaceb` (its package version,
+/// 0.1.0, does not distinguish branches — identify builds by commit).
+/// Older binaries whose activation-heights schema predates `nu6_3`
+/// reject the emitted TOML via `deny_unknown_fields`; the chain side
+/// needs a zebrad >= 6.0.0 that accepts the `"NU6.3"` config key.
 /// Validators serving a devtool wallet must be launched
 /// with exactly these heights — transaction construction derives the
 /// consensus branch ID from them, so drift makes the validator reject
@@ -235,7 +237,8 @@ impl ZcashDevtool {
     /// The schema is the devtool's `data.rs::ActivationHeights`
     /// (`deny_unknown_fields`): one optional `<upgrade> = <height>` line
     /// per upgrade `overwinter…nu6_3`, a missing key meaning "inactive"
-    /// (devtool ≥ PR #205 warns about known-but-absent keys on stderr).
+    /// (devtool ≥ zingolabs/zcash-devtool `8eccaceb` warns about
+    /// known-but-absent keys on stderr).
     /// `nu7` is intentionally omitted — the devtool's TOML gates that
     /// field behind `zcash_unstable`, so emitting it would trip
     /// `deny_unknown_fields` on release builds.
@@ -665,6 +668,7 @@ fn parse_balance_json(stdout: &str) -> Result<WalletBalance, String> {
         total: json.u64_field("total")?,
         sapling_spendable: json.u64_field("sapling_spendable")?,
         orchard_spendable: json.u64_field("orchard_spendable")?,
+        ironwood_spendable: json.u64_field("ironwood_spendable")?,
         transparent_spendable: json.u64_field("transparent_spendable")?,
         chain_tip_height: json.u32_field("chain_tip_height")?,
     })
@@ -712,8 +716,11 @@ mod tests {
 
     /// Shape of devtool `balance --json`: a single line whose keys
     /// match `WalletBalance` field for field, raw zatoshis.
+    /// `ironwood_spendable` exists from zingolabs/zcash-devtool
+    /// `8eccaceb` onward (the NU6.3/Ironwood scan-model line).
     const BALANCE_JSON_STDOUT: &str = "{\"total\":3124999999,\"sapling_spendable\":500000000,\
-\"orchard_spendable\":2500000000,\"transparent_spendable\":0,\"chain_tip_height\":6}\n";
+\"orchard_spendable\":2500000000,\"ironwood_spendable\":123456789,\
+\"transparent_spendable\":0,\"chain_tip_height\":6}\n";
 
     #[test]
     fn balance_json_parses() {
@@ -724,6 +731,7 @@ mod tests {
                 total: 3_124_999_999,
                 sapling_spendable: 500_000_000,
                 orchard_spendable: 2_500_000_000,
+                ironwood_spendable: 123_456_789,
                 transparent_spendable: 0,
                 chain_tip_height: 6,
             }
@@ -764,8 +772,9 @@ Receiver(orchard): uregtest1duh3glf8uk5he5cpmlzsfvkn34de4uudyahdr7p6j0p6zs2tujgd
 
     /// A real `get-info` line captured from the devtool binary (commit
     /// d820388) run against a regtest zebrad + zainod via the
-    /// `connect_to_node_get_info` integration test. Anchors this parser
-    /// to the frozen output, not a guess. Observed reality: keys come
+    /// `connect_to_node_get_info` integration test; format re-verified
+    /// live through zingolabs/zcash-devtool `8eccaceb`. Anchors this
+    /// parser to the frozen output, not a guess. Observed reality: keys come
     /// out alphabetically ordered, `server_uri` has no trailing slash,
     /// and zaino reports regtest as `chain_name: "test"` (the
     /// `GetLightdInfo` value), not `"regtest"`. The port is ephemeral

@@ -32,8 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with NU6.1/NU6.2 at 5, and the regtest-launcher's `all=` sweep and
   default heights now include it. Binary floor: zebrad >= 6.0.0
   (older zebrad rejects the `"NU6.3"` config key) and a zcash-devtool
-  built from zcash-devtool PR #205 (older binaries reject the
-  `nu6_3` TOML key via `deny_unknown_fields`). Known gap: zainod
+  at or past zingolabs/zcash-devtool `8eccaceb` (branch
+  `support_ironwood_scan_model`, package version an undistinguishing
+  0.1.0; older binaries reject the `nu6_3` TOML key via
+  `deny_unknown_fields`, and `WalletBalance` now consumes the
+  `ironwood_spendable` field that commit added to `balance --json`).
+  Known gap: zainod
   <= 0.4.2 cannot parse zebra 6.x `getblockchaininfo` (fixed-length
   `valuePools` array predating the Ironwood pool) and compiles in
   activation-height defaults without NU6.3, so indexer-sync paths

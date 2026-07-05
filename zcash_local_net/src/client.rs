@@ -143,6 +143,11 @@ pub struct WalletBalance {
     pub sapling_spendable: u64,
     /// Spendable orchard balance.
     pub orchard_spendable: u64,
+    /// Spendable ironwood balance (the NU6.3 shielded pool; zero until
+    /// the chain passes NU6.3 activation and the wallet holds ironwood
+    /// notes). Requires a devtool at or past zingolabs/zcash-devtool
+    /// `8eccaceb`, which added the field to `balance --json`.
+    pub ironwood_spendable: u64,
     /// Spendable transparent balance.
     pub transparent_spendable: u64,
     /// The height of the current chain tip as the wallet sees it (the
