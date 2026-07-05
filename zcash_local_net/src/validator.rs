@@ -71,7 +71,8 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// unit test in `regtest-launcher::cli::tests`** — the test parses
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
-pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str = "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu7=off";
+pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
+    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=off,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.

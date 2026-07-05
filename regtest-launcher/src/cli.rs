@@ -7,7 +7,7 @@ pub struct Cli {
     /// Comma-separated activation heights, e.g.
     /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu7=off"
     ///
-    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all
+    /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all
     /// Values: u32 or off|none|disable
     ///
     /// Default comes from
@@ -28,8 +28,6 @@ pub struct Cli {
     pub miner_address: Option<String>,
 }
 
-// TODO: update regtest-launcher to nu6.2
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum UpgradeKey {
     BeforeOverwinter,
@@ -41,10 +39,12 @@ enum UpgradeKey {
     Nu5,
     Nu6,
     Nu6_1,
+    Nu6_2,
+    Nu6_3,
     Nu7,
 }
 
-const UPGRADE_ORDER: [UpgradeKey; 10] = [
+const UPGRADE_ORDER: [UpgradeKey; 12] = [
     UpgradeKey::BeforeOverwinter,
     UpgradeKey::Overwinter,
     UpgradeKey::Sapling,
@@ -54,6 +54,8 @@ const UPGRADE_ORDER: [UpgradeKey; 10] = [
     UpgradeKey::Nu5,
     UpgradeKey::Nu6,
     UpgradeKey::Nu6_1,
+    UpgradeKey::Nu6_2,
+    UpgradeKey::Nu6_3,
     UpgradeKey::Nu7,
 ];
 
@@ -70,6 +72,8 @@ fn parse_key(k: &str) -> Option<UpgradeKey> {
         "nu5" => Some(UpgradeKey::Nu5),
         "nu6" => Some(UpgradeKey::Nu6),
         "nu6_1" | "nu6.1" | "nu61" => Some(UpgradeKey::Nu6_1),
+        "nu6_2" | "nu6.2" | "nu62" => Some(UpgradeKey::Nu6_2),
+        "nu6_3" | "nu6.3" | "nu63" => Some(UpgradeKey::Nu6_3),
         "nu7" => Some(UpgradeKey::Nu7),
         _ => None,
     }
@@ -86,6 +90,8 @@ fn set_field(cfg: &mut ConfiguredActivationHeights, key: UpgradeKey, val: Option
         UpgradeKey::Nu5 => cfg.nu5 = val,
         UpgradeKey::Nu6 => cfg.nu6 = val,
         UpgradeKey::Nu6_1 => cfg.nu6_1 = val,
+        UpgradeKey::Nu6_2 => cfg.nu6_2 = val,
+        UpgradeKey::Nu6_3 => cfg.nu6_3 = val,
         UpgradeKey::Nu7 => cfg.nu7 = val,
     }
 }
@@ -120,11 +126,6 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         nu6: None,
         nu6_1: None,
         nu6_2: None,
-        // NU6.3 (Ironwood) was added to zebra's ConfiguredActivationHeights.
-        // Like nu6_2, it is seeded here but not yet wired into the CLI key
-        // parser/cascade (see the `// TODO: update regtest-launcher to nu6.2`
-        // above — the same gap applies to nu6.3). Kept consistent with nu6_2
-        // so launcher behaviour is unchanged.
         nu6_3: None,
         nu7: None,
     };
@@ -149,7 +150,7 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
         let from = parse_key(&key).ok_or_else(|| {
             format!(
                 "Unknown activation key '{k}'. Valid keys: \
-before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all"
+before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all"
             )
         })?;
 
@@ -253,6 +254,32 @@ mod tests {
 
         let cfg = parse_activation_heights("nu61=12").unwrap();
         assert_eq!(cfg.nu6_1, Some(12));
+    }
+
+    #[test]
+    fn parse_activation_heights_supports_nu6_2_aliases() {
+        // nu6_2 cascades into nu6_3 and nu7. Pin nu7 so this test only
+        // asserts the nu6_2 field the aliases target.
+        let cfg = parse_activation_heights("nu6_2=10,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_2, Some(10));
+
+        let cfg = parse_activation_heights("nu6.2=11,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_2, Some(11));
+
+        let cfg = parse_activation_heights("nu62=12,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_2, Some(12));
+    }
+
+    #[test]
+    fn parse_activation_heights_supports_nu6_3_aliases() {
+        let cfg = parse_activation_heights("nu6_3=10,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_3, Some(10));
+
+        let cfg = parse_activation_heights("nu6.3=11,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_3, Some(11));
+
+        let cfg = parse_activation_heights("nu63=12,nu7=off").unwrap();
+        assert_eq!(cfg.nu6_3, Some(12));
     }
 
     #[test]
@@ -384,6 +411,8 @@ mod tests {
             .set_nu5(parsed.nu5)
             .set_nu6(parsed.nu6)
             .set_nu6_1(parsed.nu6_1)
+            .set_nu6_2(parsed.nu6_2)
+            .set_nu6_3(parsed.nu6_3)
             .set_nu7(parsed.nu7)
             .build();
 

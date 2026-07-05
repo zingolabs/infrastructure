@@ -54,6 +54,8 @@ async fn main() {
         .set_nu5(cli.activation_heights.nu5)
         .set_nu6(cli.activation_heights.nu6)
         .set_nu6_1(cli.activation_heights.nu6_1)
+        .set_nu6_2(cli.activation_heights.nu6_2)
+        .set_nu6_3(cli.activation_heights.nu6_3)
         .set_nu7(cli.activation_heights.nu7)
         .build();
 

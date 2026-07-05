@@ -25,6 +25,7 @@ async fn launch_default_and_print_all<P: Process>() {
     p.print_all();
 }
 
+#[ignore = "zcashd does not support Ironwood"]
 #[tokio::test]
 async fn launch_zcashd() {
     tracing_subscriber::fmt().init();
@@ -32,6 +33,7 @@ async fn launch_zcashd() {
     launch_default_and_print_all::<Zcashd>().await;
 }
 
+#[ignore = "zcashd does not support Ironwood"]
 #[tokio::test]
 async fn launch_zcashd_custom_activation_heights() {
     tracing_subscriber::fmt().init();
@@ -151,6 +153,7 @@ async fn launch_zebrad_with_nu6_1_at_height_50() {
 // check today). One test is enough; higher heights all pass for the
 // same reason.
 
+#[ignore = "zcashd does not support Ironwood"]
 #[tokio::test]
 async fn launch_zcashd_with_nu6_1_at_height_2() {
     tracing_subscriber::fmt().init();
@@ -532,6 +535,7 @@ async fn localnet_launch_multiple_zebrads_with_cache() {
     zebrad_2.print_all();
 }
 
+#[ignore = "zcashd does not support Ironwood"]
 #[tokio::test]
 async fn launch_localnet_zainod_zcashd() {
     tracing_subscriber::fmt().init();
@@ -539,6 +543,7 @@ async fn launch_localnet_zainod_zcashd() {
     launch_default_and_print_all::<LocalNet<Zcashd, Zainod>>().await;
 }
 
+#[ignore = "zainod binary is outdated (no `start` subcommand); re-enable once an Ironwood zainod is provisioned"]
 #[tokio::test]
 async fn launch_localnet_zainod_zebrad() {
     tracing_subscriber::fmt().init();
@@ -546,6 +551,7 @@ async fn launch_localnet_zainod_zebrad() {
     launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
+#[ignore = "zcashd does not support Ironwood"]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
     tracing_subscriber::fmt().init();
@@ -770,6 +776,7 @@ mod launch_recovers_from_rpc_port_collision {
         drop(squatter);
     }
 
+    #[ignore = "zcashd does not support Ironwood"]
     #[tokio::test]
     async fn zcashd() {
         let _ = tracing_subscriber::fmt().try_init();
@@ -802,6 +809,7 @@ mod launch_recovers_from_rpc_port_collision {
         .await;
     }
 
+    #[ignore = "zainod binary is outdated (no `start` subcommand); re-enable once an Ironwood zainod is provisioned"]
     #[tokio::test]
     async fn zainod() {
         let _ = tracing_subscriber::fmt().try_init();
@@ -838,6 +846,7 @@ mod launch_recovers_from_rpc_port_collision {
         drop(zebrad);
     }
 
+    #[ignore = "zcashd does not support Ironwood"]
     #[tokio::test]
     async fn lightwalletd() {
         let _ = tracing_subscriber::fmt().try_init();
