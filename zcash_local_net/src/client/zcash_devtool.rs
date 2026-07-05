@@ -36,10 +36,14 @@ const EXECUTABLE_NAME: &str = "zcash-devtool";
 /// created by `init` inside the wallet directory.
 const AGE_IDENTITY_FILENAME: &str = "age-identity.txt";
 
-/// The regtest activation heights compiled into zcash-devtool's
-/// `regtest_support` feature (the `REGTEST` constant in its
-/// `data.rs`): pre-NU5 upgrades at height 1, everything NU5 and later
-/// at height 2. Validators serving a devtool wallet must be launched
+/// The regtest activation heights this client passes to zcash-devtool
+/// (mirroring the `DEFAULT_REGTEST` constant in its `data.rs`, as of
+/// zcash-devtool PR #205): pre-NU5 upgrades at height 1, everything
+/// NU5 and later at height 2, NU6.3 included. Requires a devtool
+/// binary whose activation-heights schema knows `nu6_3` — older
+/// binaries reject the emitted TOML via `deny_unknown_fields` — and a
+/// zebrad >= 6.0.0 that accepts the `"NU6.3"` config key.
+/// Validators serving a devtool wallet must be launched
 /// with exactly these heights — transaction construction derives the
 /// consensus branch ID from them, so drift makes the validator reject
 /// the wallet's transactions.
@@ -66,6 +70,7 @@ pub fn supported_regtest_activation_heights() -> zingo_consensus::ActivationHeig
         .set_nu6(Some(2))
         .set_nu6_1(Some(2))
         .set_nu6_2(Some(2))
+        .set_nu6_3(Some(2))
         .set_nu7(None)
         .build()
 }
@@ -229,9 +234,11 @@ impl ZcashDevtool {
     ///
     /// The schema is the devtool's `data.rs::ActivationHeights`
     /// (`deny_unknown_fields`): one optional `<upgrade> = <height>` line
-    /// per upgrade `overwinter…nu6_2`, a missing key meaning "inactive".
-    /// `nu7` is intentionally omitted — the devtool's TOML has no such
-    /// field, so emitting it would trip `deny_unknown_fields`.
+    /// per upgrade `overwinter…nu6_3`, a missing key meaning "inactive"
+    /// (devtool ≥ PR #205 warns about known-but-absent keys on stderr).
+    /// `nu7` is intentionally omitted — the devtool's TOML gates that
+    /// field behind `zcash_unstable`, so emitting it would trip
+    /// `deny_unknown_fields` on release builds.
     fn write_activation_heights_toml(&self) -> Result<Option<PathBuf>, ClientError> {
         let NetworkType::Regtest(heights) = self.config.network else {
             return Ok(None);
@@ -246,6 +253,7 @@ impl ZcashDevtool {
             ("nu6", heights.nu6()),
             ("nu6_1", heights.nu6_1()),
             ("nu6_2", heights.nu6_2()),
+            ("nu6_3", heights.nu6_3()),
         ];
         let mut body = String::new();
         for (key, value) in entries {

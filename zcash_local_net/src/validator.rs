@@ -46,9 +46,12 @@ pub mod zebrad;
 /// zebrad's view of activation heights differs from zainod's, the
 /// chain-index sync loop fails with
 /// `InvalidData("Block commitment could not be computed")`. The same
-/// (NU5=2, NU6=2, NU6.1=5) tuple must therefore be set in
+/// (NU5=2, NU6=2, NU6.1=NU6.2=NU6.3=5) tuple must therefore be set in
 /// `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`. Tracked in
-/// zingolabs/zaino#1076.
+/// zingolabs/zaino#1076. zainod <= 0.4.2 predates NU6.3 (and cannot
+/// parse zebra 6.x `getblockchaininfo` at all — its `valuePools`
+/// array is fixed at 5 entries, before Ironwood); indexer-sync tests
+/// fail against it until a NU6.3-aware zainod ships.
 pub fn regtest_test_activation_heights() -> ActivationHeights {
     ActivationHeights::builder()
         .set_overwinter(Some(1))
@@ -60,6 +63,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
         .set_nu6(Some(2))
         .set_nu6_1(Some(5))
         .set_nu6_2(Some(5))
+        .set_nu6_3(Some(5))
         .set_nu7(None)
         .build()
 }
@@ -72,7 +76,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
 pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
-    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=off,nu7=off";
+    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=5,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.
@@ -264,6 +268,7 @@ fn activation_heights_from_getblockchaininfo(response: &serde_json::Value) -> Ac
         .set_nu6(get_height("NU6"))
         .set_nu6_1(get_height("NU6.1"))
         .set_nu6_2(get_height("NU6.2"))
+        .set_nu6_3(get_height("NU6.3"))
         .set_nu7(get_height("NU7"))
         .build();
     tracing::debug!(

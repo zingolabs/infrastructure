@@ -31,3 +31,17 @@ Validator. Owned by the Legacy stack: zcashd uses it as its own process
 config, and zebrad produces one only to serve lightwalletd. Dies with the
 Legacy stack.
 _Avoid_: zcashd config (when the lightwalletd-facing file is meant)
+
+**Devtool contract**:
+The behavioral interface the harness relies on from the zcash-devtool
+binary: its CLI surface, its output formats, and the activation-heights
+schema. A process boundary pinned by tests against the real binary — never
+a Cargo dependency.
+_Avoid_: devtool API, devtool dependency
+
+**Canonical heights**:
+The single regtest activation-heights shape the harness supports: every
+network upgrade the Devtool contract knows about activates at height 2.
+Exactly one shape exists per release; it advances in lockstep when a new
+upgrade is adopted, and older shapes live only in older releases.
+_Avoid_: all-at-2 (informal), custom heights, partial activation

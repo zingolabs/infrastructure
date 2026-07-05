@@ -238,9 +238,37 @@ enforce_on_test_networks = false",
     );
 
     if let NetworkType::Regtest(activation_heights) = network {
+        // Reject heights this writer cannot express in the emitted config,
+        // rather than silently dropping or rewriting them. A caller that
+        // sets a height and gets a chain without it loses the discrepancy
+        // at the least observable layer: every component downstream behaves
+        // correctly for the chain that *was* configured, and the diagnosis
+        // lands on healthy code (zingolabs/zaino#1368 reconstructs exactly
+        // that failure, against a pinned rev of this writer that dropped
+        // `nu6_3` on the floor).
+        //
+        // The emitted config states `Canopy = 1` and zebra activates the
+        // earlier upgrades with it; zebra regtest does not support pre-NU5
+        // heights above 1, so anything but `Some(1)` in these fields would
+        // be silently rewritten below.
+        for (upgrade, height) in [
+            ("overwinter", activation_heights.overwinter()),
+            ("sapling", activation_heights.sapling()),
+            ("blossom", activation_heights.blossom()),
+            ("heartwood", activation_heights.heartwood()),
+            ("canopy", activation_heights.canopy()),
+        ] {
+            assert!(
+                height == Some(1),
+                "zebrad regtest config cannot express {upgrade} = {height:?}: \
+                 upgrades through canopy must be active at height 1"
+            );
+        }
         assert!(
-            activation_heights.canopy().is_some(),
-            "canopy must be active for zebrad regtest mode. please set activation height to 1"
+            activation_heights.nu7().is_none(),
+            "zebrad regtest config writer does not express an NU7 activation \
+             height yet: set nu7 to None, or extend the writer (and pin the \
+             emitted key against a real zebrad) before configuring it"
         );
 
         let nu5_activation_height = activation_heights
@@ -271,6 +299,13 @@ NU6 = {nu6_activation_height}
 \"NU6.1\" = {nu6_1_activation_height}
 \"NU6.2\" = {nu6_2_activation_height}"
         ));
+
+        // Emitted only when configured, so `nu6_3=off` heights keep
+        // working; the key itself requires zebrad >= 6.0.0 (older
+        // zebrad rejects unknown activation-height keys).
+        if let Some(nu6_3_activation_height) = activation_heights.nu6_3() {
+            cfg.push_str(&format!("\n\"NU6.3\" = {nu6_3_activation_height}"));
+        }
 
         // Lockbox disbursements (ZIP-271). Required at the NU6.1
         // activation block; an empty list trips zebrad's
@@ -548,6 +583,96 @@ log-file: {log_file_path}
 log-level: 10
 zcash-conf-path: conf_path"
             )
+        );
+    }
+
+    /// Calls the zebrad config writer with throwaway ports and dirs; only
+    /// the activation heights vary across these tests.
+    fn write_zebrad_regtest_config(heights: ActivationHeights) -> String {
+        let config_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let path = super::write_zebrad_config(
+            config_dir.path().to_path_buf(),
+            cache_dir.path().to_path_buf(),
+            18233,
+            18232,
+            18234,
+            18235,
+            "test_addr_1234",
+            NetworkType::Regtest(heights),
+            &[],
+            None,
+            0,
+        )
+        .unwrap();
+        std::fs::read_to_string(path).unwrap()
+    }
+
+    /// The capability pin zingolabs/zaino#1368 needed: a configured NU6.3
+    /// height must appear in the emitted zebrad config (the v0.7.0 writer
+    /// silently dropped it), and an unset NU6.3 must omit the key so
+    /// pre-6.0.0 zebrad configs stay parseable.
+    #[test]
+    fn zebrad_regtest_config_expresses_configured_nu6_3() {
+        let base = || {
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(1))
+                .set_nu5(Some(1))
+                .set_nu6(Some(1))
+                .set_nu6_1(Some(1))
+                .set_nu6_2(Some(1))
+        };
+
+        let with_nu6_3 = write_zebrad_regtest_config(base().set_nu6_3(Some(2)).build());
+        assert!(with_nu6_3.contains("\"NU6.3\" = 2"), "{with_nu6_3}");
+
+        let without_nu6_3 = write_zebrad_regtest_config(base().build());
+        assert!(!without_nu6_3.contains("NU6.3"), "{without_nu6_3}");
+    }
+
+    /// The emitted config hardcodes `Canopy = 1`; any other configured
+    /// value would be silently rewritten, so the writer must refuse it.
+    #[test]
+    #[should_panic(expected = "cannot express canopy")]
+    fn zebrad_regtest_config_rejects_canopy_above_one() {
+        write_zebrad_regtest_config(
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(2))
+                .set_nu5(Some(2))
+                .set_nu6(Some(2))
+                .set_nu6_1(Some(2))
+                .set_nu6_2(Some(2))
+                .build(),
+        );
+    }
+
+    /// The writer has no NU7 emission; a configured NU7 height must be
+    /// refused rather than dropped.
+    #[test]
+    #[should_panic(expected = "does not express an NU7")]
+    fn zebrad_regtest_config_rejects_configured_nu7() {
+        write_zebrad_regtest_config(
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(1))
+                .set_nu5(Some(1))
+                .set_nu6(Some(1))
+                .set_nu6_1(Some(1))
+                .set_nu6_2(Some(1))
+                .set_nu6_3(Some(1))
+                .set_nu7(Some(1))
+                .build(),
         );
     }
 }

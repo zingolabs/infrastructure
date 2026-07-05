@@ -34,8 +34,8 @@ fn init_tracing() {
 
 /// Regtest activation heights with the usual pre-NU6 fixture values
 /// (everything ≤ canopy at 1, NU5 and NU6 at 2, NU7 off) and NU6.1 +
-/// NU6.2 co-activated at `nu6_1_height`. NU6.1 and NU6.2 always move
-/// together in these tests, so they take a single height.
+/// NU6.2 + NU6.3 co-activated at `nu6_1_height`. The post-NU6 upgrades
+/// always move together in these tests, so they take a single height.
 fn regtest_heights_nu6_1_at(nu6_1_height: u32) -> ActivationHeights {
     ActivationHeights::builder()
         .set_overwinter(Some(1))
@@ -47,6 +47,7 @@ fn regtest_heights_nu6_1_at(nu6_1_height: u32) -> ActivationHeights {
         .set_nu6(Some(2))
         .set_nu6_1(Some(nu6_1_height))
         .set_nu6_2(Some(nu6_1_height))
+        .set_nu6_3(Some(nu6_1_height))
         .set_nu7(None)
         .build()
 }

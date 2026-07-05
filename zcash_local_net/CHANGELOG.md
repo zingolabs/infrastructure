@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking** — the zebrad regtest config writer now **rejects activation
+  heights it cannot express** instead of silently dropping or rewriting
+  them: upgrades through Canopy must be `Some(1)` (the emitted config
+  hardcodes `Canopy = 1`), and a configured NU7 height panics until the
+  writer gains NU7 emission. Silent acceptance is what made
+  zingolabs/zaino#1368 cost three diagnostic rounds — a pinned 0.7.0
+  launcher dropped `nu6_3` on the floor while every downstream component
+  behaved correctly for the chain that was actually configured. A unit
+  test now also pins that a configured NU6.3 height appears in the emitted
+  config (and that unset NU6.3 omits the key).
+
+### Added
+
+- **Breaking** — NU6.3 support, active by default. The zebrad config
+  writer emits `"NU6.3" = <height>` when a height is configured,
+  `activation_heights_from_getblockchaininfo` reads `"NU6.3"` back,
+  and the devtool client's activation-heights TOML writer emits
+  `nu6_3`. The canonical heights advance in lockstep (see
+  `docs/adr/0002`): `supported_regtest_activation_heights()` sets
+  NU6.3 at 2, `regtest_test_activation_heights()` co-activates it
+  with NU6.1/NU6.2 at 5, and the regtest-launcher's `all=` sweep and
+  default heights now include it. Binary floor: zebrad >= 6.0.0
+  (older zebrad rejects the `"NU6.3"` config key) and a zcash-devtool
+  built from zcash-devtool PR #205 (older binaries reject the
+  `nu6_3` TOML key via `deny_unknown_fields`). Known gap: zainod
+  <= 0.4.2 cannot parse zebra 6.x `getblockchaininfo` (fixed-length
+  `valuePools` array predating the Ironwood pool) and compiles in
+  activation-height defaults without NU6.3, so indexer-sync paths
+  fail until a NU6.3-aware zainod ships (zingolabs/zaino#1076 tracks
+  the height-default coupling).
+
 ## [0.7.0] - 2026-07-03
 
 ### Deprecated
