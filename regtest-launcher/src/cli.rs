@@ -1,5 +1,6 @@
 use clap::Parser;
 use local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING;
+use regtest_launcher::faucet::DEFAULT_FAUCET_PORT;
 use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 
 #[derive(Parser, Debug)]
@@ -26,6 +27,10 @@ pub struct Cli {
     /// Optional miner address for receiving block rewards.
     #[arg(long)]
     pub miner_address: Option<String>,
+
+    /// Port to serve the faucet HTTP endpoint on while the network runs.
+    #[arg(long, default_value_t = DEFAULT_FAUCET_PORT)]
+    pub faucet_port: u16,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

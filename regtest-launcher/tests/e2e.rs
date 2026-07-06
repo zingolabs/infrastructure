@@ -43,7 +43,7 @@ fn normalized_dynamic_values(s: &str) -> String {
     text.to_string()
 }
 
-#[ignore = "launches zebrad + zainod; the zainod binary is outdated (no `start` subcommand); re-enable once an Ironwood zainod is provisioned"]
+#[ignore = "launches zebrad + lightwalletd; requires those binaries on PATH / in test_binaries and an Ironwood-compatible lightwalletd; run manually"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mines_once_then_exits_on_ctrlc() -> anyhow::Result<()> {
     let executable_path = assert_cmd::cargo::cargo_bin!();

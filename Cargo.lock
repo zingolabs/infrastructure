@@ -239,18 +239,52 @@ dependencies = [
 
 [[package]]
 name = "axum"
+version = "0.7.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
+dependencies = [
+ "async-trait",
+ "axum-core 0.4.5",
+ "bytes",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "itoa",
+ "matchit 0.7.3",
+ "memchr",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "rustversion",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "sync_wrapper",
+ "tokio",
+ "tower 0.5.3",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "axum"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
- "axum-core",
+ "axum-core 0.5.6",
  "bytes",
  "futures-util",
  "http",
  "http-body",
  "http-body-util",
  "itoa",
- "matchit",
+ "matchit 0.8.4",
  "memchr",
  "mime",
  "percent-encoding",
@@ -260,6 +294,27 @@ dependencies = [
  "tower 0.5.3",
  "tower-layer",
  "tower-service",
+]
+
+[[package]]
+name = "axum-core"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "futures-util",
+ "http",
+ "http-body",
+ "http-body-util",
+ "mime",
+ "pin-project-lite",
+ "rustversion",
+ "sync_wrapper",
+ "tower-layer",
+ "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -3065,6 +3120,12 @@ dependencies = [
 
 [[package]]
 name = "matchit"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
@@ -4606,19 +4667,30 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "axum 0.7.9",
  "bip0039",
+ "bls12_381",
  "clap",
  "hex",
  "insta",
+ "jubjub",
  "nix",
+ "orchard",
  "owo-colors",
+ "rand 0.8.6",
+ "rand_core 0.6.4",
  "regex",
+ "reqwest",
  "ripemd 0.1.3",
+ "sapling-crypto",
  "secp256k1",
+ "serde",
+ "serde_json",
  "sha2 0.10.9",
  "tokio",
  "zcash_keys",
  "zcash_local_net",
+ "zcash_primitives",
  "zcash_protocol",
  "zcash_transparent",
  "zebra-node-services",
@@ -5044,6 +5116,17 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_path_to_error"
+version = "0.1.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10a9ff822e371bb5403e391ecd83e182e0e77ba7f6fe0160b795797109d1b457"
+dependencies = [
+ "itoa",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -5723,7 +5806,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fec7c61a0695dc1887c1b53952990f3ad2e3a31453e1f49f10e75424943a93ec"
 dependencies = [
  "async-trait",
- "axum",
+ "axum 0.8.9",
  "base64",
  "bytes",
  "h2",
@@ -5837,7 +5920,7 @@ dependencies = [
 [[package]]
 name = "tower-batch-control"
 version = "1.0.1"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "futures",
  "futures-core",
@@ -5853,7 +5936,7 @@ dependencies = [
 [[package]]
 name = "tower-fallback"
 version = "0.2.41"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "futures-core",
  "pin-project",
@@ -7013,8 +7096,9 @@ checksum = "2164e798d9e3d84ee2c91139ace54638059a3b23e361f5c11781c2c6459bde0f"
 
 [[package]]
 name = "zcash_address"
-version = "0.12.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.13.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cf2918e73eff76388cda87695a6e7398f96a2e3383a0de7b77729a204ec00a0"
 dependencies = [
  "bech32",
  "bs58",
@@ -7036,8 +7120,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_history"
-version = "0.4.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.5.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82e8634d011026cb181cb67b2a412e601dc344a2827b9c576fe3a727fdebf441"
 dependencies = [
  "blake2b_simd",
  "byteorder",
@@ -7046,8 +7131,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_keys"
-version = "0.14.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.15.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a0bac3a9e5b0d954684ba1f07386d55b5ae4588b3ba2d93cad05ee09f3e0947"
 dependencies = [
  "bech32",
  "blake2b_simd",
@@ -7108,8 +7194,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_primitives"
-version = "0.28.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.29.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba7bfe66975658f44dba87d535f9ebb9fb4c9c0c4fecca3f5c40cbe1583dece6"
 dependencies = [
  "blake2b_simd",
  "block-buffer 0.11.0-rc.3",
@@ -7138,8 +7225,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_proofs"
-version = "0.28.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.29.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b39b90964ffe6bdc314368c7b849aaa6dcc2b495249a3bf1b9bfbdc92ba4e4f6"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -7160,8 +7248,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_protocol"
-version = "0.9.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.10.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97f339a9801c7f70295732a5cf822346f194202cea6425fc2fc14a5af679b004"
 dependencies = [
  "corez",
  "document-features",
@@ -7198,8 +7287,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_transparent"
-version = "0.8.0"
-source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+version = "0.9.0-pre.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e941230f67056aad41c8fa9b926f9cc4d9d1a321f32e95c39c0b0e38e85f79b"
 dependencies = [
  "bip32",
  "bs58",
@@ -7223,7 +7313,7 @@ dependencies = [
 [[package]]
 name = "zebra-chain"
 version = "9.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "bech32",
  "bitflags",
@@ -7286,7 +7376,7 @@ dependencies = [
 [[package]]
 name = "zebra-consensus"
 version = "8.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "bellman",
  "blake2b_simd",
@@ -7328,7 +7418,7 @@ dependencies = [
 [[package]]
 name = "zebra-jsonl-trace"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "tokio",
  "tokio-util",
@@ -7338,7 +7428,7 @@ dependencies = [
 [[package]]
 name = "zebra-network"
 version = "8.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "bitflags",
  "blake2b_simd",
@@ -7379,7 +7469,7 @@ dependencies = [
 [[package]]
 name = "zebra-node-services"
 version = "7.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "color-eyre",
  "jsonrpsee-types",
@@ -7394,7 +7484,7 @@ dependencies = [
 [[package]]
 name = "zebra-rpc"
 version = "9.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "base64",
  "chrono",
@@ -7427,6 +7517,7 @@ dependencies = [
  "serde_with",
  "strum",
  "strum_macros",
+ "subtle",
  "thiserror 2.0.18",
  "tokio",
  "tokio-rustls",
@@ -7456,7 +7547,7 @@ dependencies = [
 [[package]]
 name = "zebra-script"
 version = "8.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "libzcash_script",
  "rand 0.8.6",
@@ -7469,7 +7560,7 @@ dependencies = [
 [[package]]
 name = "zebra-state"
 version = "8.0.0"
-source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#831c87a72357a3ee0680c8a3af990f119fec3ad7"
+source = "git+https://github.com/zingolabs/zebra?branch=feat%2Fironwood#848f9a868620178ca76b671c73c3ecbeba73003a"
 dependencies = [
  "bincode",
  "chrono",
@@ -7494,6 +7585,7 @@ dependencies = [
  "sapling-crypto",
  "semver",
  "serde",
+ "serde-big-array",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -7633,8 +7725,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[patch.unused]]
+name = "zcash_address"
+version = "0.12.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
 name = "zcash_client_backend"
 version = "0.23.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_history"
+version = "0.4.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_keys"
+version = "0.14.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_primitives"
+version = "0.28.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_proofs"
+version = "0.28.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_protocol"
+version = "0.9.0"
+source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
+
+[[patch.unused]]
+name = "zcash_transparent"
+version = "0.8.0"
 source = "git+https://github.com/zingolabs/librustzcash?branch=feat%2Fironwood#644b1ecf4679e17a9166782f57a795a4f4194d5e"
 
 [[patch.unused]]

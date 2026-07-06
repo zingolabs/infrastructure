@@ -12,7 +12,7 @@ zcash_local_net = { path = "zcash_local_net" }
 zingo_common_components = "0.4.0"
 
 #zcash
-zcash_protocol = { version = "0.9.0", features = ["local-consensus"] }
+zcash_protocol = { version = "0.10.0-pre.0", features = ["local-consensus"] }
 
 # zebra
 zebra-chain = "9.0.0"

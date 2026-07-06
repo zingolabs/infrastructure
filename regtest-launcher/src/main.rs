@@ -1,5 +1,4 @@
 mod cli;
-mod keygen;
 
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -12,9 +11,11 @@ use std::{
 };
 
 use clap::Parser;
+use zcash_protocol::{consensus::BlockHeight, local_consensus::LocalNetwork};
+use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use local_net::{
     LocalNet,
-    indexer::zainod::Zainod,
+    indexer::lightwalletd::Lightwalletd,
     validator::{
         Validator,
         zebrad::{Zebrad, ZebradConfig},
@@ -40,11 +41,39 @@ use zebra_rpc::{
 };
 use zingo_common_components::protocol::ActivationHeights;
 
-use crate::{cli::Cli, keygen::generate_regtest_transparent_keypair};
+use regtest_launcher::{
+    faucet::{self, FaucetState},
+    keygen::generate_regtest_transparent_keypair,
+};
+
+use crate::cli::Cli;
+
+/// Maps zebra's `ConfiguredActivationHeights` onto librustzcash's
+/// `LocalNetwork` so the faucet's transaction builder uses the same regtest
+/// activation heights the node runs with (and thus the correct branch id).
+fn local_network(h: &ConfiguredActivationHeights) -> LocalNetwork {
+    let at = |v: Option<u32>| v.map(BlockHeight::from_u32);
+    LocalNetwork {
+        overwinter: at(h.overwinter),
+        sapling: at(h.sapling),
+        blossom: at(h.blossom),
+        heartwood: at(h.heartwood),
+        canopy: at(h.canopy),
+        nu5: at(h.nu5),
+        nu6: at(h.nu6),
+        nu6_1: at(h.nu6_1),
+        nu6_2: at(h.nu6_2),
+        #[cfg(zcash_unstable = "nu6.3")]
+        nu6_3: at(h.nu6_3),
+        #[cfg(zcash_unstable = "nu7")]
+        nu7: at(h.nu7),
+    }
+}
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+
     let heights = ActivationHeights::builder()
         .set_overwinter(cli.activation_heights.overwinter)
         .set_sapling(cli.activation_heights.sapling)
@@ -71,7 +100,7 @@ async fn main() {
         .with_miner_address(taddr_str.clone())
         .with_regtest_enabled(heights);
     let network =
-        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(zebrad_config, Default::default())
+        LocalNet::<Zebrad, Lightwalletd>::launch_from_two_configs(zebrad_config, Default::default())
             .await
             .unwrap();
 
@@ -155,6 +184,41 @@ async fn main() {
                 "bootstrap submitblock rejected. submitted={submitted_hash} resp={submit_response}"
             );
             continue;
+        }
+    }
+
+    // Start the faucet HTTP endpoint. It needs the miner secret key to spend
+    // coinbase, so it is only available when we generated the keypair (i.e.
+    // no external `--miner-address` was supplied).
+    match (sk_opt.as_ref(), mnemonic_opt.as_ref()) {
+        (Some(sk), Some(mnemonic)) => {
+            let faucet_state = FaucetState {
+                rpc_port: network.validator().rpc_listen_port(),
+                miner_sk: *sk,
+                seed: Arc::new(mnemonic.to_seed("").to_vec()),
+                network: local_network(&cli.activation_heights),
+            };
+            let faucet_port = cli.faucet_port;
+            println!(
+                "Faucet listening at: http://127.0.0.1:{}  (POST /fund)",
+                faucet_port.bright_green().bold()
+            );
+            println!(
+                "  fund a wallet with: faucet --to <uregtest1...> --amount <ZEC>"
+            );
+            println!();
+            tokio::spawn(async move {
+                if let Err(e) = faucet::serve(faucet_state, faucet_port).await {
+                    eprintln!("faucet server error: {e}");
+                }
+            });
+        }
+        _ => {
+            println!(
+                "Faucet disabled: an external --miner-address was supplied, so the miner \
+                 secret key is unknown to this process."
+            );
+            println!();
         }
     }
 
