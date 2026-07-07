@@ -62,7 +62,10 @@ use indexer::Indexer;
 use validator::Validator;
 
 use crate::{
-    error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::Process,
+    error::{IndexerSyncError, LaunchError},
+    indexer::IndexerConfig,
+    logs::LogsToStdoutAndStderr,
+    process::Process,
 };
 
 pub use zingo_consensus::MinerPool;
@@ -71,7 +74,7 @@ pub use zingo_consensus::MinerPool;
 pub mod protocol {
     pub use crate::rpc_client::RpcRequestClient;
     pub use zingo_consensus::{
-        ActivationHeights, ActivationHeightsBuilder, MinerPool, NetworkType,
+        ActivationHeights, ActivationHeightsBuilder, MinerPool, NetworkKind, NetworkType,
     };
 }
 
@@ -165,6 +168,71 @@ where
             validator_config,
         })
         .await
+    }
+}
+
+impl<V> LocalNet<V, indexer::zainod::Zainod>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+{
+    /// How long [`Self::await_indexer_convergence`] waits before
+    /// failing. Zainod's `fetch`-backend sync loop runs on an interval
+    /// timer — a first batch has been observed landing ~25 seconds
+    /// after the blocks were mined — so the bound must comfortably
+    /// exceed one full interval plus block verification time.
+    pub const INDEXER_CONVERGENCE_TIMEOUT: std::time::Duration =
+        std::time::Duration::from_secs(120);
+    /// How often [`Self::await_indexer_convergence`] re-reads the
+    /// Indexer's log while waiting.
+    pub const INDEXER_CONVERGENCE_POLL_INTERVAL: std::time::Duration =
+        std::time::Duration::from_millis(250);
+
+    /// Block until the Indexer's chain index has reported `target`
+    /// (Indexer convergence). The Validator reports a mined block
+    /// immediately, but the Indexer serves wallets and indexes on its
+    /// own cadence — a test that reads through the Indexer right after
+    /// mining races it. This barrier removes the race in the harness,
+    /// so callers need no wallet-side polling workarounds.
+    ///
+    /// Failure is loud and precise, never a silent hang: an
+    /// unreadable log, a drifted log contract, or a timeout each
+    /// return their own [`IndexerSyncError`] variant carrying the
+    /// evidence (offending line, or target/observed heights plus the
+    /// log tail).
+    pub async fn await_indexer_convergence(&self, target: u32) -> Result<(), IndexerSyncError> {
+        let started = std::time::Instant::now();
+        let mut last_observed = None;
+        while started.elapsed() < Self::INDEXER_CONVERGENCE_TIMEOUT {
+            last_observed = self.indexer().logged_sync_height()?;
+            if last_observed.is_some_and(|height| height >= target) {
+                return Ok(());
+            }
+            tokio::time::sleep(Self::INDEXER_CONVERGENCE_POLL_INTERVAL).await;
+        }
+        Err(IndexerSyncError::ConvergenceTimeout {
+            target,
+            last_observed,
+            waited_secs: started.elapsed().as_secs(),
+            log_tail: self
+                .indexer()
+                .stripped_log_tail(15)
+                .unwrap_or_else(|error| format!("<indexer log unreadable: {error}>")),
+        })
+    }
+
+    /// Mine `n` blocks and wait for Indexer convergence: when this
+    /// returns, the Indexer's chain index includes the Validator's
+    /// tip, so a single wallet sync pass observes every mined block.
+    pub async fn generate_blocks_converged(&self, n: u32) -> Result<(), IndexerSyncError> {
+        self.validator()
+            .generate_blocks(n)
+            .await
+            .map_err(|io_error| IndexerSyncError::Mining {
+                io_error: io_error.to_string(),
+            })?;
+        let target = self.validator().get_chain_height().await;
+        self.await_indexer_convergence(target).await
     }
 }
 

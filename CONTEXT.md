@@ -49,6 +49,14 @@ other shape is configured on the Validator alone; every other component
 receives [[Validator heights]].
 _Avoid_: all-at-2 (informal), custom heights, partial activation
 
+**Indexer convergence**:
+The moment the Indexer's view of the chain includes the Validator's
+tip. Mining returns as soon as the Validator has the blocks; the
+Indexer catches up on its own cadence, so anything that reads through
+the Indexer right after mining must wait for convergence rather than
+poll around the gap.
+_Avoid_: indexer catch-up, tip lag (as names for the barrier)
+
 **Validator heights**:
 Activation heights whose provenance is a query of the running Validator —
 the only form in which any non-Validator component may hold regtest

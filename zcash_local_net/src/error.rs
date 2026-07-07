@@ -170,6 +170,64 @@ pub enum ClientError {
     },
 }
 
+/// Errors from observing Indexer convergence — the harness reading the
+/// Indexer's log to learn how far its chain index has synced (see
+/// `LocalNet::await_indexer_convergence`). Every variant is loud and
+/// precise by design: the observation channel is a log-format contract
+/// with the zainod binary, and a drifted contract must fail with the
+/// offending evidence, never hang or silently pass.
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum IndexerSyncError {
+    /// Mining failed before the convergence wait began.
+    #[error("mining failed before the convergence wait: {io_error}")]
+    Mining {
+        /// Underlying io::Error description from the validator's
+        /// block-generation call.
+        io_error: String,
+    },
+    /// The Indexer's stdout log could not be read at all.
+    #[error("could not read the indexer log at {path}: {io_error}")]
+    LogUnreadable {
+        /// Path of the log file the harness tried to read.
+        path: std::path::PathBuf,
+        /// Underlying io::Error description.
+        io_error: String,
+    },
+    /// A log line matched the sync marker but its height field did not
+    /// parse. This is the contract-drift tripwire: it fires when the
+    /// zainod binary's log format changes out from under the harness's
+    /// parser (contract pinned against zainod 0.4.3-ironwood.1 by the
+    /// `indexer_convergence` integration test).
+    #[error(
+        "an indexer log line matched the sync marker {marker:?} but its height did not parse: \
+         expected \"{marker}height: <digits>\" after ANSI stripping, got {line:?} — \
+         the zainod log contract has drifted"
+    )]
+    SyncMarkerDrift {
+        /// The marker the line matched.
+        marker: &'static str,
+        /// The full line, after ANSI stripping, that failed to parse.
+        line: String,
+    },
+    /// The Indexer never reported the target height within the timeout.
+    #[error(
+        "indexer did not converge to height {target} within {waited_secs}s; \
+         last height it logged: {last_observed:?}.\nIndexer log tail:\n{log_tail}"
+    )]
+    ConvergenceTimeout {
+        /// The validator tip height the wait was for.
+        target: u32,
+        /// The last height the indexer had logged when the wait gave
+        /// up, or `None` if it never logged one.
+        last_observed: Option<u32>,
+        /// How long the wait ran before giving up.
+        waited_secs: u64,
+        /// The final lines of the indexer's log (ANSI-stripped), for
+        /// diagnosing why it stalled.
+        log_tail: String,
+    },
+}
+
 impl LaunchError {
     /// All captured child output for this error — stdout + stderr +
     /// the additional log when present, concatenated. Used by the

@@ -539,6 +539,27 @@ async fn launch_localnet_zainod_zebrad() {
     launch_default_and_print_all::<LocalNet<Zebrad, Zainod>>().await;
 }
 
+/// Pins the Indexer-convergence contract against the real binaries:
+/// the barrier must return only once zainod's chain index has logged
+/// the validator's tip, and zainod's `Syncing block` log line — the
+/// harness's only view of the `fetch` backend's own progress — must
+/// still parse. If zainod's log format drifts, this test fails with
+/// `SyncMarkerDrift` naming the offending line (or times out with the
+/// log tail), rather than letting downstream suites flake.
+#[tokio::test]
+async fn generate_blocks_converged_reaches_validator_tip() {
+    init_tracing();
+    let net = LocalNet::<Zebrad, Zainod>::launch_default().await.unwrap();
+    net.generate_blocks_converged(3).await.unwrap();
+
+    let target = net.validator().get_chain_height().await;
+    let logged = net.indexer().logged_sync_height().unwrap();
+    assert!(
+        logged.is_some_and(|height| height >= target),
+        "barrier returned but the indexer's logged height is {logged:?}, validator tip {target}"
+    );
+}
+
 #[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {

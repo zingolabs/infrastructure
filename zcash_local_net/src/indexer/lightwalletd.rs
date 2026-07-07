@@ -98,7 +98,7 @@ impl launch::PortPins for LightwalletdConfig {
     fn clear_port_pins(&mut self) {
         // Single-port indexer — clear the only pin so the next
         // attempt's pick calls `network::pick_unused_port(None)` and
-        // the kernel hands back a fresh ephemeral.
+        // the allocator walks to a fresh candidate.
         self.listen_port = None;
     }
 }

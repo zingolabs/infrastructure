@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `network::pick_unused_port` no longer asks the kernel for an
+  ephemeral port. Ports come from a fixed band below every default
+  ephemeral range (16384–32767), partitioned into per-process slices by
+  process id, walked sequentially, and bind-checked before they are
+  returned. Each ingredient removes one observed flake class: the band
+  makes kernel reuse of a picked port impossible, the slices keep
+  parallel nextest processes out of each other's territory, and the
+  bind-checked walk steps over squatted ports deterministically. The
+  launch-time retry-on-collision machinery remains as the backstop for
+  the residue partitioning cannot remove (pid-modulo coincidences and
+  unrelated services racing the child's bind).
+
 - **Breaking** — wallet activation heights now come from the running
   Validator and nowhere else, enforced at compile time (ADR 0003). The
   wallet client runs on **any** regtest activation-heights shape: the
@@ -90,6 +102,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/adr/0003-validator-is-heights-source-of-truth.md`: records the
   invariant behind all of the above, plus `CONTEXT.md` entries for
   "Validator heights" and the reshaped "Canonical heights".
+- Indexer-convergence barrier: `LocalNet::generate_blocks_converged(n)`
+  mines and then blocks until the Indexer's chain index reports the
+  Validator's tip, and `LocalNet::await_indexer_convergence(target)`
+  exposes the bare wait for callers that mine through other paths.
+  The Validator reports a mined block immediately, but the Indexer
+  syncs on its own cadence, so tests that read through the Indexer
+  right after mining race it — this barrier retires that class of
+  wallet-side polling workaround. The observation channel is zainod's
+  `Syncing block, height: N` stdout line (`Zainod::logged_sync_height`;
+  the light-client protocol's height answers on the `fetch` backend
+  are proxied to the validator, so the log is the only view of
+  zainod's own progress). The contract is captured from zainod
+  0.4.3-ironwood.1 and pinned by the
+  `generate_blocks_converged_reaches_validator_tip` integration test;
+  failure is loud and precise by design — unreadable log, drifted log
+  format, and timeout each surface their own `IndexerSyncError`
+  variant carrying the evidence, never a silent hang.
 
 ## [0.7.0] - 2026-07-03
 
