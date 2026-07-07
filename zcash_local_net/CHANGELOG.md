@@ -115,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are proxied to the validator, so the log is the only view of
   zainod's own progress). The contract is captured from zainod
   0.4.3-ironwood.1 and pinned by the
-  `generate_blocks_converged_reaches_validator_tip` integration test;
+  `zainod_converges_to_validator_tip_after_generate_blocks` integration test;
   failure is loud and precise by design — unreadable log, drifted log
   format, and timeout each surface their own `IndexerSyncError`
   variant carrying the evidence, never a silent hang.

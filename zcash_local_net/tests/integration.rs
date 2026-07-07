@@ -547,7 +547,7 @@ async fn launch_localnet_zainod_zebrad() {
 /// `SyncMarkerDrift` naming the offending line (or times out with the
 /// log tail), rather than letting downstream suites flake.
 #[tokio::test]
-async fn generate_blocks_converged_reaches_validator_tip() {
+async fn zainod_converges_to_validator_tip_after_generate_blocks() {
     init_tracing();
     let net = LocalNet::<Zebrad, Zainod>::launch_default().await.unwrap();
     net.generate_blocks_converged(3).await.unwrap();

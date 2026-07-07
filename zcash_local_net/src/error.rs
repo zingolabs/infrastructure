@@ -197,7 +197,7 @@ pub enum IndexerSyncError {
     /// parse. This is the contract-drift tripwire: it fires when the
     /// zainod binary's log format changes out from under the harness's
     /// parser (contract pinned against zainod 0.4.3-ironwood.1 by the
-    /// `indexer_convergence` integration test).
+    /// `zainod_converges_to_validator_tip_after_generate_blocks` integration test).
     #[error(
         "an indexer log line matched the sync marker {marker:?} but its height did not parse: \
          expected \"{marker}height: <digits>\" after ANSI stripping, got {line:?} — \

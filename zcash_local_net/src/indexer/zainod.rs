@@ -28,7 +28,7 @@ use crate::{
 /// ```
 ///
 /// This is a log-format contract with the zainod binary. The
-/// `indexer_convergence` integration test pins it against the real
+/// `zainod_converges_to_validator_tip_after_generate_blocks` integration test pins it against the real
 /// binary; if zainod's format drifts, that test and
 /// [`IndexerSyncError::SyncMarkerDrift`] fire with the offending line
 /// rather than letting a convergence wait hang.
