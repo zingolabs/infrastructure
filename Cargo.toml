@@ -4,6 +4,7 @@ members = [
     "zingo-consensus",
     "zingo_test_vectors",
     "regtest-launcher",
+    "workbench",
 ]
 resolver = "2"
 

@@ -1221,6 +1221,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "workbench"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
