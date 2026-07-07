@@ -7,6 +7,12 @@
 //! - `trailing-whitespace (fix | reject)` — the port of the retired
 //!   `utils/trailing-whitespace.sh`, run by the Trailing Whitespace CI
 //!   workflow in `reject` mode.
+//! - `check-external-types` — the port of the retired justfile: runs
+//!   `cargo check-external-types` under the pinned nightly for every
+//!   crate with a public-API allowlist. Run by the External Types CI
+//!   job.
+//! - `generate-chain-caches` — builds the large zebrad chain cache
+//!   that cache-dependent tests consume.
 
 use std::io::Read as _;
 use std::io::Write as _;
@@ -20,13 +26,32 @@ const TEXT_EXTENSIONS: [&str; 4] = ["rs", "md", "toml", "yaml"];
 /// Directory names pruned from the walk, mirroring the shell script.
 const PRUNED_DIRS: [&str; 2] = [".git", "target"];
 
+/// The nightly toolchain cargo-check-external-types requires. Pinned
+/// to match cargo-check-external-types 0.4.0 (rustdoc JSON format 56;
+/// 0.5.0 requires format 57 — bump both together, and keep the
+/// External Types job in `.github/workflows/ci-pr.yaml` on the same
+/// pin: it installs this toolchain and that tool version by name.
+const PINNED_NIGHTLY: &str = "nightly-2025-10-18";
+
+/// The manifests of every crate whose public API carries an
+/// external-types allowlist.
+const EXTERNAL_TYPES_MANIFESTS: [&str; 2] = [
+    "zcash_local_net/Cargo.toml",
+    "zingo_test_vectors/Cargo.toml",
+];
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let outcome = match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["trailing-whitespace", "fix"] => trailing_whitespace(Mode::Fix),
         ["trailing-whitespace", "reject"] => trailing_whitespace(Mode::Reject),
+        ["check-external-types"] => check_external_types(),
+        ["generate-chain-caches"] => generate_chain_caches(),
         _ => {
-            eprintln!("usage: workbench trailing-whitespace ( fix | reject )");
+            eprintln!(
+                "usage: workbench ( trailing-whitespace ( fix | reject ) \
+                 | check-external-types | generate-chain-caches )"
+            );
             return ExitCode::FAILURE;
         }
     };
@@ -37,6 +62,53 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Run `cargo check-external-types` under [`PINNED_NIGHTLY`] for every
+/// manifest in [`EXTERNAL_TYPES_MANIFESTS`], streaming each tool's own
+/// output. Every manifest is checked even after a failure, so one run
+/// reports every offending crate; the exit code is a failure if any
+/// check failed.
+fn check_external_types() -> std::io::Result<ExitCode> {
+    let root = repository_root()?;
+    let mut failures = Vec::new();
+    for manifest in EXTERNAL_TYPES_MANIFESTS {
+        let status = std::process::Command::new("cargo")
+            .arg(format!("+{PINNED_NIGHTLY}"))
+            .args(["check-external-types", "--manifest-path", manifest])
+            .current_dir(&root)
+            .status()?;
+        if !status.success() {
+            failures.push(manifest);
+        }
+    }
+    if failures.is_empty() {
+        Ok(ExitCode::SUCCESS)
+    } else {
+        eprintln!("check-external-types failed for: {}", failures.join(", "));
+        Ok(ExitCode::FAILURE)
+    }
+}
+
+/// Build the large zebrad chain cache that cache-dependent tests
+/// consume, by running the ignored generator test.
+fn generate_chain_caches() -> std::io::Result<ExitCode> {
+    let root = repository_root()?;
+    let status = std::process::Command::new("cargo")
+        .args([
+            "nextest",
+            "run",
+            "generate_zebrad_large_chain_cache",
+            "--run-ignored",
+            "ignored-only",
+        ])
+        .current_dir(&root)
+        .status()?;
+    Ok(if status.success() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
 }
 
 enum Mode {

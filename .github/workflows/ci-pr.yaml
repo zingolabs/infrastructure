@@ -43,21 +43,18 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Install just
-        uses: extractions/setup-just@v2
-
       - name: Install cargo-binstall
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-binstall
 
       - name: Install cargo-check-external-types
-        # Pinned to match PINNED_NIGHTLY (nightly-2025-10-18, rustdoc JSON
-        # format 56). 0.5.0 requires format 57; bump both together.
+        # Pinned to match PINNED_NIGHTLY in workbench/src/main.rs (nightly-2025-10-18,
+        # rustdoc JSON format 56). 0.5.0 requires format 57; bump both together.
         run: cargo binstall cargo-check-external-types@0.4.0 -y --force
 
       - name: Run checks
-        run: just check-external-types
+        run: cargo +nightly-2025-10-18 run --release -p workbench -- check-external-types
 
   reject-trailing-whitespace:
     uses: ./.github/workflows/trailing-whitespace.yaml
