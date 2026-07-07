@@ -10,3 +10,6 @@ check-external-types-zingo-test-vectors:
 check-external-types:
     just check-external-types-zcash-local-net
     just check-external-types-zingo-test-vectors
+# Build the large zebrad chain cache that cache-dependent tests consume.
+generate-chain-caches:
+    cargo nextest run generate_zebrad_large_chain_cache --run-ignored ignored-only
