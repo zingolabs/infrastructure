@@ -30,6 +30,40 @@ impl std::fmt::Display for NetworkType {
     }
 }
 
+/// Network identity without activation heights.
+///
+/// The configuration shape for components that must know *which* network
+/// they serve but must not be told activation heights: the Validator is
+/// the single source of truth for heights (infras ADR 0003), so a config
+/// that accepted heights on such a component would be a false affordance.
+/// Use [`NetworkType`] where heights are genuinely configured (validators)
+/// or asserted by the caller (wallet clients on unmanaged stacks).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NetworkKind {
+    /// Mainnet
+    Mainnet,
+    /// Testnet
+    Testnet,
+    /// Regtest
+    Regtest,
+}
+
+impl From<&NetworkType> for NetworkKind {
+    fn from(network: &NetworkType) -> Self {
+        match network {
+            NetworkType::Mainnet => NetworkKind::Mainnet,
+            NetworkType::Testnet => NetworkKind::Testnet,
+            NetworkType::Regtest(_) => NetworkKind::Regtest,
+        }
+    }
+}
+
+impl From<NetworkType> for NetworkKind {
+    fn from(network: NetworkType) -> Self {
+        (&network).into()
+    }
+}
+
 /// The pool a validator mines block rewards to.
 ///
 /// Validator support differs: zcashd can mine to any variant, while zebrad

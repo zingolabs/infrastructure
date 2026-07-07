@@ -15,11 +15,57 @@
 //! validator → indexer → client; [`ClientConfig::setup_indexer_connection`]
 //! mirrors [`crate::indexer::IndexerConfig::setup_validator_connection`]
 //! for wiring the client to a running indexer.
+//!
+//! Activation heights are the one exception to "never talk to the
+//! validator": a regtest wallet needs the chain's schedule, the
+//! light-client protocol does not expose it, and ADR 0003 forbids a
+//! second source of truth. The harness therefore queries the Validator
+//! on the wallet's behalf, and the type system enforces it — see
+//! [`WalletNetwork`] and [`ValidatorHeights`].
 
 use crate::{error::ClientError, indexer::Indexer};
 
+/// Regtest activation heights whose provenance is a query of a running
+/// Validator. The inner value has no public constructor and no public
+/// accessor; the only way to obtain one is
+/// [`WalletNetwork::from_validator`]. A wallet configured with these
+/// heights is therefore guaranteed, at compile time, to have derived
+/// them from the Validator (ADR 0003: the Validator is the single
+/// source of truth for activation heights). Crate-internal tests may
+/// construct the value directly to pin serialization offline, where no
+/// chain exists for the heights to disagree with.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ValidatorHeights(pub(crate) zingo_consensus::ActivationHeights);
+
+/// The network a wallet client is launched against. Unlike
+/// [`zingo_consensus::NetworkType`], the regtest variant cannot carry
+/// caller-supplied heights: it demands a [`ValidatorHeights`], which
+/// only a Validator query produces. Writing a hand-typed height vector
+/// into a wallet config is unrepresentable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WalletNetwork {
+    /// Mainnet. The binaries compile the public network's parameters
+    /// in; no heights are carried.
+    Mainnet,
+    /// Testnet. The binaries compile the public network's parameters
+    /// in; no heights are carried.
+    Testnet,
+    /// Regtest, with activation heights derived from the running
+    /// Validator.
+    Regtest(ValidatorHeights),
+}
+
+impl WalletNetwork {
+    /// Build the regtest wallet network by querying the running
+    /// `validator` for its activation-height schedule. This is the
+    /// only public constructor of [`ValidatorHeights`].
+    pub async fn from_validator<V: crate::validator::Validator>(validator: &V) -> Self {
+        WalletNetwork::Regtest(ValidatorHeights(validator.get_activation_heights().await))
+    }
+}
+
 /// Can offer specific functionality shared across configuration for all clients.
-pub trait ClientConfig: Default + std::fmt::Debug {
+pub trait ClientConfig: std::fmt::Debug {
     /// To receive the connection details of the indexer this client's
     /// wallet will sync from and broadcast through.
     fn setup_indexer_connection<I: Indexer>(&mut self, indexer: &I);

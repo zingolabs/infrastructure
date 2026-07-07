@@ -6,14 +6,14 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "legacy-stack")]
 use zingo_consensus::ActivationHeights;
-use zingo_consensus::NetworkType;
+use zingo_consensus::{NetworkKind, NetworkType};
 
 /// Convert `NetworkKind` to its config string representation
-fn network_type_to_string(network: NetworkType) -> &'static str {
+fn network_kind_to_string(network: NetworkKind) -> &'static str {
     match network {
-        NetworkType::Mainnet => "Mainnet",
-        NetworkType::Testnet => "Testnet",
-        NetworkType::Regtest(_) => "Regtest",
+        NetworkKind::Mainnet => "Mainnet",
+        NetworkKind::Testnet => "Testnet",
+        NetworkKind::Regtest => "Regtest",
     }
 }
 
@@ -149,7 +149,7 @@ pub(crate) fn write_zebrad_config(
     min_connected_peers: usize,
 ) -> std::io::Result<PathBuf> {
     let chain_cache = cache_dir.to_str().unwrap();
-    let network_string = network_type_to_string(network);
+    let network_string = network_kind_to_string(NetworkKind::from(&network));
 
     // Regtest is single-node by definition — the upstream-default seeder
     // lists for mainnet/testnet have nothing useful to contribute and
@@ -366,12 +366,12 @@ pub(crate) fn write_zainod_config(
     validator_cache_dir: PathBuf,
     listen_port: u16,
     validator_port: u16,
-    network: NetworkType,
+    network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
     let zaino_cache_dir = validator_cache_dir.join("zaino");
     let chain_cache = zaino_cache_dir.to_str().unwrap();
 
-    let network_string = network_type_to_string(network);
+    let network_string = network_kind_to_string(network);
 
     let cfg = format!(
         "\
@@ -422,7 +422,7 @@ mod tests {
     #[cfg(feature = "legacy-stack")]
     use std::path::PathBuf;
 
-    use zingo_consensus::{ActivationHeights, NetworkType};
+    use zingo_consensus::{ActivationHeights, NetworkKind, NetworkType};
 
     #[cfg(feature = "legacy-stack")]
     use crate::logs;
@@ -532,7 +532,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
             zaino_cache_dir,
             1234,
             18232,
-            NetworkType::Regtest(ActivationHeights::default()),
+            NetworkKind::Regtest,
         )
         .unwrap();
 

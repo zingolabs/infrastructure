@@ -927,7 +927,7 @@ mod devtool_client {
     use zcash_local_net::client::zcash_devtool::{
         ZcashDevtool, ZcashDevtoolConfig, supported_regtest_activation_heights,
     };
-    use zcash_local_net::client::{AddressReceiver, Client, ClientConfig as _};
+    use zcash_local_net::client::{AddressReceiver, Client, ClientConfig as _, WalletNetwork};
     use zcash_local_net::indexer::zainod::ZainodConfig;
     use zcash_local_net::validator::Validator as _;
     use zingo_test_vectors::{
@@ -958,28 +958,39 @@ mod devtool_client {
     /// shielded-coinbase templates fail their own orchard-proof
     /// verification while a configured upgrade is still in the future.
     async fn launch_orchard_net() -> LocalNet<Zebrad, Zainod> {
-        let mut validator_config = ZebradConfig::default();
-        validator_config.set_test_parameters(
-            MinerPool::Orchard,
-            supported_regtest_activation_heights(),
-            None,
-        );
-        let indexer_config = ZainodConfig {
-            network: zcash_local_net::protocol::NetworkType::Regtest(
-                supported_regtest_activation_heights(),
-            ),
-            ..ZainodConfig::default()
-        };
-        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(validator_config, indexer_config)
-            .await
-            .unwrap()
+        launch_net_with_heights(supported_regtest_activation_heights()).await
     }
 
-    /// Launch a devtool wallet wired to the local net's indexer.
+    /// An orchard-mining zebrad + zainod stack on the given activation
+    /// heights. The indexer config carries no heights at all
+    /// (`NetworkKind::Regtest`): per ADR 0003 the Indexer must learn
+    /// the schedule from the Validator, and only the kind string ever
+    /// reached the zainod TOML anyway.
+    async fn launch_net_with_heights(
+        heights: zcash_local_net::protocol::ActivationHeights,
+    ) -> LocalNet<Zebrad, Zainod> {
+        let mut validator_config = ZebradConfig::default();
+        validator_config.set_test_parameters(MinerPool::Orchard, heights, None);
+        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(
+            validator_config,
+            ZainodConfig::default(),
+        )
+        .await
+        .unwrap()
+    }
+
+    /// Launch a devtool wallet wired to the local net's indexer. The
+    /// wallet's network is minted from the running validator
+    /// ([`WalletNetwork::from_validator`]), which is the only way to
+    /// obtain regtest heights for a wallet config (ADR 0003).
+    /// `make_config` is one of the [`ZcashDevtoolConfig`] constructors,
+    /// e.g. `ZcashDevtoolConfig::faucet`.
     async fn launch_client(
         net: &LocalNet<Zebrad, Zainod>,
-        mut config: ZcashDevtoolConfig,
+        make_config: impl FnOnce(WalletNetwork) -> ZcashDevtoolConfig,
     ) -> ZcashDevtool {
+        let network = WalletNetwork::from_validator(net.validator()).await;
+        let mut config = make_config(network);
         config.setup_indexer_connection(net.indexer());
         ZcashDevtool::launch(config).await.unwrap()
     }
@@ -1015,7 +1026,7 @@ mod devtool_client {
     async fn faucet_addresses_match_miner_addresses() {
         init_tracing();
         let net = launch_orchard_net().await;
-        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet).await;
 
         // default_address() is the convenience for address(Unified).
         assert_eq!(
@@ -1055,7 +1066,7 @@ mod devtool_client {
         init_tracing();
         let net = launch_orchard_net().await;
         net.validator().generate_blocks(2).await.unwrap();
-        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet).await;
 
         let info = faucet.get_info().await.unwrap();
         assert!(
@@ -1087,25 +1098,83 @@ mod devtool_client {
         );
     }
 
-    /// Launching with regtest heights that differ from the fixture
-    /// heights compiled into the devtool binary must fail fast, before
-    /// any wallet state exists.
-    #[tokio::test]
-    async fn launch_rejects_drifted_activation_heights() {
-        init_tracing();
-        let net = launch_orchard_net().await;
+    /// zaino's `ORCHARD_THEN_IRONWOOD_ACTIVATION_HEIGHTS` fixture:
+    /// NU6.3 mid-chain at height 6, everything else active by 2. The
+    /// acceptance shape of `zaino-ironwood-activation-infra-spec.md`;
+    /// these heights configure the validator only, and the wallet
+    /// derives them back from it. Their TOML bytes are pinned by the
+    /// `validator_heights_emit_acceptance_toml` unit test.
+    fn orchard_then_ironwood_heights() -> zcash_local_net::protocol::ActivationHeights {
+        zcash_local_net::protocol::ActivationHeights::builder()
+            .set_overwinter(Some(1))
+            .set_sapling(Some(1))
+            .set_blossom(Some(1))
+            .set_heartwood(Some(1))
+            .set_canopy(Some(1))
+            .set_nu5(Some(2))
+            .set_nu6(Some(2))
+            .set_nu6_1(Some(2))
+            .set_nu6_2(Some(2))
+            .set_nu6_3(Some(6))
+            .set_nu7(None)
+            .build()
+    }
 
-        let mut config = ZcashDevtoolConfig::faucet();
-        config.setup_indexer_connection(net.indexer());
-        config.network = zcash_local_net::protocol::NetworkType::Regtest(
-            zcash_local_net::protocol::ActivationHeights::builder().build(),
+    /// The ZIP 318 migration shape on a mid-chain boundary: NU6.3
+    /// activates at height 6, so the wallet scans Orchard-era coinbase
+    /// at heights 2–5 and must build a spend at tip >= 6 that carries
+    /// the NU6.3 consensus branch ID — the validator accepting it and
+    /// the receipt landing in the recipient's ironwood pool proves
+    /// both era-correct scanning and era-correct construction come
+    /// from the validator-derived heights file, not compiled-in
+    /// defaults.
+    ///
+    /// Ignored: the wallet syncs through zainod, and zainod adopts
+    /// its regtest heights from compiled-in defaults instead of
+    /// querying the validator, so a mid-chain NU6.3 kills its sync
+    /// loop with `InvalidData("Block commitment could not be
+    /// computed")`. Also unverified until then: whether zebrad's
+    /// shielded-coinbase templates mine orchard blocks 2–5 while
+    /// NU6.3 is configured-but-future (zebra 5.1.0 failed its own
+    /// orchard-proof check in that shape; current floor is >= 6.0.0).
+    #[tokio::test]
+    #[ignore = "needs a zainod that learns heights from the validator (zingolabs/zaino#1076)"]
+    async fn orchard_note_spends_to_ironwood_across_midchain_boundary() {
+        init_tracing();
+        let net = launch_net_with_heights(orchard_then_ironwood_heights()).await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet).await;
+        let recipient = launch_client(&net, ZcashDevtoolConfig::recipient).await;
+        let recipient_address = recipient.default_address().await.unwrap();
+
+        // Height 2 mints the first Orchard coinbase; a third block
+        // makes it one confirmation deep (spendable) with the tip
+        // still below the NU6.3 boundary at 6.
+        net.validator().generate_blocks(3).await.unwrap();
+        let pre = sync_to_height(&faucet, net.validator().get_chain_height().await).await;
+        assert!(
+            pre.orchard_spendable > 0,
+            "pre-boundary coinbase must scan as Orchard-era notes, got {pre:?}"
+        );
+        assert_eq!(
+            pre.ironwood_spendable, 0,
+            "no Ironwood notes may exist below the boundary"
         );
 
-        let result = ZcashDevtool::launch(config).await;
-        assert!(matches!(
-            result,
-            Err(zcash_local_net::error::ClientError::UnsupportedActivationHeights { .. })
-        ));
+        // Cross the boundary and spend: tip >= 6 puts transaction
+        // construction in the Ironwood era.
+        net.validator().generate_blocks(3).await.unwrap();
+        let tip = net.validator().get_chain_height().await;
+        assert!(tip >= 6, "expected the tip past the boundary, saw {tip}");
+        sync_to_height(&faucet, tip).await;
+        faucet.send(&recipient_address, SEND_VALUE).await.unwrap();
+        net.validator().generate_blocks(1).await.unwrap();
+
+        let received = sync_to_height(&recipient, net.validator().get_chain_height().await).await;
+        assert_eq!(received.total, SEND_VALUE);
+        assert_eq!(
+            received.ironwood_spendable, SEND_VALUE,
+            "a post-boundary receipt must land in the ironwood pool"
+        );
     }
 
     /// The full faucet→recipient loop: fund by orchard mining, send
@@ -1118,8 +1187,8 @@ mod devtool_client {
     async fn faucet_sends_recipient_receives_and_rescans() {
         init_tracing();
         let net = launch_orchard_net().await;
-        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
-        let recipient = launch_client(&net, ZcashDevtoolConfig::recipient()).await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet).await;
+        let recipient = launch_client(&net, ZcashDevtoolConfig::recipient).await;
         let recipient_address = recipient.default_address().await.unwrap();
 
         // Mining to orchard is the expensive part (~4.5-9.5s/block of Halo2
@@ -1166,7 +1235,7 @@ mod devtool_client {
     async fn faucet_shields_transparent_funds() {
         init_tracing();
         let net = launch_orchard_net().await;
-        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet()).await;
+        let faucet = launch_client(&net, ZcashDevtoolConfig::faucet).await;
 
         // Mine the minimum orchard coinbase needed: 2 blocks makes the first
         // orchard coinbase (height 2) one confirmation deep, hence spendable.

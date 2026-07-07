@@ -40,8 +40,19 @@ a Cargo dependency.
 _Avoid_: devtool API, devtool dependency
 
 **Canonical heights**:
-The single regtest activation-heights shape the harness supports: every
+The single regtest activation-heights shape the harness ships as its
+default for launching Validators, validates, and golden-tests: every
 network upgrade the Devtool contract knows about activates at height 2.
 Exactly one shape exists per release; it advances in lockstep when a new
-upgrade is adopted, and older shapes live only in older releases.
+upgrade is adopted, and older shapes live only in older releases. Any
+other shape is configured on the Validator alone; every other component
+receives [[Validator heights]].
 _Avoid_: all-at-2 (informal), custom heights, partial activation
+
+**Validator heights**:
+Activation heights whose provenance is a query of the running Validator —
+the only form in which any non-Validator component may hold regtest
+heights. The Validator is configured with heights exactly once, at
+launch; the Indexer and the wallet client derive theirs from it, and
+supplying heights to those components by hand is unrepresentable.
+_Avoid_: provider heights, custom heights, caller heights

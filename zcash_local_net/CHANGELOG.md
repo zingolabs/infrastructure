@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking** — wallet activation heights now come from the running
+  Validator and nowhere else, enforced at compile time (ADR 0003). The
+  wallet client runs on **any** regtest activation-heights shape: the
+  canonical-heights equality guard is lifted and
+  `ClientError::UnsupportedActivationHeights` is **deleted**, not
+  repurposed. However, a heights vector can no longer be written into a
+  wallet config at all: `ZcashDevtoolConfig::network` is now a
+  `WalletNetwork`, whose regtest variant demands an opaque
+  `ValidatorHeights` that only `WalletNetwork::from_validator()` can
+  produce. The constructors become
+  `ZcashDevtoolConfig::faucet(network)`/`::recipient(network)`, the
+  config's `Default` impl is removed, and the `ClientConfig` trait
+  drops its `Default` bound. The validator-reported heights are
+  serialized into the devtool's `--activation-heights` TOML (an
+  unactivated upgrade omits its key), so the wallet's schedule matches
+  the chain's by construction. A golden unit test pins the zaino
+  `ironwood_activation` fixture (NU6.3 mid-chain at 6) to its
+  acceptance TOML byte-for-byte. Serves zingolabs/zaino#1368 (see
+  `zaino-ironwood-activation-infra-spec.md`, whose delivery note
+  records the shipped contract).
+- **Breaking** — `ZainodConfig.network` narrows from `NetworkType` to
+  the new payload-free `zingo_consensus::NetworkKind`: the Indexer must
+  learn activation heights from the Validator, never from harness
+  config (ADR 0003), and the heights payload the field used to carry
+  was never transmitted anyway — only the kind string reaches the
+  zainod TOML. `write_activation_heights_toml` also now **panics** on a
+  configured NU7 height instead of silently dropping it (the devtool
+  TOML gates `nu7` behind `zcash_unstable`), matching the zebrad
+  writer's no-silent-drop policy below.
 - **Breaking** — the zebrad regtest config writer now **rejects activation
   heights it cannot express** instead of silently dropping or rewriting
   them: upgrades through Canopy must be `Some(1)` (the emitted config
@@ -43,6 +72,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   activation-height defaults without NU6.3, so indexer-sync paths
   fail until a NU6.3-aware zainod ships (zingolabs/zaino#1076 tracks
   the height-default coupling).
+- `zingo_consensus::NetworkKind`: network identity without activation
+  heights, with `From<NetworkType>`/`From<&NetworkType>` conversions —
+  the config shape for components that must not be told heights.
+- `client::WalletNetwork` and `client::ValidatorHeights`: the network a
+  wallet is launched against, and regtest activation heights whose
+  provenance is a Validator query. `WalletNetwork::from_validator()` is
+  the only public constructor of `ValidatorHeights`, which makes ADR
+  0003 statically checkable — a wallet config holding heights that did
+  not come from the running Validator cannot be expressed.
+- An `#[ignore]`d cross-boundary integration test
+  (`orchard_note_spends_to_ironwood_across_midchain_boundary`):
+  Orchard-era coinbase before a mid-chain NU6.3 boundary, an
+  Ironwood-era spend after it, on the zaino fixture heights. Parked
+  until a zainod that learns heights from the validator ships
+  (zingolabs/zaino#1076); the ignore message names the tracking issue.
+- `docs/adr/0003-validator-is-heights-source-of-truth.md`: records the
+  invariant behind all of the above, plus `CONTEXT.md` entries for
+  "Validator heights" and the reshaped "Canonical heights".
 
 ## [0.7.0] - 2026-07-03
 

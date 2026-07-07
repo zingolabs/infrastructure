@@ -4,7 +4,7 @@ use std::{path::PathBuf, process::Child};
 
 use tempfile::TempDir;
 
-use zingo_consensus::NetworkType;
+use zingo_consensus::NetworkKind;
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
@@ -25,7 +25,7 @@ use crate::{
 ///
 /// The `validator_port` must be specified and the validator process must be running before launching Zainod.
 ///
-/// `network` must match the configured network of the validator.
+/// `network` must match the configured network *kind* of the validator.
 #[derive(Clone, Debug)]
 pub struct ZainodConfig {
     /// Listen RPC port
@@ -34,8 +34,14 @@ pub struct ZainodConfig {
     pub validator_port: u16,
     /// Chain cache path
     pub chain_cache: Option<PathBuf>,
-    /// Network type.
-    pub network: NetworkType,
+    /// Network kind — deliberately without activation heights. The
+    /// Indexer must learn heights from the Validator, never from
+    /// harness config (ADR 0003); only the kind string reaches the
+    /// zainod TOML. Until zingolabs/zaino#1076 ships a zainod that
+    /// queries the validator, the binary falls back to its compiled-in
+    /// regtest heights and mismatched schedules kill its sync loop
+    /// with `InvalidData("Block commitment could not be computed")`.
+    pub network: NetworkKind,
 }
 
 impl Default for ZainodConfig {
@@ -44,7 +50,7 @@ impl Default for ZainodConfig {
             listen_port: None,
             validator_port: 0,
             chain_cache: None,
-            network: NetworkType::Regtest(crate::validator::regtest_test_activation_heights()),
+            network: NetworkKind::Regtest,
         }
     }
 }

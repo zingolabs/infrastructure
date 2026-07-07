@@ -19,11 +19,13 @@ use std::process::{Child, Stdio};
 
 use tempfile::TempDir;
 
-use zingo_consensus::NetworkType;
 use zingo_test_vectors::seeds::{ABANDON_ART_SEED, HOSPITAL_MUSEUM_SEED};
 
 use crate::{
-    client::{AddressReceiver, Client, ClientConfig, GetInfo, WalletBalance},
+    client::{
+        AddressReceiver, Client, ClientConfig, GetInfo, ValidatorHeights, WalletBalance,
+        WalletNetwork,
+    },
     error::ClientError,
     indexer::Indexer,
     logs::LogsToDir,
@@ -36,19 +38,19 @@ const EXECUTABLE_NAME: &str = "zcash-devtool";
 /// created by `init` inside the wallet directory.
 const AGE_IDENTITY_FILENAME: &str = "age-identity.txt";
 
-/// The regtest activation heights this client passes to zcash-devtool
-/// (mirroring the `DEFAULT_REGTEST` constant in its `data.rs`):
-/// pre-NU5 upgrades at height 1, everything NU5 and later at height 2,
-/// NU6.3 included. The tested devtool is zingolabs/zcash-devtool
-/// `support_ironwood_scan_model` @ `8eccaceb` (its package version,
-/// 0.1.0, does not distinguish branches — identify builds by commit).
-/// Older binaries whose activation-heights schema predates `nu6_3`
-/// reject the emitted TOML via `deny_unknown_fields`; the chain side
-/// needs a zebrad >= 6.0.0 that accepts the `"NU6.3"` config key.
-/// Validators serving a devtool wallet must be launched
-/// with exactly these heights — transaction construction derives the
-/// consensus branch ID from them, so drift makes the validator reject
-/// the wallet's transactions.
+/// The canonical regtest activation heights for launching a Validator
+/// that serves devtool wallets (mirroring the `DEFAULT_REGTEST`
+/// constant in the devtool's `data.rs`): pre-NU5 upgrades at height 1,
+/// everything NU5 and later at height 2, NU6.3 included. The tested
+/// devtool is zingolabs/zcash-devtool `support_ironwood_scan_model` @
+/// `8eccaceb` (its package version, 0.1.0, does not distinguish
+/// branches — identify builds by commit). Older binaries whose
+/// activation-heights schema predates `nu6_3` reject the emitted TOML
+/// via `deny_unknown_fields`; the chain side needs a zebrad >= 6.0.0
+/// that accepts the `"NU6.3"` config key. These heights configure the
+/// *Validator*; the wallet never receives them directly, because it
+/// derives its schedule from the running Validator via
+/// [`WalletNetwork::from_validator`] (ADR 0003).
 ///
 /// Note this is intentionally *not*
 /// [`crate::validator::regtest_test_activation_heights`] (which holds NU6.1/NU6.2 back
@@ -84,13 +86,9 @@ pub fn supported_regtest_activation_heights() -> zingo_consensus::ActivationHeig
 /// `127.0.0.1:indexer_port` — wire it to a running indexer with
 /// [`ClientConfig::setup_indexer_connection`] or set the port directly.
 ///
-/// `network` must match the configured network of the indexer's
-/// validator. For [`NetworkType::Regtest`] the activation heights must
-/// equal [`supported_regtest_activation_heights`]: zcash-devtool
-/// compiles its regtest heights in (they drive consensus-branch-ID
-/// selection during transaction construction), so any other heights
-/// are rejected at launch with
-/// [`ClientError::UnsupportedActivationHeights`].
+/// `network` must name the network of the indexer's validator; for
+/// regtest it can only be built from that validator, so agreement is
+/// enforced by construction.
 #[derive(Clone, Debug)]
 pub struct ZcashDevtoolConfig {
     /// BIP-39 mnemonic phrase the wallet is restored from.
@@ -101,8 +99,16 @@ pub struct ZcashDevtoolConfig {
     pub account_name: String,
     /// gRPC port (on 127.0.0.1) of the indexer serving this wallet.
     pub indexer_port: u16,
-    /// Network type.
-    pub network: NetworkType,
+    /// Network the wallet is launched against. The regtest variant is
+    /// only constructible through [`WalletNetwork::from_validator`],
+    /// so the heights the client writes to the devtool's
+    /// `--activation-heights` TOML are always the running Validator's
+    /// own schedule (ADR 0003); transaction construction derives the
+    /// consensus branch ID from them, and the derivation makes drift
+    /// unrepresentable. An upgrade the validator reports as inactive
+    /// omits its key from the TOML, which the devtool reads as an
+    /// upgrade that never activates.
+    pub network: WalletNetwork,
     /// Minimum confirmations for notes to be spendable, applied to
     /// trusted and untrusted notes alike (passed to `send` and
     /// `balance` as `--min-confirmations`). Defaults to 1 — the
@@ -115,26 +121,28 @@ pub struct ZcashDevtoolConfig {
 
 impl ZcashDevtoolConfig {
     /// The standard faucet wallet: restored from the shared
-    /// "abandon … art" mnemonic at birthday 0.
+    /// "abandon … art" mnemonic at birthday 0, launched against
+    /// `network` (obtain it from [`WalletNetwork::from_validator`]).
     ///
     /// Validators launched by this crate mine to addresses derived
     /// from the same seed (`REG_O_ADDR_FROM_ABANDONART` /
     /// `REG_T_ADDR_FROM_ABANDONART` in `zingo_test_vectors`), so this
     /// wallet sees the miner rewards — that alignment is what makes it
     /// a faucet.
-    pub fn faucet() -> Self {
+    pub fn faucet(network: WalletNetwork) -> Self {
         Self {
             mnemonic: ABANDON_ART_SEED.to_string(),
             birthday: 0,
             account_name: "faucet".to_string(),
             indexer_port: 0,
-            network: NetworkType::Regtest(supported_regtest_activation_heights()),
+            network,
             min_confirmations: std::num::NonZeroU32::MIN,
         }
     }
 
     /// The standard recipient wallet: restored from the
-    /// `HOSPITAL_MUSEUM` mnemonic at birthday 0.
+    /// `HOSPITAL_MUSEUM` mnemonic at birthday 0, launched against
+    /// `network` (obtain it from [`WalletNetwork::from_validator`]).
     ///
     /// Note: zingolib-based suites historically used ZIP-32 account
     /// index 1 of this seed as the recipient; `init` restores account
@@ -142,21 +150,15 @@ impl ZcashDevtoolConfig {
     /// Tests should obtain addresses from
     /// [`Client::default_address`] rather than from constants recorded
     /// against account 1.
-    pub fn recipient() -> Self {
+    pub fn recipient(network: WalletNetwork) -> Self {
         Self {
             mnemonic: HOSPITAL_MUSEUM_SEED.to_string(),
             birthday: 0,
             account_name: "recipient".to_string(),
             indexer_port: 0,
-            network: NetworkType::Regtest(supported_regtest_activation_heights()),
+            network,
             min_confirmations: std::num::NonZeroU32::MIN,
         }
-    }
-}
-
-impl Default for ZcashDevtoolConfig {
-    fn default() -> Self {
-        Self::faucet()
     }
 }
 
@@ -209,24 +211,12 @@ impl ZcashDevtool {
         self.wallet_dir.path().join(AGE_IDENTITY_FILENAME)
     }
 
-    /// The `-n` flag value for the configured network, validating
-    /// regtest activation-height alignment with the compiled-in
-    /// heights of the devtool binary.
-    fn network_flag(&self) -> Result<&'static str, ClientError> {
+    /// The `-n` flag value for the configured network.
+    fn network_flag(&self) -> &'static str {
         match self.config.network {
-            NetworkType::Mainnet => Ok("main"),
-            NetworkType::Testnet => Ok("test"),
-            NetworkType::Regtest(configured) => {
-                let expected = supported_regtest_activation_heights();
-                if configured == expected {
-                    Ok("regtest")
-                } else {
-                    Err(ClientError::UnsupportedActivationHeights {
-                        configured: Box::new(configured),
-                        expected: Box::new(expected),
-                    })
-                }
-            }
+            WalletNetwork::Mainnet => "main",
+            WalletNetwork::Testnet => "test",
+            WalletNetwork::Regtest(_) => "regtest",
         }
     }
 
@@ -243,9 +233,17 @@ impl ZcashDevtool {
     /// field behind `zcash_unstable`, so emitting it would trip
     /// `deny_unknown_fields` on release builds.
     fn write_activation_heights_toml(&self) -> Result<Option<PathBuf>, ClientError> {
-        let NetworkType::Regtest(heights) = self.config.network else {
+        let WalletNetwork::Regtest(ValidatorHeights(heights)) = self.config.network else {
             return Ok(None);
         };
+        // Reject rather than silently drop a height the TOML cannot
+        // express — same policy as the zebrad config writer.
+        assert!(
+            heights.nu7().is_none(),
+            "the devtool activation-heights TOML cannot express NU7 \
+             (gated behind zcash_unstable); configured NU7 = {:?}",
+            heights.nu7()
+        );
         let entries = [
             ("overwinter", heights.overwinter()),
             ("sapling", heights.sapling()),
@@ -386,7 +384,7 @@ impl Client for ZcashDevtool {
             config,
         };
 
-        let network_flag = client.network_flag()?;
+        let network_flag = client.network_flag();
         let identity_file = client.identity_file();
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
         let birthday = client.config.birthday.to_string();
@@ -410,9 +408,10 @@ impl Client for ZcashDevtool {
 
         // Regtest `init` requires `--activation-heights <file>`: the
         // devtool no longer bakes regtest heights in, it reads them at
-        // init and persists them in the wallet config. We write the
-        // file from the configured heights (already validated by
-        // `network_flag` to equal `supported_regtest_activation_heights`).
+        // init and persists them in the wallet config. The file is
+        // serialized from validator-derived heights, so the devtool's
+        // schedule matches the chain's by construction (ADR 0003; see
+        // `WalletNetwork::from_validator`).
         let heights_file = client.write_activation_heights_toml()?;
         let heights_path;
         if let Some(path) = &heights_file {
@@ -713,6 +712,84 @@ fn parse_receiver(stdout: &str, pool: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A client whose wallet directory exists but whose `init` never
+    /// ran — enough to exercise the launch-time heights plumbing
+    /// (`network_flag`, `write_activation_heights_toml`) without the
+    /// devtool binary.
+    fn unlaunched_client(config: ZcashDevtoolConfig) -> ZcashDevtool {
+        ZcashDevtool {
+            wallet_dir: tempfile::tempdir().unwrap(),
+            logs_dir: tempfile::tempdir().unwrap(),
+            config,
+        }
+    }
+
+    /// zaino's `ORCHARD_THEN_IRONWOOD_ACTIVATION_HEIGHTS` fixture:
+    /// NU6.3 mid-chain at 6, everything else active by 2. The
+    /// acceptance shape of the arbitrary-heights work (see
+    /// `zaino-ironwood-activation-infra-spec.md`).
+    fn orchard_then_ironwood_heights() -> zingo_consensus::ActivationHeights {
+        zingo_consensus::ActivationHeights::builder()
+            .set_overwinter(Some(1))
+            .set_sapling(Some(1))
+            .set_blossom(Some(1))
+            .set_heartwood(Some(1))
+            .set_canopy(Some(1))
+            .set_nu5(Some(2))
+            .set_nu6(Some(2))
+            .set_nu6_1(Some(2))
+            .set_nu6_2(Some(2))
+            .set_nu6_3(Some(6))
+            .set_nu7(None)
+            .build()
+    }
+
+    /// A non-canonical shape is accepted (the retired equality guard
+    /// must not resurface) and the emitted TOML matches the spec's
+    /// acceptance bytes exactly — this is what the devtool consumes at
+    /// `init`. Constructing `ValidatorHeights` directly is a
+    /// crate-internal privilege used to pin serialization offline;
+    /// external callers can only obtain one from
+    /// [`WalletNetwork::from_validator`].
+    #[test]
+    fn validator_heights_emit_acceptance_toml() {
+        let network = WalletNetwork::Regtest(ValidatorHeights(orchard_then_ironwood_heights()));
+        let client = unlaunched_client(ZcashDevtoolConfig::faucet(network));
+
+        assert_eq!(client.network_flag(), "regtest");
+        let path = client.write_activation_heights_toml().unwrap().unwrap();
+        assert_eq!(
+            std::fs::read_to_string(path).unwrap(),
+            "overwinter = 1\nsapling = 1\nblossom = 1\nheartwood = 1\ncanopy = 1\n\
+             nu5 = 2\nnu6 = 2\nnu6_1 = 2\nnu6_2 = 2\nnu6_3 = 6\n"
+        );
+    }
+
+    /// A `None` height omits the key — the devtool's encoding for an
+    /// upgrade that never activates. Active through NU5 with nothing
+    /// after; the builder's own invariants forbid a gap *below* an
+    /// active upgrade, so a trailing run of absent upgrades is the
+    /// only legal partial shape.
+    #[test]
+    fn absent_heights_omit_toml_keys() {
+        let heights = zingo_consensus::ActivationHeights::builder()
+            .set_overwinter(Some(1))
+            .set_sapling(Some(1))
+            .set_blossom(Some(1))
+            .set_heartwood(Some(1))
+            .set_canopy(Some(1))
+            .set_nu5(Some(2))
+            .build();
+        let network = WalletNetwork::Regtest(ValidatorHeights(heights));
+        let client = unlaunched_client(ZcashDevtoolConfig::faucet(network));
+
+        let path = client.write_activation_heights_toml().unwrap().unwrap();
+        assert_eq!(
+            std::fs::read_to_string(path).unwrap(),
+            "overwinter = 1\nsapling = 1\nblossom = 1\nheartwood = 1\ncanopy = 1\nnu5 = 2\n"
+        );
+    }
 
     /// Shape of devtool `balance --json`: a single line whose keys
     /// match `WalletBalance` field for field, raw zatoshis.

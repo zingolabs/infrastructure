@@ -168,24 +168,6 @@ pub enum ClientError {
         /// Captured stdout that failed to parse
         stdout: String,
     },
-    /// The config requested regtest activation heights different from
-    /// the fixture heights compiled into the client binary.
-    /// zcash-devtool's `regtest_support` feature bakes
-    /// [`crate::validator::regtest_test_activation_heights`] in at
-    /// compile time (transaction construction derives consensus branch
-    /// IDs from them), so the harness rejects any other heights up
-    /// front rather than letting the validator reject the wallet's
-    /// transactions downstream.
-    #[error(
-        "zcash-devtool regtest activation heights are fixed at compile time to {expected:?}; config specifies {configured:?}"
-    )]
-    UnsupportedActivationHeights {
-        /// The heights requested in the client config (boxed to keep
-        /// `Result<_, ClientError>` small — clippy::result_large_err)
-        configured: Box<zingo_consensus::ActivationHeights>,
-        /// The fixture heights the client binary supports
-        expected: Box<zingo_consensus::ActivationHeights>,
-    },
 }
 
 impl LaunchError {
