@@ -46,6 +46,7 @@ allowed_external_types = [
     "zingo_consensus::ActivationHeights",
     "zingo_consensus::ActivationHeightsBuilder",
     "zingo_consensus::MinerPool",
+    "zingo_consensus::NetworkKind",
     "zingo_consensus::NetworkType",
     # rpc_client speaks reqwest at its transport boundary and serde_json in
     # its error type; zebra_rpc's template model is generic over serde
