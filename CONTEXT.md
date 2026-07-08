@@ -15,6 +15,14 @@ A process that consumes a Validator's data and serves the light-client
 gRPC protocol (zainod, or legacy lightwalletd).
 _Avoid_: proxy, server
 
+**Wallet**:
+A light-client process the harness manages alongside the Validator and
+Indexer: restored from a seed, synced through an Indexer, driven to
+send and shield, and queried for balances and addresses. The harness
+actuates every Wallet through one generic interface; each
+implementation lives with its own binary (zcash-devtool, zingo-cli).
+_Avoid_: client (the superseded name), lightclient
+
 **Legacy stack**:
 zcashd (Validator) and lightwalletd (Indexer). Opt-in only, scheduled for
 simultaneous removal; neither is part of the harness's future.

@@ -1,20 +1,21 @@
-//! Module for the structs that represent and manage wallet client processes i.e. zcash-devtool.
+//! The Wallet abstraction: the interface through which the harness
+//! actuates wallets, generically over their implementations.
 //!
-//! Clients are the third kind of process this crate manages, alongside
+//! Wallets are the third kind of process this crate manages, alongside
 //! validators ([`crate::validator`]) and indexers ([`crate::indexer`]).
-//! They differ structurally from both: the managed binary is not a
-//! daemon. Each wallet operation (`init`, `sync`, `send`, …) is a
-//! separate run-to-completion subprocess invocation against a persistent
-//! wallet directory. There is no long-lived child handle to stop or to
-//! probe for readiness; the managed state is the wallet directory
-//! itself, created in a tempdir owned by the client struct and removed
-//! when it drops.
+//! This module defines only the contract — the [`Wallet`] and
+//! [`WalletConfig`] traits and their supporting types. Implementations
+//! live with their binaries: the zcash-devtool wallet is in
+//! [`zcash_devtool`] (in-tree for now), and the zingo-cli wallet is
+//! implemented in the zingolib repository against this trait. The
+//! harness drives whichever implementation the caller names, e.g.
+//! through `LocalNet::launch_wallet::<W>`.
 //!
-//! Clients speak the lightwalletd protocol (gRPC) to an indexer — they
+//! Wallets speak the lightwalletd protocol (gRPC) to an indexer — they
 //! never talk to the validator directly. Launch order is therefore
-//! validator → indexer → client; [`ClientConfig::setup_indexer_connection`]
+//! validator → indexer → wallet; [`WalletConfig::setup_indexer_connection`]
 //! mirrors [`crate::indexer::IndexerConfig::setup_validator_connection`]
-//! for wiring the client to a running indexer.
+//! for wiring the wallet to a running indexer.
 //!
 //! Activation heights are the one exception to "never talk to the
 //! validator": a regtest wallet needs the chain's schedule, the
@@ -23,19 +24,29 @@
 //! on the wallet's behalf, and the type system enforces it — see
 //! [`WalletNetwork`] and [`ValidatorHeights`].
 
-use crate::{error::ClientError, indexer::Indexer};
+use crate::{error::WalletError, indexer::Indexer};
 
 /// Regtest activation heights whose provenance is a query of a running
-/// Validator. The inner value has no public constructor and no public
-/// accessor; the only way to obtain one is
-/// [`WalletNetwork::from_validator`]. A wallet configured with these
-/// heights is therefore guaranteed, at compile time, to have derived
-/// them from the Validator (ADR 0003: the Validator is the single
-/// source of truth for activation heights). Crate-internal tests may
-/// construct the value directly to pin serialization offline, where no
-/// chain exists for the heights to disagree with.
+/// Validator. The inner value has no public constructor; the only way
+/// to obtain one is [`WalletNetwork::from_validator`]. A wallet
+/// configured with these heights is therefore guaranteed, at compile
+/// time, to have derived them from the Validator (ADR 0003: the
+/// Validator is the single source of truth for activation heights).
+/// Crate-internal tests may construct the value directly to pin
+/// serialization offline, where no chain exists for the heights to
+/// disagree with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ValidatorHeights(pub(crate) zingo_consensus::ActivationHeights);
+
+impl ValidatorHeights {
+    /// The schedule the Validator reported. Reading is public because
+    /// every [`Wallet`] implementation must serialize the heights into
+    /// its own binary's configuration; only *construction* is
+    /// restricted, since provenance — not secrecy — is the invariant.
+    pub fn activation_heights(&self) -> zingo_consensus::ActivationHeights {
+        self.0
+    }
+}
 
 /// The network a wallet client is launched against. Unlike
 /// [`zingo_consensus::NetworkType`], the regtest variant cannot carry
@@ -64,15 +75,15 @@ impl WalletNetwork {
     }
 }
 
-/// Can offer specific functionality shared across configuration for all clients.
-pub trait ClientConfig: std::fmt::Debug {
-    /// To receive the connection details of the indexer this client's
+/// Configuration behavior every wallet implementation shares.
+pub trait WalletConfig: std::fmt::Debug {
+    /// To receive the connection details of the indexer this
     /// wallet will sync from and broadcast through.
     fn setup_indexer_connection<I: Indexer>(&mut self, indexer: &I);
 }
 
 /// Which receiver of the wallet's unified address to emit from
-/// [`Client::address`].
+/// [`Wallet::address`].
 ///
 /// A dedicated enum rather than [`zingo_consensus::MinerPool`], which
 /// has no `Unified` variant — the wrong shape for "give me this
@@ -90,46 +101,46 @@ pub enum AddressReceiver {
     Orchard,
 }
 
-/// Functionality for wallet client processes.
+/// The interface through which the harness actuates a wallet.
 ///
 /// The operation set mirrors what wallet integration suites (zaino's in
 /// particular) drive between asserts: sync to tip, send, shield,
 /// per-pool balance, address derivation, and rescan-from-scratch. All
 /// operations run to completion before returning — callers can sequence
 /// `act → mine → wait → assert` without additional synchronization.
-pub trait Client: Sized {
-    /// A config struct for the client.
-    type Config: ClientConfig;
+pub trait Wallet: Sized {
+    /// The configuration for this wallet implementation.
+    type Config: WalletConfig;
 
     /// Create the wallet (restoring from the configured mnemonic and
-    /// birthday) and return the managed client. The configured indexer
+    /// birthday) and return the managed wallet. The configured indexer
     /// must already be serving: wallet initialization fetches the chain
     /// tip and the birthday tree state from it.
     fn launch(config: Self::Config)
-    -> impl std::future::Future<Output = Result<Self, ClientError>>;
+    -> impl std::future::Future<Output = Result<Self, WalletError>>;
 
     /// Scan the chain and sync the wallet to the indexer's tip.
-    fn sync(&self) -> impl std::future::Future<Output = Result<(), ClientError>>;
+    fn sync(&self) -> impl std::future::Future<Output = Result<(), WalletError>>;
 
     /// Send `value_zats` zatoshis to `address` (transparent, sapling or
     /// unified). Returns the txid of the broadcast transaction as a hex
     /// string. The transaction is broadcast but NOT mined; mine a block
-    /// and [`Client::sync`] to confirm it.
+    /// and [`Wallet::sync`] to confirm it.
     fn send(
         &self,
         address: &str,
         value_zats: u64,
-    ) -> impl std::future::Future<Output = Result<String, ClientError>>;
+    ) -> impl std::future::Future<Output = Result<String, WalletError>>;
 
     /// Shield transparent funds (including mature transparent coinbase)
     /// into the orchard pool. Returns the txid of the broadcast
     /// transaction as a hex string.
-    fn shield(&self) -> impl std::future::Future<Output = Result<String, ClientError>>;
+    fn shield(&self) -> impl std::future::Future<Output = Result<String, WalletError>>;
 
-    /// The wallet's view of its balance. Run [`Client::sync`] first;
+    /// The wallet's view of its balance. Run [`Wallet::sync`] first;
     /// this reads the local wallet database without contacting the
     /// indexer.
-    fn balance(&self) -> impl std::future::Future<Output = Result<WalletBalance, ClientError>>;
+    fn balance(&self) -> impl std::future::Future<Output = Result<WalletBalance, WalletError>>;
 
     /// The requested `receiver` of the wallet's unified address, as an
     /// encoded address string. Reads the local wallet database without
@@ -137,29 +148,29 @@ pub trait Client: Sized {
     fn address(
         &self,
         receiver: AddressReceiver,
-    ) -> impl std::future::Future<Output = Result<String, ClientError>>;
+    ) -> impl std::future::Future<Output = Result<String, WalletError>>;
 
     /// The wallet's default unified address. Convenience for
-    /// [`Client::address`] with [`AddressReceiver::Unified`].
-    fn default_address(&self) -> impl std::future::Future<Output = Result<String, ClientError>> {
+    /// [`Wallet::address`] with [`AddressReceiver::Unified`].
+    fn default_address(&self) -> impl std::future::Future<Output = Result<String, WalletError>> {
         self.address(AddressReceiver::Unified)
     }
 
     /// Node/indexer information reported by the configured server.
     /// Contacts the indexer (the analogue of zingolib's `do_info`); a
     /// smoke check that the wallet can reach and talk to its server.
-    fn get_info(&self) -> impl std::future::Future<Output = Result<GetInfo, ClientError>>;
+    fn get_info(&self) -> impl std::future::Future<Output = Result<GetInfo, WalletError>>;
 
     /// Wipe the wallet state and re-restore from the stored mnemonic
     /// and birthday, preserving account metadata. Equivalent to a
-    /// rescan from scratch; [`Client::sync`] afterwards to rebuild.
-    fn rescan(&self) -> impl std::future::Future<Output = Result<(), ClientError>>;
+    /// rescan from scratch; [`Wallet::sync`] afterwards to rebuild.
+    fn rescan(&self) -> impl std::future::Future<Output = Result<(), WalletError>>;
 }
 
-/// Node/indexer information from [`Client::get_info`].
+/// Node/indexer information from [`Wallet::get_info`].
 ///
 /// The field set is a frozen contract with the wallet binary: see
-/// `client::zcash_devtool`'s get-info parser. `chain_tip_height` is the
+/// `wallet::zcash_devtool`'s get-info parser. `chain_tip_height` is the
 /// **server/node tip** the indexer reports, never the wallet's
 /// locally-synced height (which, if ever surfaced, gets its own
 /// explicitly-named field).
@@ -177,7 +188,7 @@ pub struct GetInfo {
 
 /// A wallet balance snapshot, in zatoshis.
 ///
-/// Spendable values are as reported by the client's configured
+/// Spendable values are as reported by the wallet's configured
 /// confirmations policy; immature or unconfirmed funds are included in
 /// `total` but not in the per-pool spendable fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

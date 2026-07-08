@@ -118,12 +118,13 @@ pub enum LaunchError {
 }
 
 /// Errors associated with driving wallet client operations
-/// (run-to-completion subprocess invocations, see [`crate::client`]).
+/// (see [`crate::wallet`]). Shared by every [`crate::wallet::Wallet`]
+/// implementation, so messages name the operation, not one binary.
 #[derive(thiserror::Error, Debug, Clone)]
-pub enum ClientError {
+pub enum WalletError {
     /// The client binary could not be spawned at all
     /// (PATH/`TEST_BINARIES_DIR`/permission problems).
-    #[error("zcash-devtool {operation} failed to spawn: {io_error}")]
+    #[error("wallet {operation} failed to spawn: {io_error}")]
     SpawnFailed {
         /// The wallet operation being attempted
         operation: &'static str,
@@ -132,7 +133,7 @@ pub enum ClientError {
     },
     /// Writing to the child's stdin failed (used by `init`, which
     /// receives the mnemonic on stdin).
-    #[error("zcash-devtool {operation}: writing to child stdin failed: {io_error}")]
+    #[error("wallet {operation}: writing to child stdin failed: {io_error}")]
     StdinWriteFailed {
         /// The wallet operation being attempted
         operation: &'static str,
@@ -141,7 +142,7 @@ pub enum ClientError {
     },
     /// The operation subprocess exited non-zero.
     #[error(
-        "zcash-devtool {operation} failed.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
+        "wallet {operation} failed.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
     )]
     OperationFailed {
         /// The wallet operation being attempted
@@ -158,7 +159,7 @@ pub enum ClientError {
     /// the contract-drift tripwire: it fires when the client binary's
     /// output format changes out from under the harness's parsers.
     #[error(
-        "zcash-devtool {operation} succeeded but its output could not be parsed: {reason}\nStdout: {stdout}"
+        "wallet {operation} succeeded but its output could not be parsed: {reason}\nStdout: {stdout}"
     )]
     UnexpectedOutput {
         /// The wallet operation being attempted

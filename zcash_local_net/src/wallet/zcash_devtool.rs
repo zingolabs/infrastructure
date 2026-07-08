@@ -4,7 +4,7 @@
 //! as a managed subprocess. The binary must be built with
 //! `--features regtest_support` for regtest wallets — stock builds
 //! reject `-n regtest` (the operation fails with "Unsupported network"
-//! captured in [`crate::error::ClientError::OperationFailed`]).
+//! captured in [`crate::error::WalletError::OperationFailed`]).
 //!
 //! Output-shape contract: the parsers in this module (final-line txid,
 //! `balance --json` object, `Default Address:` / `Receiver(<pool>):`
@@ -22,14 +22,14 @@ use tempfile::TempDir;
 use zingo_test_vectors::seeds::{ABANDON_ART_SEED, HOSPITAL_MUSEUM_SEED};
 
 use crate::{
-    client::{
-        AddressReceiver, Client, ClientConfig, GetInfo, ValidatorHeights, WalletBalance,
-        WalletNetwork,
-    },
-    error::ClientError,
+    error::WalletError,
     indexer::Indexer,
     logs::LogsToDir,
     utils::executable_finder::pick_command,
+    wallet::{
+        AddressReceiver, GetInfo, ValidatorHeights, Wallet, WalletBalance, WalletConfig,
+        WalletNetwork,
+    },
 };
 
 const EXECUTABLE_NAME: &str = "zcash-devtool";
@@ -84,7 +84,7 @@ pub fn supported_regtest_activation_heights() -> zingo_consensus::ActivationHeig
 /// The wallet is restored from `mnemonic` at `birthday` and synced
 /// against a lightwalletd-protocol (gRPC) server at
 /// `127.0.0.1:indexer_port` — wire it to a running indexer with
-/// [`ClientConfig::setup_indexer_connection`] or set the port directly.
+/// [`WalletConfig::setup_indexer_connection`] or set the port directly.
 ///
 /// `network` must name the network of the indexer's validator; for
 /// regtest it can only be built from that validator, so agreement is
@@ -148,7 +148,7 @@ impl ZcashDevtoolConfig {
     /// index 1 of this seed as the recipient; `init` restores account
     /// index 0, so addresses differ from the zingolib recipient's.
     /// Tests should obtain addresses from
-    /// [`Client::default_address`] rather than from constants recorded
+    /// [`Wallet::default_address`] rather than from constants recorded
     /// against account 1.
     pub fn recipient(network: WalletNetwork) -> Self {
         Self {
@@ -162,7 +162,7 @@ impl ZcashDevtoolConfig {
     }
 }
 
-impl ClientConfig for ZcashDevtoolConfig {
+impl WalletConfig for ZcashDevtoolConfig {
     fn setup_indexer_connection<I: Indexer>(&mut self, indexer: &I) {
         self.indexer_port = indexer.listen_port();
     }
@@ -232,7 +232,7 @@ impl ZcashDevtool {
     /// `nu7` is intentionally omitted — the devtool's TOML gates that
     /// field behind `zcash_unstable`, so emitting it would trip
     /// `deny_unknown_fields` on release builds.
-    fn write_activation_heights_toml(&self) -> Result<Option<PathBuf>, ClientError> {
+    fn write_activation_heights_toml(&self) -> Result<Option<PathBuf>, WalletError> {
         let WalletNetwork::Regtest(ValidatorHeights(heights)) = self.config.network else {
             return Ok(None);
         };
@@ -265,7 +265,7 @@ impl ZcashDevtool {
             }
         }
         let path = self.wallet_dir.path().join("activation-heights.toml");
-        std::fs::write(&path, body).map_err(|io_error| ClientError::SpawnFailed {
+        std::fs::write(&path, body).map_err(|io_error| WalletError::SpawnFailed {
             operation: "init",
             io_error: format!("writing activation-heights file: {io_error}"),
         })?;
@@ -306,7 +306,7 @@ impl ZcashDevtool {
         operation: &'static str,
         args: &[&str],
         stdin_line: Option<&str>,
-    ) -> Result<std::process::Output, ClientError> {
+    ) -> Result<std::process::Output, WalletError> {
         let mut command = pick_command(EXECUTABLE_NAME, false);
         command
             .arg("wallet")
@@ -323,7 +323,7 @@ impl ZcashDevtool {
 
         let mut handle = command
             .spawn()
-            .map_err(|io_error| ClientError::SpawnFailed {
+            .map_err(|io_error| WalletError::SpawnFailed {
                 operation,
                 io_error: io_error.to_string(),
             })?;
@@ -333,7 +333,7 @@ impl ZcashDevtool {
 
         let output = handle
             .wait_with_output()
-            .map_err(|io_error| ClientError::SpawnFailed {
+            .map_err(|io_error| WalletError::SpawnFailed {
                 operation,
                 io_error: io_error.to_string(),
             })?;
@@ -342,7 +342,7 @@ impl ZcashDevtool {
         if output.status.success() {
             Ok(output)
         } else {
-            Err(ClientError::OperationFailed {
+            Err(WalletError::OperationFailed {
                 operation,
                 exit_status: output.status,
                 stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
@@ -357,10 +357,10 @@ impl ZcashDevtool {
         &self,
         operation: &'static str,
         args: &[&str],
-    ) -> Result<String, ClientError> {
+    ) -> Result<String, WalletError> {
         let output = self.run_wallet_op(operation, args, None).await?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        parse_final_txid(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+        parse_final_txid(&stdout).map_err(|reason| WalletError::UnexpectedOutput {
             operation,
             reason,
             stdout,
@@ -368,10 +368,10 @@ impl ZcashDevtool {
     }
 }
 
-impl Client for ZcashDevtool {
+impl Wallet for ZcashDevtool {
     type Config = ZcashDevtoolConfig;
 
-    async fn launch(config: Self::Config) -> Result<Self, ClientError> {
+    async fn launch(config: Self::Config) -> Result<Self, WalletError> {
         crate::utils::executable_finder::trace_version_and_location(EXECUTABLE_NAME, "--help");
 
         // tempfile failures here are environment errors (no tmpfs
@@ -430,7 +430,7 @@ impl Client for ZcashDevtool {
         Ok(client)
     }
 
-    async fn sync(&self) -> Result<(), ClientError> {
+    async fn sync(&self) -> Result<(), WalletError> {
         self.run_wallet_op(
             "sync",
             &["sync", "-s", &self.server(), "--connection", "direct"],
@@ -440,7 +440,7 @@ impl Client for ZcashDevtool {
         Ok(())
     }
 
-    async fn send(&self, address: &str, value_zats: u64) -> Result<String, ClientError> {
+    async fn send(&self, address: &str, value_zats: u64) -> Result<String, WalletError> {
         let identity_file = self.identity_file();
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
         let value = value_zats.to_string();
@@ -466,7 +466,7 @@ impl Client for ZcashDevtool {
         .await
     }
 
-    async fn shield(&self) -> Result<String, ClientError> {
+    async fn shield(&self) -> Result<String, WalletError> {
         let identity_file = self.identity_file();
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
         self.run_txid_op(
@@ -484,7 +484,7 @@ impl Client for ZcashDevtool {
         .await
     }
 
-    async fn balance(&self) -> Result<WalletBalance, ClientError> {
+    async fn balance(&self) -> Result<WalletBalance, WalletError> {
         let min_confirmations = self.config.min_confirmations.to_string();
         let output = self
             .run_wallet_op(
@@ -499,14 +499,14 @@ impl Client for ZcashDevtool {
             )
             .await?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        parse_balance_json(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+        parse_balance_json(&stdout).map_err(|reason| WalletError::UnexpectedOutput {
             operation: "balance",
             reason,
             stdout,
         })
     }
 
-    async fn address(&self, receiver: AddressReceiver) -> Result<String, ClientError> {
+    async fn address(&self, receiver: AddressReceiver) -> Result<String, WalletError> {
         let flag = match receiver {
             AddressReceiver::Unified => "unified",
             AddressReceiver::Transparent => "transparent",
@@ -529,14 +529,14 @@ impl Client for ZcashDevtool {
             AddressReceiver::Sapling => parse_receiver(&stdout, "sapling"),
             AddressReceiver::Orchard => parse_receiver(&stdout, "orchard"),
         };
-        parsed.map_err(|reason| ClientError::UnexpectedOutput {
+        parsed.map_err(|reason| WalletError::UnexpectedOutput {
             operation: "list-addresses",
             reason,
             stdout,
         })
     }
 
-    async fn get_info(&self) -> Result<GetInfo, ClientError> {
+    async fn get_info(&self) -> Result<GetInfo, WalletError> {
         let output = self
             .run_wallet_op(
                 "get-info",
@@ -545,14 +545,14 @@ impl Client for ZcashDevtool {
             )
             .await?;
         let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
-        parse_getinfo_json(&stdout).map_err(|reason| ClientError::UnexpectedOutput {
+        parse_getinfo_json(&stdout).map_err(|reason| WalletError::UnexpectedOutput {
             operation: "get-info",
             reason,
             stdout,
         })
     }
 
-    async fn rescan(&self) -> Result<(), ClientError> {
+    async fn rescan(&self) -> Result<(), WalletError> {
         let identity_file = self.identity_file();
         let identity = identity_file.to_str().expect("tempdir paths are UTF-8");
         self.run_wallet_op(
@@ -578,18 +578,18 @@ fn write_stdin_line(
     handle: &mut Child,
     operation: &'static str,
     line: &str,
-) -> Result<(), ClientError> {
+) -> Result<(), WalletError> {
     let mut stdin = handle
         .stdin
         .take()
-        .ok_or_else(|| ClientError::StdinWriteFailed {
+        .ok_or_else(|| WalletError::StdinWriteFailed {
             operation,
             io_error: "child stdin was not captured".to_string(),
         })?;
     stdin
         .write_all(line.as_bytes())
         .and_then(|()| stdin.write_all(b"\n"))
-        .map_err(|io_error| ClientError::StdinWriteFailed {
+        .map_err(|io_error| WalletError::StdinWriteFailed {
             operation,
             io_error: io_error.to_string(),
         })
