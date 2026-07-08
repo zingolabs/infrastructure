@@ -112,10 +112,12 @@ pub trait Wallet: Sized {
     /// The configuration for this wallet implementation.
     type Config: WalletConfig;
 
-    /// Create the wallet (restoring from the configured mnemonic and
-    /// birthday) and return the managed wallet. The configured indexer
-    /// must already be serving: wallet initialization fetches the chain
-    /// tip and the birthday tree state from it.
+    /// Create the wallet (restoring from the configured key material —
+    /// a seed phrase, or a viewing key for implementations that support
+    /// watch-only wallets — at the configured birthday) and return the
+    /// managed wallet. The configured indexer must already be serving:
+    /// wallet initialization fetches the chain tip and the birthday
+    /// tree state from it.
     fn launch(config: Self::Config)
     -> impl std::future::Future<Output = Result<Self, WalletError>>;
 
@@ -133,8 +135,9 @@ pub trait Wallet: Sized {
     ) -> impl std::future::Future<Output = Result<String, WalletError>>;
 
     /// Shield transparent funds (including mature transparent coinbase)
-    /// into the orchard pool. Returns the txid of the broadcast
-    /// transaction as a hex string.
+    /// into the newest shielded pool active at the chain tip (the
+    /// ironwood pool from NU6.3 onward; orchard before it). Returns the
+    /// txid of the broadcast transaction as a hex string.
     fn shield(&self) -> impl std::future::Future<Output = Result<String, WalletError>>;
 
     /// The wallet's view of its balance. Run [`Wallet::sync`] first;
