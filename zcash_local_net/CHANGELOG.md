@@ -50,6 +50,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configured NU7 height instead of silently dropping it (the devtool
   TOML gates `nu7` behind `zcash_unstable`), matching the zebrad
   writer's no-silent-drop policy below.
+- **Breaking** — the client layer is now the **Wallet abstraction**: the
+  `client` module is renamed to `wallet`, the `Client`/`ClientConfig`
+  traits to `Wallet`/`WalletConfig`, and `ClientError` to `WalletError`,
+  whose messages now name the operation rather than one binary. The
+  trait is the interface through which the harness actuates any wallet
+  implementation; implementations live with their binaries (the
+  zcash-devtool one remains in-tree for now, and a zingo-cli
+  implementation lands in the zingolib repository — see
+  `zingolib-wallet-impl-spec.md`).
 - **Breaking** — the zebrad regtest config writer now **rejects activation
   heights it cannot express** instead of silently dropping or rewriting
   them: upgrades through Canopy must be `Some(1)` (the emitted config
@@ -87,7 +96,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `zingo_consensus::NetworkKind`: network identity without activation
   heights, with `From<NetworkType>`/`From<&NetworkType>` conversions —
   the config shape for components that must not be told heights.
-- `client::WalletNetwork` and `client::ValidatorHeights`: the network a
+- `LocalNet::launch_wallet::<W>(make_config)`: generic wallet
+  actuation — mints the `WalletNetwork` from the running Validator,
+  wires the Indexer connection, and launches any `Wallet`
+  implementation. `ValidatorHeights::activation_heights()` exposes the
+  reported schedule read-only, because foreign implementations must
+  serialize it into their own binaries' configs; construction remains
+  private to preserve the ADR 0003 provenance guarantee.
+- `wallet::WalletNetwork` and `wallet::ValidatorHeights`: the network a
   wallet is launched against, and regtest activation heights whose
   provenance is a Validator query. `WalletNetwork::from_validator()` is
   the only public constructor of `ValidatorHeights`, which makes ADR

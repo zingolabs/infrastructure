@@ -12,7 +12,7 @@
 //! # List of Managed Processes
 //! - Zebrad
 //! - Zainod
-//! - zcash-devtool (wallet client; per-operation subprocess, see [`crate::client`])
+//! - zcash-devtool (wallet; per-operation subprocess, see [`crate::wallet`])
 //!
 //! # Prerequisites
 //!
@@ -42,7 +42,6 @@
 //! See [`crate::LocalNet`].
 //!
 
-pub mod client;
 pub mod config;
 pub mod error;
 pub mod indexer;
@@ -52,6 +51,7 @@ pub mod process;
 pub mod rpc_client;
 pub mod utils;
 pub mod validator;
+pub mod wallet;
 pub mod zebra_rpc;
 
 mod launch;
@@ -168,6 +168,23 @@ where
             validator_config,
         })
         .await
+    }
+
+    /// Launch a wallet against this network, generically over the
+    /// wallet implementation `W`. The wallet's network is minted from
+    /// the running Validator ([`wallet::WalletNetwork::from_validator`],
+    /// the only source of regtest heights for a wallet config — ADR
+    /// 0003) and its server connection is wired to the Indexer.
+    /// `make_config` is one of the implementation's constructors, e.g.
+    /// `ZcashDevtoolConfig::faucet`.
+    pub async fn launch_wallet<W: wallet::Wallet>(
+        &self,
+        make_config: impl FnOnce(wallet::WalletNetwork) -> W::Config,
+    ) -> Result<W, crate::error::WalletError> {
+        let network = wallet::WalletNetwork::from_validator(self.validator()).await;
+        let mut config = make_config(network);
+        wallet::WalletConfig::setup_indexer_connection(&mut config, self.indexer());
+        W::launch(config).await
     }
 }
 

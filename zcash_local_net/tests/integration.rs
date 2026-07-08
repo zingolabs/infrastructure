@@ -939,18 +939,18 @@ async fn zebrad_regtest_skips_seed_peer_dns() {
 /// zcash-devtool client management: pins the devtool CLI contract
 /// (flags, stdout shapes, regtest activation-height alignment) against
 /// the real binary, per the "behaviour drift from a contract this code
-/// mirrors" rule — the parsers in `client::zcash_devtool` are only
+/// mirrors" rule — the parsers in `wallet::zcash_devtool` are only
 /// trusted because these tests exercise them live.
 ///
 /// Requires `zcash-devtool` (built with `--features regtest_support`)
 /// in `TEST_BINARIES_DIR` or on `PATH`.
 mod devtool_client {
-    use zcash_local_net::client::zcash_devtool::{
-        ZcashDevtool, ZcashDevtoolConfig, supported_regtest_activation_heights,
-    };
-    use zcash_local_net::client::{AddressReceiver, Client, ClientConfig as _, WalletNetwork};
     use zcash_local_net::indexer::zainod::ZainodConfig;
     use zcash_local_net::validator::Validator as _;
+    use zcash_local_net::wallet::zcash_devtool::{
+        ZcashDevtool, ZcashDevtoolConfig, supported_regtest_activation_heights,
+    };
+    use zcash_local_net::wallet::{AddressReceiver, Wallet, WalletNetwork};
     use zingo_test_vectors::{
         REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
     };
@@ -1000,20 +1000,19 @@ mod devtool_client {
         .unwrap()
     }
 
-    /// Launch a devtool wallet wired to the local net's indexer. The
-    /// wallet's network is minted from the running validator
-    /// ([`WalletNetwork::from_validator`]), which is the only way to
-    /// obtain regtest heights for a wallet config (ADR 0003).
-    /// `make_config` is one of the [`ZcashDevtoolConfig`] constructors,
-    /// e.g. `ZcashDevtoolConfig::faucet`.
+    /// Launch a devtool wallet through the harness's generic actuation
+    /// path: `LocalNet::launch_wallet` mints the wallet's network from
+    /// the running validator (ADR 0003) and wires the indexer
+    /// connection, for any `Wallet` implementation — the devtool one
+    /// here. `make_config` is one of the [`ZcashDevtoolConfig`]
+    /// constructors, e.g. `ZcashDevtoolConfig::faucet`.
     async fn launch_client(
         net: &LocalNet<Zebrad, Zainod>,
         make_config: impl FnOnce(WalletNetwork) -> ZcashDevtoolConfig,
     ) -> ZcashDevtool {
-        let network = WalletNetwork::from_validator(net.validator()).await;
-        let mut config = make_config(network);
-        config.setup_indexer_connection(net.indexer());
-        ZcashDevtool::launch(config).await.unwrap()
+        net.launch_wallet::<ZcashDevtool>(make_config)
+            .await
+            .unwrap()
     }
 
     /// Sync the wallet until its view of the chain tip reaches
@@ -1023,7 +1022,7 @@ mod devtool_client {
     async fn sync_to_height(
         client: &ZcashDevtool,
         target_height: u32,
-    ) -> zcash_local_net::client::WalletBalance {
+    ) -> zcash_local_net::wallet::WalletBalance {
         const ATTEMPTS: u32 = 120;
         for _ in 0..ATTEMPTS {
             client.sync().await.unwrap();
@@ -1039,7 +1038,7 @@ mod devtool_client {
     /// The faucet linchpin: devtool's account-0 derivation of the
     /// abandon-art seed must yield the same addresses the validators
     /// mine to, otherwise the "faucet" never sees a reward. Pins every
-    /// receiver of [`Client::address`] against the `zingo_test_vectors`
+    /// receiver of [`Wallet::address`] against the `zingo_test_vectors`
     /// constants — the unified address (== the orchard miner address)
     /// and the bare transparent/sapling receivers — proving the
     /// abandon-art wallet owns the addresses the harness pays.
