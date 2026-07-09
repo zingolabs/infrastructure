@@ -99,8 +99,15 @@ fn parse_sync_marker_height(stripped: &str) -> Result<u32, IndexerSyncError> {
 
 /// Zainod configuration
 ///
-/// If `listen_port` is `None`, a port is allocated from the harness's
-/// partitioned below-ephemeral band (see `network::pick_unused_port`).
+/// If `listen_port` is `None`, the **raw** gRPC listener's port is
+/// allocated from the harness's partitioned below-ephemeral band (see
+/// `network::pick_unused_port`); `Some(N)` pins it. Either way the raw
+/// listener is never published: every accessor returns the address of
+/// the gRPC front proxy (see [`Zainod::port`]). The raw listener keeps
+/// a picked port instead of binding port 0 because zainod binds port 0
+/// happily but never logs the kernel-assigned address (verified
+/// against zainod 0.4.3-ironwood.1), so the harness could not discover
+/// where to point the front.
 ///
 /// The `validator_port` must be specified and the validator process must be running before launching Zainod.
 ///
@@ -121,6 +128,11 @@ pub struct ZainodConfig {
     /// regtest heights and mismatched schedules kill its sync loop
     /// with `InvalidData("Block commitment could not be computed")`.
     pub network: NetworkKind,
+    /// Observer registered on the gRPC front proxy before the backend
+    /// starts, so it sees every byte of the backend's networked
+    /// lifetime — the launch-time listener probe included. `None`
+    /// (the default) is a passthrough front with no observer.
+    pub grpc_front_observer: Option<std::sync::Arc<dyn crate::front::FrontObserver>>,
 }
 
 impl Default for ZainodConfig {
@@ -130,6 +142,7 @@ impl Default for ZainodConfig {
             validator_port: 0,
             chain_cache: None,
             network: NetworkKind::Regtest,
+            grpc_front_observer: None,
         }
     }
 }
@@ -149,8 +162,12 @@ impl IndexerConfig for ZainodConfig {
 pub struct Zainod {
     /// Child process handle
     handle: Child,
-    /// RPC port
-    port: u16,
+    /// gRPC front proxy — the canonical public endpoint of the gRPC
+    /// listener, bound before the process started.
+    grpc_front: crate::front::Front,
+    /// Raw gRPC listener address. What the front dials; never
+    /// published.
+    raw_grpc_listen_addr: std::net::SocketAddr,
     /// Logs directory
     logs_dir: TempDir,
     /// Config directory
@@ -164,10 +181,14 @@ crate::macros::ref_getters!(Zainod {
     config_dir: TempDir,
 });
 
-crate::macros::copy_getters!(Zainod {
-    /// RPC port.
-    port: u16,
-});
+impl Zainod {
+    /// The public gRPC port. **This is the port of the front proxy**,
+    /// not of zainod's own listener: the raw endpoint is a private
+    /// detail of launch plumbing and is never published.
+    pub fn port(&self) -> u16 {
+        self.grpc_front.public_port()
+    }
+}
 
 impl LogsToDir for Zainod {
     fn logs_dir(&self) -> &TempDir {
@@ -216,32 +237,41 @@ impl Zainod {
             .join("\n"))
     }
 
-    /// Read the whole stdout log. Lossy UTF-8 conversion is safe here:
-    /// the file is scanned for an ASCII marker and ASCII digits, and a
-    /// replacement character inside a marker line trips
-    /// [`IndexerSyncError::SyncMarkerDrift`] loudly instead of
-    /// corrupting a height.
+    /// Read the whole stdout log through the backend abstraction's
+    /// log-access surface, converting a read failure into the loud
+    /// convergence error.
     fn read_stdout_log(&self) -> Result<String, IndexerSyncError> {
-        let path = self.logs_dir.path().join(crate::logs::STDOUT_LOG);
-        match std::fs::read(&path) {
-            Ok(bytes) => Ok(String::from_utf8_lossy(&bytes).into_owned()),
-            Err(io_error) => Err(IndexerSyncError::LogUnreadable {
-                path,
+        crate::backend::Backend::log_text(self).map_err(|io_error| {
+            IndexerSyncError::LogUnreadable {
+                path: self.logs_dir.path().join(crate::logs::STDOUT_LOG),
                 io_error: io_error.to_string(),
-            }),
-        }
+            }
+        })
     }
 
-    /// Single launch attempt: pick a port, write the config, spawn
-    /// zainod, wait for the readiness indicator. Wrapped by
-    /// `Process::launch` in a bounded retry-on-port-collision loop
-    /// (see `launch::with_retry_on_collision`); each retry calls this
+    /// Single launch attempt: bind the gRPC front, pick a raw port,
+    /// write the config, spawn zainod, wait for the readiness
+    /// indicator, point the front at the raw gRPC endpoint, then probe
+    /// the listener *through the front*. Wrapped by `Process::launch`
+    /// in a bounded retry-on-port-collision loop (see
+    /// `launch::with_retry_on_collision`); each retry calls this
     /// fresh with a config whose port pin has been cleared so the pick
     /// re-rolls via `network::pick_unused_port`.
     async fn launch_once(config: ZainodConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
 
+        // The front binds before the backend starts: its public
+        // address exists for the backend's entire networked lifetime,
+        // and the OS assigns it atomically on 127.0.0.1:0 — no
+        // check-then-bind race exists on the public surface.
+        let grpc_front = crate::front::Front::bind(config.grpc_front_observer.clone())
+            .expect("the gRPC front should bind on 127.0.0.1:0");
+
+        // The raw listener keeps a picked port: zainod binds port 0
+        // happily but never logs the kernel-assigned address, so a
+        // kernel-assigned raw port would be undiscoverable (see the
+        // `ZainodConfig` docs).
         let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
 
@@ -269,7 +299,7 @@ impl Zainod {
             config_file_path.to_str().expect("should be valid UTF-8"),
         ]);
 
-        let mut handle = launch::spawn_and_wait(
+        let handle = launch::spawn_and_wait(
             ProcessId::Zainod,
             &mut command,
             &logs_dir,
@@ -280,22 +310,61 @@ impl Zainod {
         )
         .await?;
 
-        // Verify the gRPC listener is actually accepting connections.
-        // Closes failure mode #4: if Zaino logs "started successfully"
-        // before completing the gRPC bind, AddrInUse on a squatted
-        // port would otherwise let `launch::wait` return Ok with the
-        // picked port stored on a defunct child. The probe's phase-1
-        // `try_wait` polling catches the child crashing on AddrInUse
-        // before its phase-2 TCP probe is fooled by the squatter's
-        // accept queue.
-        launch::probe_listener(ProcessId::Zainod, &mut handle, port, &logs_dir, None).await?;
-
-        Ok(Zainod {
+        let mut zainod = Zainod {
             handle,
-            port,
+            grpc_front,
+            raw_grpc_listen_addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
             logs_dir,
             config_dir,
-        })
+        };
+
+        // Point the front at the raw gRPC endpoint, discovered through
+        // the backend abstraction: connections the front has been
+        // holding proceed from here.
+        zainod
+            .grpc_front
+            .point_at(&zainod, ZAINOD_GRPC_LISTENER_INDEX);
+
+        // Verify the gRPC listener is actually accepting connections —
+        // probed through the front, the same public address every
+        // client uses. Closes failure mode #4: if Zaino logs "started
+        // successfully" before completing the gRPC bind, AddrInUse on
+        // a squatted port would otherwise let `launch::wait` return Ok
+        // with the picked port stored on a defunct child. The probe's
+        // phase-1 `try_wait` polling catches the child crashing on
+        // AddrInUse before its phase-2 TCP probe is fooled by the
+        // squatter's accept queue.
+        let front_port = zainod.port();
+        launch::probe_listener(
+            ProcessId::Zainod,
+            &mut zainod.handle,
+            front_port,
+            &zainod.logs_dir,
+            None,
+        )
+        .await?;
+
+        Ok(zainod)
+    }
+}
+
+/// Index of the gRPC endpoint in [`Zainod`]'s declared listener order
+/// (`crate::backend::Backend::listener_endpoints`). The gRPC listener
+/// is the only one zainod exposes, so it is the only entry.
+const ZAINOD_GRPC_LISTENER_INDEX: usize = 0;
+
+impl crate::backend::Backend for Zainod {
+    fn log_text(&self) -> std::io::Result<String> {
+        // Lossy UTF-8 conversion is safe here: the text is scanned for
+        // ASCII markers and ASCII digits, and a replacement character
+        // inside a marker line trips the callers' drift tripwires
+        // loudly instead of corrupting a parse.
+        let path = self.logs_dir.path().join(crate::logs::STDOUT_LOG);
+        Ok(String::from_utf8_lossy(&std::fs::read(path)?).into_owned())
+    }
+
+    fn listener_endpoints(&self) -> Vec<std::net::SocketAddr> {
+        vec![self.raw_grpc_listen_addr]
     }
 }
 
@@ -328,7 +397,16 @@ impl Process for Zainod {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zainod couldn't be killed");
+        match self.handle.kill() {
+            Ok(()) => {}
+            // `kill` returns `InvalidInput` when the child has already
+            // exited and been reaped — e.g. by `probe_listener`'s
+            // `try_wait` on a failed launch, after which the assembled
+            // `Zainod` is dropped. An already-stopped process is what
+            // stop() wants, not a panic.
+            Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => {}
+            Err(e) => panic!("zainod couldn't be killed: {e}"),
+        }
     }
 
     fn print_all(&self) {
@@ -338,8 +416,10 @@ impl Process for Zainod {
 }
 
 impl Indexer for Zainod {
+    /// The public gRPC port — the front proxy's port, never the raw
+    /// listener's (see [`Zainod::port`]).
     fn listen_port(&self) -> u16 {
-        self.port
+        self.port()
     }
 }
 

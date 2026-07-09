@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking, read this one** — **every published port and address
+  accessor of the core stack now returns a front proxy, not the
+  process's own listener.** A transparent TCP relay (the *front*)
+  binds `127.0.0.1:0` before each backend starts and becomes the
+  listener's canonical public endpoint: `Zebrad::rpc_listen_port()`,
+  `Zebrad::rpc_listen_addr()` (new), `Validator::get_port()`,
+  `Zainod::port()`, and `Indexer::listen_port()` all return the
+  front's endpoint, and the raw listener endpoints are no longer
+  published at all. Everything that dials through those accessors —
+  wallet clients, the Indexer's validator connection, and the
+  harness's *own launch-time clients* (the readiness probes and the
+  regtest launch-mine) — crosses the front for the backend's entire
+  networked lifespan, by construction. Callers of
+  `LocalNet::launch_from_two_configs` and `LocalNet::from_parts` keep
+  working unchanged from their point of view; the front is invisible
+  unless an observer is registered. Each front relays on its own
+  dedicated thread with a private tokio runtime, so it stays live
+  even while the consumer's async runtime is blocked — this crate's
+  own wallet layer synchronously waits on `zcash-devtool` subprocesses
+  whose traffic crosses the fronts, which would deadlock a
+  runtime-hosted relay. Anyone who assumed the accessor
+  port was the port in the process's own config file (for example by
+  grepping a zebrad.toml) is now wrong — that raw port is a private
+  detail of launch plumbing.
+- **Breaking** — zebrad's unpinned listeners now bind **port 0**: the
+  kernel assigns each port atomically at bind time and the harness
+  reads the assigned addresses back out of zebrad's launch log (the
+  `Opened … endpoint at` bind reports, a log contract pinned by unit
+  tests and exercised by every live launch; a launch whose reports
+  cannot be parsed fails loudly with the new
+  `LaunchError::ListenerEndpointsUndiscovered`). `pick_unused_port`
+  is therefore no longer used for any zebrad listener. It is
+  **retained for zainod's raw gRPC listener**: zainod binds port 0
+  happily but never logs the kernel-assigned address (verified
+  empirically against zainod 0.4.3-ironwood.1), leaving the harness
+  no way to discover where to point the front. The
+  retry-on-collision machinery remains as the backstop for
+  explicitly pinned ports, the only place a bind collision can still
+  occur.
 - `network::pick_unused_port` no longer asks the kernel for an
   ephemeral port. Ports come from a fixed band below every default
   ephemeral range (16384–32767), partitioned into per-process slices by
@@ -72,6 +111,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Front observers: `front::FrontObserver`, `front::ChunkEvent`, and
+  `front::Direction`, registered through the new
+  `ZebradConfig::rpc_front_observer` and
+  `ZainodConfig::grpc_front_observer` fields. An observer registers
+  *before its backend starts* and receives one event per relayed
+  chunk (timestamp, connection id, direction, byte count, payload),
+  so it sees the launch window — the readiness probes and the regtest
+  launch-mine — that no external tap could previously reach. The
+  default is passthrough: no observer, no behavioral difference.
+  Consumers that used to hand-wire recording relays (the shape the
+  `from_parts` regression test demonstrates) can register an observer
+  instead. Pinned by the
+  `observer_on_zebrad_front_captures_the_launch_mine` integration
+  test, which asserts the launch-mine's `submitblock` call appears in
+  an observer's record before `launch` returns.
+- A crate-internal backend abstraction (`backend::Backend`): the
+  start/stop lifecycle (via `Process`), log access for readiness
+  parsing, and the backend's raw listener endpoints as
+  `std::net::SocketAddr` — never bare ports. The front and observer
+  machinery depends only on this trait, so a future container backend
+  whose endpoints are published (possibly non-loopback) host mappings
+  can implement it without touching the front layer. The trait is
+  deliberately not public: exporting raw endpoints would reopen the
+  hole the fronts close.
+- A concurrent-launch regression test
+  (`concurrent_zebrad_launches_are_collision_free`): six zebrads
+  launch concurrently in one process and every published endpoint
+  must be distinct — the `:0` guarantee on the public surface.
 - **Breaking** — NU6.3 support, active by default. The zebrad config
   writer emits `"NU6.3" = <height>` when a height is configured,
   `activation_heights_from_getblockchaininfo` reads `"NU6.3"` back,

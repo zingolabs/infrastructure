@@ -666,6 +666,127 @@ async fn from_parts_assembles_net_with_interposed_validator_hop() {
     relay.abort();
 }
 
+/// The decisive front-proxy test: an observer registered on the
+/// zebrad JSON-RPC front *before launch* captures the regtest
+/// launch-mine — traffic issued inside `Process::launch`, dialed
+/// before `launch` returns, which no external tap could previously
+/// observe because the internal client already knew the backend's
+/// real address.
+///
+/// The record is snapshotted immediately after `launch` returns and
+/// before this test issues any traffic of its own, so everything
+/// asserted on below crossed the front during the launch window. The
+/// launch-mine drives `getblocktemplate` + `submitblock` round trips
+/// (`submitblock` occurs *only* in the mine — the readiness probe
+/// polls `getblocktemplate` alone), so a `submitblock` request in the
+/// client-to-backend record proves the previously unobservable window
+/// is now observed.
+#[tokio::test]
+async fn observer_on_zebrad_front_captures_the_launch_mine() {
+    use std::sync::{Arc, Mutex};
+    use zcash_local_net::front::{ChunkEvent, Direction, FrontObserver};
+
+    #[derive(Default)]
+    struct Recorder {
+        chunks: Mutex<Vec<ChunkEvent>>,
+    }
+    impl FrontObserver for Recorder {
+        fn on_chunk(&self, event: &ChunkEvent) {
+            self.chunks
+                .lock()
+                .expect("recorder poisoned")
+                .push(event.clone());
+        }
+    }
+
+    init_tracing();
+
+    let recorder = Arc::new(Recorder::default());
+    let config = ZebradConfig {
+        rpc_front_observer: Some(recorder.clone()),
+        ..Default::default()
+    };
+    let zebrad = Zebrad::launch(config).await.expect("zebrad launch");
+
+    // Snapshot before issuing any post-launch traffic: every chunk in
+    // here was relayed while `Process::launch` was still running.
+    let launch_window: Vec<ChunkEvent> = recorder.chunks.lock().expect("recorder poisoned").clone();
+
+    assert!(
+        !launch_window.is_empty(),
+        "launch completed without any traffic crossing the front, \
+         so the internal launch clients cannot be using the front"
+    );
+    let requests: String = launch_window
+        .iter()
+        .filter(|event| event.direction == Direction::ToBackend)
+        .map(|event| String::from_utf8_lossy(&event.payload).into_owned())
+        .collect();
+    assert!(
+        requests.contains("submitblock"),
+        "the launch-mine's submitblock call is missing from the observer \
+         record; captured launch-window requests:\n{requests}"
+    );
+    assert!(
+        requests.contains("getblocktemplate"),
+        "the launch-time getblocktemplate calls (readiness probe and \
+         template fetch) are missing from the observer record"
+    );
+    assert!(
+        launch_window
+            .iter()
+            .any(|event| event.direction == Direction::ToClient && event.byte_count() > 0),
+        "no backend responses were observed crossing the front"
+    );
+
+    // The observer stays registered for the backend's whole lifespan:
+    // post-launch traffic lands in the same record.
+    zebrad.generate_blocks(1).await.expect("post-launch mine");
+    let total_chunks = recorder.chunks.lock().expect("recorder poisoned").len();
+    assert!(
+        total_chunks > launch_window.len(),
+        "post-launch traffic did not cross the front"
+    );
+}
+
+/// The `:0` guarantee: many concurrent launches produce no public-port
+/// collision, because every public port is bound by the front on
+/// `127.0.0.1:0` — assigned atomically by the kernel — before the
+/// backend starts. Six zebrads launch concurrently in one process;
+/// all must come up, and every public JSON-RPC address must be
+/// distinct.
+#[tokio::test(flavor = "multi_thread")]
+async fn concurrent_zebrad_launches_are_collision_free() {
+    init_tracing();
+
+    const LAUNCHES: usize = 6;
+    let mut launches = Vec::with_capacity(LAUNCHES);
+    for _ in 0..LAUNCHES {
+        launches.push(tokio::spawn(Zebrad::launch_default()));
+    }
+
+    let mut zebrads = Vec::with_capacity(LAUNCHES);
+    for (n, launch) in launches.into_iter().enumerate() {
+        let zebrad = launch
+            .await
+            .expect("launch task panicked")
+            .unwrap_or_else(|e| panic!("concurrent zebrad launch {n} failed: {e:?}"));
+        zebrads.push(zebrad);
+    }
+
+    let mut public_ports = std::collections::HashSet::new();
+    for zebrad in &zebrads {
+        assert!(
+            public_ports.insert(zebrad.rpc_listen_port()),
+            "two concurrent launches published the same public port \
+             {} — the :0 guarantee is broken",
+            zebrad.rpc_listen_port()
+        );
+        // Each front must actually front a live validator.
+        assert!(zebrad.get_chain_height().await >= 1);
+    }
+}
+
 #[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {
@@ -716,11 +837,13 @@ async fn generate_zebrad_large_chain_cache() {
 /// through the process's config, and calls the real `*::launch`.
 /// `launch::with_retry_on_collision` should detect the AddrInUse on
 /// the first attempt, clear the process's port pins (so the next
-/// pick re-rolls fresh ephemerals), and succeed on a subsequent
-/// attempt with a port that does not collide with the squatter. The
-/// `assert_ne!` confirms the recovered port differs from the pinned
-/// one — i.e., that retry actually re-rolled rather than producing a
-/// same-port success by accident.
+/// attempt binds fresh, uncollided listeners), and succeed on a
+/// subsequent attempt. Launch success *is* the recovery proof. The
+/// `assert_ne!` additionally confirms the published port differs from
+/// the squatted one; under the front-proxy inversion the published
+/// port is the front's (kernel-assigned on `127.0.0.1:0`), so the
+/// assertion holds by construction and the load-bearing check is the
+/// successful launch itself.
 ///
 /// **Why four tests.** The race is structural — a single test would
 /// suffice as a regression marker. Four tests discriminate among
@@ -852,10 +975,11 @@ mod launch_recovers_from_rpc_port_collision {
     ///   3. Funnel the launch future through `diagnose`, which
     ///      produces a `REGRESSION-MARKER` panic on failure or
     ///      returns the launched handle on success.
-    ///   4. Assert (via `extract_port`) that the recovered port is
-    ///      different from the squatted one — i.e., that retry
-    ///      actually re-rolled rather than producing a same-port
-    ///      success by accident.
+    ///   4. Assert (via `extract_port`) that the published port is
+    ///      different from the squatted one. Since the accessors
+    ///      publish the front's kernel-assigned port, this holds by
+    ///      construction; the recovery proof is the successful launch
+    ///      in step 3.
     ///
     /// The squatter is held until after the assertion so the bind
     /// stays in effect for the entire collision/retry sequence, then

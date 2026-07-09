@@ -44,6 +44,7 @@
 
 pub mod config;
 pub mod error;
+pub mod front;
 pub mod indexer;
 pub mod logs;
 pub mod network;
@@ -54,6 +55,7 @@ pub mod validator;
 pub mod wallet;
 pub mod zebra_rpc;
 
+mod backend;
 mod launch;
 mod macros;
 mod poll;

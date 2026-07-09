@@ -27,7 +27,12 @@ macro_rules! ref_getters {
 pub(crate) use ref_getters;
 
 /// `pub fn field(&self) -> Type { self.field }` for each listed `Copy`
-/// field, with the given doc comment.
+/// field, with the given doc comment. Only the legacy-stack processes
+/// still store publishable `Copy` port fields — the core stack's port
+/// accessors return their front proxies' ports and are written by
+/// hand — so the macro is gated with its last users and dies with
+/// them.
+#[cfg(feature = "legacy-stack")]
 macro_rules! copy_getters {
     ($ty:ty { $($(#[$doc:meta])* $field:ident: $ret:ty),+ $(,)? }) => {
         impl $ty {
@@ -40,6 +45,7 @@ macro_rules! copy_getters {
         }
     };
 }
+#[cfg(feature = "legacy-stack")]
 pub(crate) use copy_getters;
 
 /// `impl Drop` delegating to `Process::stop` for each listed process

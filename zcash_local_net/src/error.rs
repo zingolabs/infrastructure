@@ -65,6 +65,25 @@ pub enum LaunchError {
         /// Additional log content if applicable
         additional_log: Option<String>,
     },
+    /// The launch log never reported a bound address for every
+    /// configured listener within the discovery budget, or a bind
+    /// report was present but its address did not parse (log-contract
+    /// drift). Unpinned listeners bind port 0, so the launch log is
+    /// the only place their kernel-assigned addresses appear; a launch
+    /// whose raw addresses cannot be discovered cannot be fronted and
+    /// must fail loudly with the evidence.
+    #[error(
+        "{process_name} raw listener endpoints could not be discovered from the launch log: {detail}\nStdout: {stdout}"
+    )]
+    ListenerEndpointsUndiscovered {
+        /// Process name
+        process_name: String,
+        /// Which listener reports were missing, or the offending line
+        /// when a report was present but unparseable.
+        detail: String,
+        /// Captured stdout at the time discovery gave up.
+        stdout: String,
+    },
     /// RPC endpoint did not respond within the readiness budget
     #[error(
         "{process_name} RPC endpoint at {address} did not respond within {timeout:?}: {last_error}"
@@ -269,6 +288,10 @@ impl LaunchError {
                 }
                 combined
             }
+            // Discovery failures carry stdout only: the retry helper's
+            // signature scan must still see a pinned-port bind error
+            // that surfaced after `launch::wait` returned.
+            Self::ListenerEndpointsUndiscovered { stdout, .. } => stdout.clone(),
             Self::RpcReadinessTimeout { .. } => String::new(),
             #[cfg(feature = "legacy-stack")]
             Self::UnsupportedZcashdCapability { .. } | Self::CapabilityProbeFailed { .. } => {

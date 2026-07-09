@@ -57,6 +57,25 @@ other shape is configured on the Validator alone; every other component
 receives [[Validator heights]].
 _Avoid_: all-at-2 (informal), custom heights, partial activation
 
+**Front**:
+The transparent TCP relay that is the canonical public endpoint of one
+Backend listener. It binds `127.0.0.1:0` before the Backend starts,
+every published port and address accessor returns it, and the
+Backend's real endpoint is never published — so all clients, the
+harness's own launch-time clients included, cross the Front for the
+Backend's entire networked lifetime. A Front carries at most one
+registered observer; with none it is pure passthrough.
+_Avoid_: proxy (bare), tap (the observer is the tap; the Front is the
+endpoint)
+
+**Backend**:
+A managed network service as the Front machinery sees it: start/stop
+lifecycle, log access for readiness parsing, and — once ready — raw
+listener endpoints as socket addresses. Processes are the only
+implementation today; the contract deliberately fits a future
+container whose endpoints are published host mappings.
+_Avoid_: process (when the abstraction is meant), node
+
 **Indexer convergence**:
 The moment the Indexer's view of the chain includes the Validator's
 tip. Mining returns as soon as the Validator has the blocks; the
