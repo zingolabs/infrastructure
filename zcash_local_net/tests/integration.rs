@@ -560,6 +560,112 @@ async fn zainod_converges_to_validator_tip_after_generate_blocks() {
     );
 }
 
+/// Pins the `LocalNet::from_parts` assembly seam end to end: the
+/// caller launches the Validator, interposes a minimal in-test TCP
+/// relay in front of its JSON-RPC port, launches the Indexer pointed
+/// at the relay, and assembles the net from the running parts.
+///
+/// Indexer convergence proves the assembled net behaves like a
+/// launched one, and the relay's nonzero byte count proves zainod
+/// really reached zebrad through the interposed hop — the seam
+/// zingolib's link-tap observability needs. Dropping the net at the
+/// end exercises the existing `Drop` path, which stops both processes.
+#[tokio::test]
+async fn from_parts_assembles_net_with_interposed_validator_hop() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+    use zcash_local_net::indexer::zainod::ZainodConfig;
+
+    /// Copy bytes one way between relay stream halves, adding each
+    /// chunk to `counter` as it flows so long-lived connections are
+    /// counted without waiting for close.
+    async fn pump(
+        mut reader: tokio::net::tcp::OwnedReadHalf,
+        mut writer: tokio::net::tcp::OwnedWriteHalf,
+        counter: Arc<AtomicU64>,
+    ) {
+        let mut buf = [0u8; 8192];
+        loop {
+            match reader.read(&mut buf).await {
+                Ok(0) | Err(_) => break,
+                Ok(n) => {
+                    if writer.write_all(&buf[..n]).await.is_err() {
+                        break;
+                    }
+                    counter.fetch_add(n as u64, Ordering::Relaxed);
+                }
+            }
+        }
+        // Propagate this direction's EOF to the peer; the connection is
+        // over either way, so a shutdown error carries no information.
+        let _ = writer.shutdown().await;
+    }
+
+    init_tracing();
+
+    // Caller contract step 1: launch the Validator first.
+    let zebrad = Zebrad::launch(ZebradConfig::default()).await.unwrap();
+    let validator_port = zebrad.rpc_listen_port();
+
+    // The interposed hop: a plain TCP relay on an ephemeral port
+    // forwarding to zebrad's JSON-RPC port, counting relayed bytes.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let relay_port = listener.local_addr().unwrap().port();
+    let relayed_bytes = Arc::new(AtomicU64::new(0));
+    let accept_counter = relayed_bytes.clone();
+    let relay = tokio::spawn(async move {
+        while let Ok((inbound, _)) = listener.accept().await {
+            let counter = accept_counter.clone();
+            tokio::spawn(async move {
+                let Ok(outbound) =
+                    tokio::net::TcpStream::connect(("127.0.0.1", validator_port)).await
+                else {
+                    return;
+                };
+                let (inbound_read, inbound_write) = inbound.into_split();
+                let (outbound_read, outbound_write) = outbound.into_split();
+                tokio::join!(
+                    pump(inbound_read, outbound_write, counter.clone()),
+                    pump(outbound_read, inbound_write, counter),
+                );
+            });
+        }
+    });
+
+    // Caller contract step 2: wire the Indexer's validator connection
+    // by hand — to the relay, not to zebrad — and launch it.
+    let zainod = Zainod::launch(ZainodConfig {
+        validator_port: relay_port,
+        ..Default::default()
+    })
+    .await
+    .unwrap();
+
+    // Caller contract step 3: assemble. The net now owns both
+    // processes; its Drop stops them.
+    let net = LocalNet::from_parts(zebrad, zainod);
+    net.generate_blocks_converged(2).await.unwrap();
+
+    let target = net.validator().get_chain_height().await;
+    let logged = net.indexer().logged_sync_height().unwrap();
+    assert!(
+        logged.is_some_and(|height| height >= target),
+        "barrier returned but the indexer's logged height is {logged:?}, validator tip {target}"
+    );
+
+    let relayed = relayed_bytes.load(Ordering::Relaxed);
+    assert!(
+        relayed > 0,
+        "the indexer converged without any bytes crossing the interposed relay, \
+         so zainod cannot have been speaking to zebrad through it"
+    );
+
+    drop(net);
+    relay.abort();
+}
+
 #[cfg(feature = "legacy-stack")]
 #[tokio::test]
 async fn launch_localnet_lightwalletd_zcashd() {

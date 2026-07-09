@@ -156,6 +156,25 @@ where
         &mut self.validator
     }
 
+    /// Assemble a `LocalNet` from processes the caller launched and
+    /// wired itself, so the caller can interpose anything — for
+    /// example a recording proxy — between the Indexer and the
+    /// Validator.
+    ///
+    /// The caller owns the launch ordering and the wiring. Launch the
+    /// Validator first. Set the indexer config's validator connection
+    /// yourself: point it at a proxy (for zainod,
+    /// [`indexer::zainod::ZainodConfig::validator_port`] is `pub`), or
+    /// call [`IndexerConfig::setup_validator_connection`] when no
+    /// interposition is wanted. Launch the Indexer, then assemble.
+    ///
+    /// Dropping the assembled `LocalNet` stops both processes, exactly
+    /// as with [`Self::launch_from_two_configs`], so the caller must
+    /// hand over ownership here and must not stop them independently.
+    pub fn from_parts(validator: V, indexer: I) -> Self {
+        LocalNet { indexer, validator }
+    }
+
     /// Briskly create a local net from validator config and indexer config.
     /// # Errors
     /// Returns `LaunchError` if a sub process fails to launch.

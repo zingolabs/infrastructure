@@ -135,6 +135,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failure is loud and precise by design — unreadable log, drifted log
   format, and timeout each surface their own `IndexerSyncError`
   variant carrying the evidence, never a silent hang.
+- `LocalNet::from_parts(validator, indexer)`: assemble a `LocalNet`
+  from processes the caller launched and wired itself, so anything —
+  for example a recording proxy — can be interposed on the
+  Indexer→Validator hop. The caller owns the launch ordering
+  (Validator first) and the indexer config's validator connection;
+  dropping the assembled net stops both processes, exactly as with
+  `launch_from_two_configs`, whose behavior is unchanged. A regression
+  test launches zebrad, interposes an in-test TCP relay in front of
+  its JSON-RPC port, launches zainod against the relay, and proves
+  Indexer convergence with nonzero bytes crossing the relay.
 
 ## [0.7.0] - 2026-07-03
 
