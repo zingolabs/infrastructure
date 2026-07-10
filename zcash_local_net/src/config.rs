@@ -1,38 +1,57 @@
 //! Module for configuring processes and writing configuration files
 
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use zingo_consensus::{ActivationHeights, NetworkType};
+#[cfg(feature = "legacy-stack")]
+use zingo_consensus::ActivationHeights;
+use zingo_consensus::{NetworkKind, NetworkType};
 
 /// Convert `NetworkKind` to its config string representation
-fn network_type_to_string(network: NetworkType) -> &'static str {
+fn network_kind_to_string(network: NetworkKind) -> &'static str {
     match network {
-        NetworkType::Mainnet => "Mainnet",
-        NetworkType::Testnet => "Testnet",
-        NetworkType::Regtest(_) => "Regtest",
+        NetworkKind::Mainnet => "Mainnet",
+        NetworkKind::Testnet => "Testnet",
+        NetworkKind::Regtest => "Regtest",
     }
 }
 
 /// Used in subtree roots tests in `zaino_testutils`.  Fix later.
+#[cfg(feature = "legacy-stack")]
 pub const ZCASHD_FILENAME: &str = "zcash.conf";
 pub(crate) const ZEBRAD_FILENAME: &str = "zebrad.toml";
 pub(crate) const ZAINOD_FILENAME: &str = "zindexer.toml";
+#[cfg(feature = "legacy-stack")]
 pub(crate) const LIGHTWALLETD_FILENAME: &str = "lightwalletd.yml";
+
+/// Create `filename` inside `config_dir` with `contents`, returning the
+/// file's path. The single write path for every process config file.
+fn write_config_file(
+    config_dir: &Path,
+    filename: &str,
+    contents: &str,
+) -> std::io::Result<PathBuf> {
+    let config_file_path = config_dir.join(filename);
+    let mut config_file = File::create(&config_file_path)?;
+    config_file.write_all(contents.as_bytes())?;
+    config_file.flush()?;
+    Ok(config_file_path)
+}
 
 /// Writes the Zcashd config file to the specified config directory.
 /// Returns the path to the config file.
+///
+/// Doubles as the "compatibility conf" writer: zebrad produces one of
+/// these purely so lightwalletd can discover its backend, so the
+/// function lives and dies with the legacy stack.
+#[cfg(feature = "legacy-stack")]
 pub(crate) fn write_zcashd_config(
     config_dir: &Path,
     rpc_port: u16,
     activation_heights: ActivationHeights,
     miner_address: Option<&str>,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = config_dir.join(ZCASHD_FILENAME);
-    let file = File::create(config_file_path.clone())?;
-    let mut config_file = BufWriter::new(file);
-
     let overwinter_activation_height = activation_heights
         .overwinter()
         .expect("overwinter activation height must be specified");
@@ -108,10 +127,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
         ));
     }
 
-    config_file.write_all(cfg.as_bytes())?;
-    config_file.flush()?;
-
-    Ok(config_file_path)
+    write_config_file(config_dir, ZCASHD_FILENAME, &cfg)
 }
 
 /// Writes the Zebrad config file to the specified config directory.
@@ -132,10 +148,8 @@ pub(crate) fn write_zebrad_config(
     post_nu6_funding_streams: Option<&crate::validator::FundingStreams>,
     min_connected_peers: usize,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = output_config_dir.join(ZEBRAD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
     let chain_cache = cache_dir.to_str().unwrap();
-    let network_string = network_type_to_string(network);
+    let network_string = network_kind_to_string(NetworkKind::from(&network));
 
     // Regtest is single-node by definition — the upstream-default seeder
     // lists for mainnet/testnet have nothing useful to contribute and
@@ -224,9 +238,37 @@ enforce_on_test_networks = false",
     );
 
     if let NetworkType::Regtest(activation_heights) = network {
+        // Reject heights this writer cannot express in the emitted config,
+        // rather than silently dropping or rewriting them. A caller that
+        // sets a height and gets a chain without it loses the discrepancy
+        // at the least observable layer: every component downstream behaves
+        // correctly for the chain that *was* configured, and the diagnosis
+        // lands on healthy code (zingolabs/zaino#1368 reconstructs exactly
+        // that failure, against a pinned rev of this writer that dropped
+        // `nu6_3` on the floor).
+        //
+        // The emitted config states `Canopy = 1` and zebra activates the
+        // earlier upgrades with it; zebra regtest does not support pre-NU5
+        // heights above 1, so anything but `Some(1)` in these fields would
+        // be silently rewritten below.
+        for (upgrade, height) in [
+            ("overwinter", activation_heights.overwinter()),
+            ("sapling", activation_heights.sapling()),
+            ("blossom", activation_heights.blossom()),
+            ("heartwood", activation_heights.heartwood()),
+            ("canopy", activation_heights.canopy()),
+        ] {
+            assert!(
+                height == Some(1),
+                "zebrad regtest config cannot express {upgrade} = {height:?}: \
+                 upgrades through canopy must be active at height 1"
+            );
+        }
         assert!(
-            activation_heights.canopy().is_some(),
-            "canopy must be active for zebrad regtest mode. please set activation height to 1"
+            activation_heights.nu7().is_none(),
+            "zebrad regtest config writer does not express an NU7 activation \
+             height yet: set nu7 to None, or extend the writer (and pin the \
+             emitted key against a real zebrad) before configuring it"
         );
 
         let nu5_activation_height = activation_heights
@@ -257,6 +299,13 @@ NU6 = {nu6_activation_height}
 \"NU6.1\" = {nu6_1_activation_height}
 \"NU6.2\" = {nu6_2_activation_height}"
         ));
+
+        // Emitted only when configured, so `nu6_3=off` heights keep
+        // working; the key itself requires zebrad >= 6.0.0 (older
+        // zebrad rejects unknown activation-height keys).
+        if let Some(nu6_3_activation_height) = activation_heights.nu6_3() {
+            cfg.push_str(&format!("\n\"NU6.3\" = {nu6_3_activation_height}"));
+        }
 
         // Lockbox disbursements (ZIP-271). Required at the NU6.1
         // activation block; an empty list trips zebrad's
@@ -306,10 +355,7 @@ NU6 = {nu6_activation_height}
         }
     }
 
-    config_file.write_all(cfg.as_bytes())?;
-    config_file.flush()?;
-
-    Ok(config_file_path)
+    write_config_file(&output_config_dir, ZEBRAD_FILENAME, &cfg)
 }
 
 /// Writes the Zainod config file to the specified config directory.
@@ -320,19 +366,15 @@ pub(crate) fn write_zainod_config(
     validator_cache_dir: PathBuf,
     listen_port: u16,
     validator_port: u16,
-    network: NetworkType,
+    network: NetworkKind,
 ) -> std::io::Result<PathBuf> {
-    let config_file_path = config_dir.join(ZAINOD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
-
     let zaino_cache_dir = validator_cache_dir.join("zaino");
     let chain_cache = zaino_cache_dir.to_str().unwrap();
 
-    let network_string = network_type_to_string(network);
+    let network_string = network_kind_to_string(network);
 
-    config_file.write_all(
-        format!(
-            "\
+    let cfg = format!(
+        "\
 backend = \"fetch\"
 network = \"{network_string}\"
 
@@ -346,16 +388,14 @@ validator_password = \"xxxxxx\"
 
 [storage]
 database.path = \"{chain_cache}\""
-        )
-        .as_bytes(),
-    )?;
+    );
 
-    Ok(config_file_path)
+    write_config_file(config_dir, ZAINOD_FILENAME, &cfg)
 }
 
 /// Writes the Lightwalletd config file to the specified config directory.
 /// Returns the path to the config file.
-#[allow(dead_code)]
+#[cfg(feature = "legacy-stack")]
 pub(crate) fn write_lightwalletd_config(
     config_dir: &Path,
     grpc_bind_addr_port: u16,
@@ -365,32 +405,29 @@ pub(crate) fn write_lightwalletd_config(
     let zcashd_conf = zcashd_conf.to_str().unwrap();
     let log_file = log_file.to_str().unwrap();
 
-    let config_file_path = config_dir.join(LIGHTWALLETD_FILENAME);
-    let mut config_file = File::create(config_file_path.clone())?;
-
-    config_file.write_all(
-        format!(
-            "\
+    let cfg = format!(
+        "\
 grpc-bind-addr: 127.0.0.1:{grpc_bind_addr_port}
 cache-size: 10
 log-file: {log_file}
 log-level: 10
 zcash-conf-path: {zcashd_conf}"
-        )
-        .as_bytes(),
-    )?;
+    );
 
-    Ok(config_file_path)
+    write_config_file(config_dir, LIGHTWALLETD_FILENAME, &cfg)
 }
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "legacy-stack")]
     use std::path::PathBuf;
 
-    use zingo_consensus::{ActivationHeights, NetworkType};
+    use zingo_consensus::{ActivationHeights, NetworkKind, NetworkType};
 
+    #[cfg(feature = "legacy-stack")]
     use crate::logs;
 
+    #[cfg(feature = "legacy-stack")]
     const EXPECTED_CONFIG: &str = "\
 ### Blockchain Configuration
 regtest=1
@@ -427,6 +464,7 @@ listen=0
 
 i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
 
+    #[cfg(feature = "legacy-stack")]
     fn sequential_activation_heights() -> ActivationHeights {
         ActivationHeights::builder()
             .set_overwinter(Some(2))
@@ -442,6 +480,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
             .build()
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn zcashd() {
         let config_dir = tempfile::tempdir().unwrap();
@@ -455,6 +494,7 @@ i-am-aware-zcashd-will-be-replaced-by-zebrad-and-zallet-in-2025=1";
         );
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn zcashd_funded() {
         let config_dir = tempfile::tempdir().unwrap();
@@ -492,7 +532,7 @@ minetolocalwallet=0 # This is set to false so that we can mine to a wallet, othe
             zaino_cache_dir,
             1234,
             18232,
-            NetworkType::Regtest(ActivationHeights::default()),
+            NetworkKind::Regtest,
         )
         .unwrap();
 
@@ -517,6 +557,7 @@ database.path = \"{zaino_test_path}\""
         );
     }
 
+    #[cfg(feature = "legacy-stack")]
     #[test]
     fn lightwalletd() {
         let config_dir = tempfile::tempdir().unwrap();
@@ -542,6 +583,96 @@ log-file: {log_file_path}
 log-level: 10
 zcash-conf-path: conf_path"
             )
+        );
+    }
+
+    /// Calls the zebrad config writer with throwaway ports and dirs; only
+    /// the activation heights vary across these tests.
+    fn write_zebrad_regtest_config(heights: ActivationHeights) -> String {
+        let config_dir = tempfile::tempdir().unwrap();
+        let cache_dir = tempfile::tempdir().unwrap();
+        let path = super::write_zebrad_config(
+            config_dir.path().to_path_buf(),
+            cache_dir.path().to_path_buf(),
+            18233,
+            18232,
+            18234,
+            18235,
+            "test_addr_1234",
+            NetworkType::Regtest(heights),
+            &[],
+            None,
+            0,
+        )
+        .unwrap();
+        std::fs::read_to_string(path).unwrap()
+    }
+
+    /// The capability pin zingolabs/zaino#1368 needed: a configured NU6.3
+    /// height must appear in the emitted zebrad config (the v0.7.0 writer
+    /// silently dropped it), and an unset NU6.3 must omit the key so
+    /// pre-6.0.0 zebrad configs stay parseable.
+    #[test]
+    fn zebrad_regtest_config_expresses_configured_nu6_3() {
+        let base = || {
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(1))
+                .set_nu5(Some(1))
+                .set_nu6(Some(1))
+                .set_nu6_1(Some(1))
+                .set_nu6_2(Some(1))
+        };
+
+        let with_nu6_3 = write_zebrad_regtest_config(base().set_nu6_3(Some(2)).build());
+        assert!(with_nu6_3.contains("\"NU6.3\" = 2"), "{with_nu6_3}");
+
+        let without_nu6_3 = write_zebrad_regtest_config(base().build());
+        assert!(!without_nu6_3.contains("NU6.3"), "{without_nu6_3}");
+    }
+
+    /// The emitted config hardcodes `Canopy = 1`; any other configured
+    /// value would be silently rewritten, so the writer must refuse it.
+    #[test]
+    #[should_panic(expected = "cannot express canopy")]
+    fn zebrad_regtest_config_rejects_canopy_above_one() {
+        write_zebrad_regtest_config(
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(2))
+                .set_nu5(Some(2))
+                .set_nu6(Some(2))
+                .set_nu6_1(Some(2))
+                .set_nu6_2(Some(2))
+                .build(),
+        );
+    }
+
+    /// The writer has no NU7 emission; a configured NU7 height must be
+    /// refused rather than dropped.
+    #[test]
+    #[should_panic(expected = "does not express an NU7")]
+    fn zebrad_regtest_config_rejects_configured_nu7() {
+        write_zebrad_regtest_config(
+            ActivationHeights::builder()
+                .set_overwinter(Some(1))
+                .set_sapling(Some(1))
+                .set_blossom(Some(1))
+                .set_heartwood(Some(1))
+                .set_canopy(Some(1))
+                .set_nu5(Some(1))
+                .set_nu6(Some(1))
+                .set_nu6_1(Some(1))
+                .set_nu6_2(Some(1))
+                .set_nu6_3(Some(1))
+                .set_nu7(Some(1))
+                .build(),
         );
     }
 }

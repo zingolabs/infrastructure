@@ -164,39 +164,106 @@ pub fn block_hash_hex(block_bytes: &[u8]) -> String {
     hex::encode(hash)
 }
 
+/// Error from a [`submit_template_block`] round trip: the RPC transport
+/// failed, or proposal assembly rejected the template.
+#[derive(Debug, thiserror::Error)]
+pub enum SubmitBlockError {
+    /// `getblocktemplate` or `submitblock` failed.
+    #[error(transparent)]
+    Rpc(#[from] crate::rpc_client::RpcClientError),
+    /// Proposal assembly from the fetched template failed.
+    #[error(transparent)]
+    Assembly(#[from] ZebraRpcError),
+}
+
+/// The outcome of one [`submit_template_block`] round trip.
+#[derive(Clone, Debug)]
+pub struct BlockSubmission {
+    /// Height of the submitted template.
+    pub height: u32,
+    /// Hash of the submitted block, display-order hex.
+    pub block_hash: String,
+    /// Raw `submitblock` response body, envelope included.
+    pub response: String,
+}
+
+impl BlockSubmission {
+    /// Whether zebrad reported acceptance (`"result":null` in the response).
+    ///
+    /// A non-accepted response does not prove the chain failed to advance:
+    /// zebra answers "duplicate" / "duplicate-inconclusive" when validation
+    /// outruns resubmission, without saying whether this submission
+    /// committed. Callers that must know poll chain height instead, as
+    /// `Zebrad::generate_blocks` does.
+    pub fn accepted(&self) -> bool {
+        self.response.contains(r#""result":null"#)
+    }
+}
+
+/// One `getblocktemplate` → [`proposal_block_bytes`] → `submitblock` round
+/// trip against a regtest zebrad.
+///
+/// The single implementation behind every miner in this workspace
+/// (`Zebrad::generate_blocks` and the regtest-launcher's bootstrap and
+/// steady-state loops), so template assembly and submission semantics
+/// cannot drift between them.
+pub async fn submit_template_block(
+    client: &crate::rpc_client::RpcRequestClient,
+    activation_heights: &ActivationHeights,
+) -> Result<BlockSubmission, SubmitBlockError> {
+    let template: BlockTemplate = client
+        .json_result_from_call("getblocktemplate", "[]".to_string())
+        .await?;
+    let block_bytes = proposal_block_bytes(&template, activation_heights)?;
+    let block_hash = block_hash_hex(&block_bytes);
+    let block_hex = hex::encode(&block_bytes);
+    let response = client
+        .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
+        .await?;
+    Ok(BlockSubmission {
+        height: template.height,
+        block_hash,
+        response,
+    })
+}
+
+/// Decode a hex template field, mapping failure to [`ZebraRpcError::InvalidHex`].
+fn decode_hex(field: &'static str, hex_str: &str) -> Result<Vec<u8>, ZebraRpcError> {
+    hex::decode(hex_str).map_err(|e| ZebraRpcError::InvalidHex {
+        field,
+        reason: e.to_string(),
+    })
+}
+
+/// [`decode_hex`] for fields with a fixed byte width.
+fn fixed_bytes<const N: usize>(
+    field: &'static str,
+    hex_str: &str,
+) -> Result<[u8; N], ZebraRpcError> {
+    decode_hex(field, hex_str)?
+        .try_into()
+        .map_err(|_| ZebraRpcError::InvalidHex {
+            field,
+            reason: format!("expected {N} bytes"),
+        })
+}
+
 fn hash32_from_display_hex(
     field: &'static str,
     display_hex: &str,
 ) -> Result<[u8; 32], ZebraRpcError> {
-    let bytes = hex::decode(display_hex).map_err(|e| ZebraRpcError::InvalidHex {
-        field,
-        reason: e.to_string(),
-    })?;
-    let mut hash: [u8; 32] = bytes.try_into().map_err(|_| ZebraRpcError::InvalidHex {
-        field,
-        reason: "expected 32 bytes".to_string(),
-    })?;
+    let mut hash = fixed_bytes::<32>(field, display_hex)?;
     hash.reverse();
     Ok(hash)
 }
 
 fn bits_from_display_hex(display_hex: &str) -> Result<[u8; 4], ZebraRpcError> {
-    let bytes = hex::decode(display_hex).map_err(|e| ZebraRpcError::InvalidHex {
-        field: "bits",
-        reason: e.to_string(),
-    })?;
-    let display: [u8; 4] = bytes.try_into().map_err(|_| ZebraRpcError::InvalidHex {
-        field: "bits",
-        reason: "expected 4 bytes".to_string(),
-    })?;
+    let display = fixed_bytes::<4>("bits", display_hex)?;
     Ok(u32::from_be_bytes(display).to_le_bytes())
 }
 
 fn tx_bytes(field: &'static str, data_hex: &str) -> Result<Vec<u8>, ZebraRpcError> {
-    hex::decode(data_hex).map_err(|e| ZebraRpcError::InvalidHex {
-        field,
-        reason: e.to_string(),
-    })
+    decode_hex(field, data_hex)
 }
 
 fn push_compactsize(out: &mut Vec<u8>, n: u64) {

@@ -170,7 +170,6 @@ fn parse_activation_heights(s: &str) -> Result<ConfiguredActivationHeights, Stri
 
     // Matches clap's default behaviour. Is there a better way to do this?
     set_all(&mut cfg, Some(1));
-    cfg.nu6_3 = None;
     cfg.nu7 = None;
 
     for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {

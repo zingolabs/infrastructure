@@ -35,17 +35,12 @@ pub struct Empty {
     config_dir: TempDir,
 }
 
-impl Empty {
+crate::macros::ref_getters!(Empty {
     /// Logs directory.
-    pub fn logs_dir(&self) -> &TempDir {
-        &self.logs_dir
-    }
-
+    logs_dir: TempDir,
     /// Config directory.
-    pub fn config_dir(&self) -> &TempDir {
-        &self.config_dir
-    }
-}
+    config_dir: TempDir,
+});
 
 impl LogsToStdoutAndStderr for Empty {
     fn print_stdout(&self) {
@@ -80,11 +75,7 @@ impl Process for Empty {
     }
 }
 
-impl Drop for Empty {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Empty);
 
 impl Indexer for Empty {
     fn listen_port(&self) -> u16 {

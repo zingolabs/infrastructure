@@ -6,6 +6,7 @@ use tempfile::TempDir;
 
 pub(crate) const STDOUT_LOG: &str = "stdout.log";
 pub(crate) const STDERR_LOG: &str = "stderr.log";
+#[cfg(feature = "legacy-stack")]
 pub(crate) const LIGHTWALLETD_LOG: &str = "lwd.log";
 
 /// Print the log file in `log_path`

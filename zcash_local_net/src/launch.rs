@@ -2,7 +2,70 @@ use std::{fs::File, io::Read as _, path::PathBuf, process::Child};
 
 use tempfile::TempDir;
 
-use crate::{ProcessId, error::LaunchError, logs};
+use crate::{ProcessId, error::LaunchError, logs, utils::executable_finder::EXPECT_SPAWN};
+
+/// Retry budget shared by every daemon's `Process::launch`.
+pub(crate) const MAX_LAUNCH_ATTEMPTS: u32 = 3;
+
+/// A launch config whose listen-port pins the collision-retry helper can
+/// enumerate (for the fast-path bind pre-check) and re-roll. Clearing
+/// always drops *every* pin, not just a conflicting one — partial
+/// clearing risks the surviving picks being ports a sibling test
+/// subprocess just claimed (the cross-process TOCTOU the retry exists
+/// to absorb).
+pub(crate) trait PortPins {
+    /// Every currently-pinned listen port.
+    fn pinned_ports(&self) -> Vec<u16>;
+
+    /// Clear all pins so the next attempt's pick re-rolls the whole set
+    /// via `network::pick_unused_port(None)`.
+    fn clear_port_pins(&mut self);
+}
+
+/// Pipe the command's stdio, spawn it, and block until [`wait`] observes
+/// a readiness or failure indicator. The single spawn path for every
+/// daemon, so stdio capture, spawn timing instrumentation, and readiness
+/// scanning cannot drift per process.
+pub(crate) async fn spawn_and_wait(
+    process: ProcessId,
+    command: &mut std::process::Command,
+    logs_dir: &TempDir,
+    additional_log_path: Option<PathBuf>,
+    success_indicators: &[&str],
+    error_indicators: &[&str],
+    excluded_errors: &[&str],
+) -> Result<Child, LaunchError> {
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    let spawn_start = std::time::Instant::now();
+    let mut handle = command.spawn().expect(EXPECT_SPAWN);
+    tracing::info!(
+        process = %process,
+        elapsed_ms = spawn_start.elapsed().as_millis() as u64,
+        "process spawned"
+    );
+
+    let wait_start = std::time::Instant::now();
+    wait(
+        process,
+        &mut handle,
+        logs_dir,
+        additional_log_path,
+        success_indicators,
+        error_indicators,
+        excluded_errors,
+    )
+    .await?;
+    tracing::info!(
+        process = %process,
+        elapsed_ms = wait_start.elapsed().as_millis() as u64,
+        "readiness indicator observed"
+    );
+
+    Ok(handle)
+}
 
 /// Read the captured additional-log file (if a path was configured)
 /// for a final snapshot at error-emission time. Used to populate the
@@ -19,7 +82,7 @@ fn snapshot_additional_log(path: Option<&PathBuf>) -> Option<String> {
 /// the `write_logs` setup so callers do not need to invoke it
 /// separately — calling `logs::write_logs` *and* this function would
 /// panic on the second `Child::stdout.take()`.
-pub(crate) async fn wait(
+async fn wait(
     process: ProcessId,
     handle: &mut Child,
     logs_dir: &TempDir,
@@ -84,15 +147,10 @@ pub(crate) async fn wait(
             .or_else(|| first_match(&trimmed_stderr, error_indicators))
         {
             tracing::info!("\nSTDOUT:\n{}", stdout);
-            if additional_log_file.is_some() {
-                let mut log_file = additional_log_file
-                    .take()
-                    .expect("additional log exists in this scope");
-                let mut log = additional_log
-                    .take()
-                    .expect("additional log exists in this scope");
-
-                log_file.read_to_string(&mut log).unwrap();
+            if let (Some(log_file), Some(log)) =
+                (additional_log_file.as_mut(), additional_log.as_mut())
+            {
+                log_file.read_to_string(log).unwrap();
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
             }
             tracing::error!("\nSTDERR:\n{}", stderr);
@@ -105,22 +163,16 @@ pub(crate) async fn wait(
             });
         }
 
-        if additional_log_file.is_some() {
-            let mut log_file = additional_log_file
-                .take()
-                .expect("additional log exists in this scope");
-            let mut log = additional_log
-                .take()
-                .expect("additional log exists in this scope");
+        if let (Some(log_file), Some(log)) = (additional_log_file.as_mut(), additional_log.as_mut())
+        {
+            log_file.read_to_string(log).unwrap();
 
-            log_file.read_to_string(&mut log).unwrap();
-
-            if contains_any(&log, success_indicators) {
+            if contains_any(log, success_indicators) {
                 // launch successful
                 break;
             }
 
-            let trimmed_log = exclude_errors(&log, excluded_errors);
+            let trimmed_log = exclude_errors(log, excluded_errors);
             if let Some(matched) = first_match(&trimmed_log, error_indicators) {
                 tracing::info!("\nSTDOUT:\n{}", stdout);
                 tracing::info!("\nADDITIONAL LOG:\n{}", log);
@@ -130,11 +182,8 @@ pub(crate) async fn wait(
                     matched_indicator: matched.to_string(),
                     stdout,
                     stderr,
-                    additional_log: Some(log),
+                    additional_log: additional_log.take(),
                 });
-            } else {
-                additional_log_file = Some(log_file);
-                additional_log = Some(log);
             }
         }
 
@@ -368,19 +417,15 @@ fn try_bind_and_release(port: u16) -> bool {
 /// Counts can be derived from the event stream; if/when the rate
 /// climbs to where atomic counters are warranted, this is the place
 /// to add them.
-pub(crate) async fn with_retry_on_collision<C, F, Fut, T, M, P>(
+pub(crate) async fn with_retry_on_collision<C, F, Fut, T>(
     process_name: &'static str,
     mut config: C,
     collision_signatures: &[&'static str],
     max_attempts: u32,
-    mut read_pinned_ports: P,
-    mut clear_port_pins: M,
     mut attempt: F,
 ) -> Result<T, LaunchError>
 where
-    C: Clone,
-    P: FnMut(&C) -> Vec<u16>,
-    M: FnMut(&mut C),
+    C: PortPins + Clone,
     F: FnMut(C) -> Fut,
     Fut: std::future::Future<Output = Result<T, LaunchError>>,
 {
@@ -395,7 +440,7 @@ where
         // genuine bind failure still produces a real LaunchError
         // instead of a synthesized one.
         if attempt_n < max_attempts {
-            let pinned = read_pinned_ports(&config);
+            let pinned = config.pinned_ports();
             if pinned.iter().any(|p| !try_bind_and_release(*p)) {
                 tracing::info!(
                     target: "zcash_local_net::launch::retry",
@@ -404,7 +449,7 @@ where
                     reason = "pre_check_bind_fail",
                     "pinned port currently held; clearing pins and retrying without spawn"
                 );
-                clear_port_pins(&mut config);
+                config.clear_port_pins();
                 continue;
             }
         }
@@ -449,7 +494,7 @@ where
                     reason = %reason,
                     "port collision detected; clearing port pins and retrying"
                 );
-                clear_port_pins(&mut config);
+                config.clear_port_pins();
             }
             (Some(reason), true) => {
                 tracing::error!(

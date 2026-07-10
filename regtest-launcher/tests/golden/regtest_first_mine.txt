@@ -1,0 +1,8 @@
+Indexer running at: 127.0.0.1:<PORT>
+
+Miner address: tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd
+
+
+Mined up to chain height <HEIGHT>
+
+mined new_tip=<HASH> height=<HEIGHT>

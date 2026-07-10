@@ -7,10 +7,246 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Deprecated
+### Changed
+
+- **Breaking, read this one** — **every published port and address
+  accessor of the core stack now returns a front proxy, not the
+  process's own listener.** A transparent TCP relay (the *front*)
+  binds `127.0.0.1:0` before each backend starts and becomes the
+  listener's canonical public endpoint: `Zebrad::rpc_listen_port()`,
+  `Zebrad::rpc_listen_addr()` (new), `Validator::get_port()`,
+  `Zainod::port()`, and `Indexer::listen_port()` all return the
+  front's endpoint, and the raw listener endpoints are no longer
+  published at all. Everything that dials through those accessors —
+  wallet clients, the Indexer's validator connection, and the
+  harness's *own launch-time clients* (the readiness probes and the
+  regtest launch-mine) — crosses the front for the backend's entire
+  networked lifespan, by construction. Callers of
+  `LocalNet::launch_from_two_configs` and `LocalNet::from_parts` keep
+  working unchanged from their point of view; the front is invisible
+  unless an observer is registered. Each front relays on its own
+  dedicated thread with a private tokio runtime, so it stays live
+  even while the consumer's async runtime is blocked — this crate's
+  own wallet layer synchronously waits on `zcash-devtool` subprocesses
+  whose traffic crosses the fronts, which would deadlock a
+  runtime-hosted relay. Anyone who assumed the accessor
+  port was the port in the process's own config file (for example by
+  grepping a zebrad.toml) is now wrong — that raw port is a private
+  detail of launch plumbing.
+- **Breaking** — zebrad's unpinned listeners now bind **port 0**: the
+  kernel assigns each port atomically at bind time and the harness
+  reads the assigned addresses back out of zebrad's launch log (the
+  `Opened … endpoint at` bind reports, a log contract pinned by unit
+  tests and exercised by every live launch; a launch whose reports
+  cannot be parsed fails loudly with the new
+  `LaunchError::ListenerEndpointsUndiscovered`). `pick_unused_port`
+  is therefore no longer used for any zebrad listener. It is
+  **retained for zainod's raw gRPC listener**: zainod binds port 0
+  happily but never logs the kernel-assigned address (verified
+  empirically against zainod 0.4.3-ironwood.1), leaving the harness
+  no way to discover where to point the front. The
+  retry-on-collision machinery remains as the backstop for
+  explicitly pinned ports, the only place a bind collision can still
+  occur.
+- `network::pick_unused_port` no longer asks the kernel for an
+  ephemeral port. Ports come from a fixed band below every default
+  ephemeral range (16384–32767), partitioned into per-process slices by
+  process id, walked sequentially, and bind-checked before they are
+  returned. Each ingredient removes one observed flake class: the band
+  makes kernel reuse of a picked port impossible, the slices keep
+  parallel nextest processes out of each other's territory, and the
+  bind-checked walk steps over squatted ports deterministically. The
+  launch-time retry-on-collision machinery remains as the backstop for
+  the residue partitioning cannot remove (pid-modulo coincidences and
+  unrelated services racing the child's bind).
+
+- **Breaking** — wallet activation heights now come from the running
+  Validator and nowhere else, enforced at compile time (ADR 0003). The
+  wallet client runs on **any** regtest activation-heights shape: the
+  canonical-heights equality guard is lifted and
+  `ClientError::UnsupportedActivationHeights` is **deleted**, not
+  repurposed. However, a heights vector can no longer be written into a
+  wallet config at all: `ZcashDevtoolConfig::network` is now a
+  `WalletNetwork`, whose regtest variant demands an opaque
+  `ValidatorHeights` that only `WalletNetwork::from_validator()` can
+  produce. The constructors become
+  `ZcashDevtoolConfig::faucet(network)`/`::recipient(network)`, the
+  config's `Default` impl is removed, and the `ClientConfig` trait
+  drops its `Default` bound. The validator-reported heights are
+  serialized into the devtool's `--activation-heights` TOML (an
+  unactivated upgrade omits its key), so the wallet's schedule matches
+  the chain's by construction. A golden unit test pins the zaino
+  `ironwood_activation` fixture (NU6.3 mid-chain at 6) to its
+  acceptance TOML byte-for-byte. Serves zingolabs/zaino#1368 (see
+  `zaino-ironwood-activation-infra-spec.md`, whose delivery note
+  records the shipped contract).
+- **Breaking** — `ZainodConfig.network` narrows from `NetworkType` to
+  the new payload-free `zingo_consensus::NetworkKind`: the Indexer must
+  learn activation heights from the Validator, never from harness
+  config (ADR 0003), and the heights payload the field used to carry
+  was never transmitted anyway — only the kind string reaches the
+  zainod TOML. `write_activation_heights_toml` also now **panics** on a
+  configured NU7 height instead of silently dropping it (the devtool
+  TOML gates `nu7` behind `zcash_unstable`), matching the zebrad
+  writer's no-silent-drop policy below.
+- **Breaking** — the client layer is now the **Wallet abstraction**: the
+  `client` module is renamed to `wallet`, the `Client`/`ClientConfig`
+  traits to `Wallet`/`WalletConfig`, and `ClientError` to `WalletError`,
+  whose messages now name the operation rather than one binary. The
+  trait is the interface through which the harness actuates any wallet
+  implementation; implementations live with their binaries (the
+  zcash-devtool one remains in-tree for now, and a zingo-cli
+  implementation lands in the zingolib repository — see
+  `zingolib-wallet-impl-spec.md`).
+- **Breaking** — the zebrad regtest config writer now **rejects activation
+  heights it cannot express** instead of silently dropping or rewriting
+  them: upgrades through Canopy must be `Some(1)` (the emitted config
+  hardcodes `Canopy = 1`), and a configured NU7 height panics until the
+  writer gains NU7 emission. Silent acceptance is what made
+  zingolabs/zaino#1368 cost three diagnostic rounds — a pinned 0.7.0
+  launcher dropped `nu6_3` on the floor while every downstream component
+  behaved correctly for the chain that was actually configured. A unit
+  test now also pins that a configured NU6.3 height appears in the emitted
+  config (and that unset NU6.3 omits the key).
 
 ### Added
 
+- Front observers: `front::FrontObserver`, `front::ChunkEvent`, and
+  `front::Direction`, registered through the new
+  `ZebradConfig::rpc_front_observer` and
+  `ZainodConfig::grpc_front_observer` fields. An observer registers
+  *before its backend starts* and receives one event per relayed
+  chunk (timestamp, connection id, direction, byte count, payload),
+  so it sees the launch window — the readiness probes and the regtest
+  launch-mine — that no external tap could previously reach. The
+  default is passthrough: no observer, no behavioral difference.
+  Consumers that used to hand-wire recording relays (the shape the
+  `from_parts` regression test demonstrates) can register an observer
+  instead. Pinned by the
+  `observer_on_zebrad_front_captures_the_launch_mine` integration
+  test, which asserts the launch-mine's `submitblock` call appears in
+  an observer's record before `launch` returns.
+- A crate-internal backend abstraction (`backend::Backend`): the
+  start/stop lifecycle (via `Process`), log access for readiness
+  parsing, and the backend's raw listener endpoints as
+  `std::net::SocketAddr` — never bare ports. The front and observer
+  machinery depends only on this trait, so a future container backend
+  whose endpoints are published (possibly non-loopback) host mappings
+  can implement it without touching the front layer. The trait is
+  deliberately not public: exporting raw endpoints would reopen the
+  hole the fronts close.
+- A concurrent-launch regression test
+  (`concurrent_zebrad_launches_are_collision_free`): six zebrads
+  launch concurrently in one process and every published endpoint
+  must be distinct — the `:0` guarantee on the public surface.
+- **Breaking** — NU6.3 support, active by default. The zebrad config
+  writer emits `"NU6.3" = <height>` when a height is configured,
+  `activation_heights_from_getblockchaininfo` reads `"NU6.3"` back,
+  and the devtool client's activation-heights TOML writer emits
+  `nu6_3`. The canonical heights advance in lockstep (see
+  `docs/adr/0002`): `supported_regtest_activation_heights()` sets
+  NU6.3 at 2, `regtest_test_activation_heights()` co-activates it
+  with NU6.1/NU6.2 at 5, and the regtest-launcher's `all=` sweep and
+  default heights now include it. Binary floor: zebrad >= 6.0.0
+  (older zebrad rejects the `"NU6.3"` config key) and a zcash-devtool
+  at or past zingolabs/zcash-devtool `8eccaceb` (branch
+  `support_ironwood_scan_model`, package version an undistinguishing
+  0.1.0; older binaries reject the `nu6_3` TOML key via
+  `deny_unknown_fields`, and `WalletBalance` now consumes the
+  `ironwood_spendable` field that commit added to `balance --json`).
+  Known gap: zainod
+  <= 0.4.2 cannot parse zebra 6.x `getblockchaininfo` (fixed-length
+  `valuePools` array predating the Ironwood pool) and compiles in
+  activation-height defaults without NU6.3, so indexer-sync paths
+  fail until a NU6.3-aware zainod ships (zingolabs/zaino#1076 tracks
+  the height-default coupling).
+- `zingo_consensus::NetworkKind`: network identity without activation
+  heights, with `From<NetworkType>`/`From<&NetworkType>` conversions —
+  the config shape for components that must not be told heights.
+- `LocalNet::launch_wallet::<W>(make_config)`: generic wallet
+  actuation — mints the `WalletNetwork` from the running Validator,
+  wires the Indexer connection, and launches any `Wallet`
+  implementation. `ValidatorHeights::activation_heights()` exposes the
+  reported schedule read-only, because foreign implementations must
+  serialize it into their own binaries' configs; construction remains
+  private to preserve the ADR 0003 provenance guarantee.
+- `wallet::WalletNetwork` and `wallet::ValidatorHeights`: the network a
+  wallet is launched against, and regtest activation heights whose
+  provenance is a Validator query. `WalletNetwork::from_validator()` is
+  the only public constructor of `ValidatorHeights`, which makes ADR
+  0003 statically checkable — a wallet config holding heights that did
+  not come from the running Validator cannot be expressed.
+- An `#[ignore]`d cross-boundary integration test
+  (`orchard_note_spends_to_ironwood_across_midchain_boundary`):
+  Orchard-era coinbase before a mid-chain NU6.3 boundary, an
+  Ironwood-era spend after it, on the zaino fixture heights. Parked
+  until a zainod that learns heights from the validator ships
+  (zingolabs/zaino#1076); the ignore message names the tracking issue.
+- `docs/adr/0003-validator-is-heights-source-of-truth.md`: records the
+  invariant behind all of the above, plus `CONTEXT.md` entries for
+  "Validator heights" and the reshaped "Canonical heights".
+- Indexer-convergence barrier: `LocalNet::generate_blocks_converged(n)`
+  mines and then blocks until the Indexer's chain index reports the
+  Validator's tip, and `LocalNet::await_indexer_convergence(target)`
+  exposes the bare wait for callers that mine through other paths.
+  The Validator reports a mined block immediately, but the Indexer
+  syncs on its own cadence, so tests that read through the Indexer
+  right after mining race it — this barrier retires that class of
+  wallet-side polling workaround. The observation channel is zainod's
+  `Syncing block, height: N` stdout line (`Zainod::logged_sync_height`;
+  the light-client protocol's height answers on the `fetch` backend
+  are proxied to the validator, so the log is the only view of
+  zainod's own progress). The contract is captured from zainod
+  0.4.3-ironwood.1 and pinned by the
+  `zainod_converges_to_validator_tip_after_generate_blocks` integration test;
+  failure is loud and precise by design — unreadable log, drifted log
+  format, and timeout each surface their own `IndexerSyncError`
+  variant carrying the evidence, never a silent hang.
+- `LocalNet::from_parts(validator, indexer)`: assemble a `LocalNet`
+  from processes the caller launched and wired itself, so anything —
+  for example a recording proxy — can be interposed on the
+  Indexer→Validator hop. The caller owns the launch ordering
+  (Validator first) and the indexer config's validator connection;
+  dropping the assembled net stops both processes, exactly as with
+  `launch_from_two_configs`, whose behavior is unchanged. A regression
+  test launches zebrad, interposes an in-test TCP relay in front of
+  its JSON-RPC port, launches zainod against the relay, and proves
+  Indexer convergence with nonzero bytes crossing the relay.
+
+## [0.7.0] - 2026-07-03
+
+### Deprecated
+
+- **Breaking** — the legacy stack (the `Zcashd` validator and
+  `Lightwalletd` indexer) is now gated behind the new non-default
+  `legacy-stack` cargo feature, together with everything that exists
+  only to serve it: `validator::zcashd`, `indexer::lightwalletd`,
+  `ProcessId::{Zcashd, Lightwalletd}`,
+  `LaunchError::{UnsupportedZcashdCapability, CapabilityProbeFailed}`,
+  `Validator::get_zcashd_conf_path` (whose only consumer is
+  lightwalletd), `config::ZCASHD_FILENAME`, and the `zcash.conf`
+  compatibility file zebrad wrote solely for lightwalletd's backend
+  discovery. The feature is **unsupported and untested** — CI never
+  enables it — and exists only as a short-lived migration stopgap:
+  both processes are scheduled for complete removal in the next
+  breaking release (see `docs/adr/0001-excise-legacy-stack.md`).
+
+### Added
+
+- `rpc_client::RpcRequestClient`: a hand-rolled JSON-RPC 2.0 client
+  replacing `zebra_node_services::rpc_client::RpcRequestClient` —
+  same name, method surface, and spliced wire format, so call sites
+  change imports only. Unit tests pin the wire shape, result-payload
+  delivery, error-envelope-to-`Err` mapping (readiness polling
+  depends on it), and byte-faithful text passthrough. Re-exported
+  via `protocol`.
+- `zebra_rpc` module: block-template-to-block assembly and
+  `submit_template_block`, the mining path formerly borrowed from
+  zebra crates. All three commitment-branch cases (NU5+, lockbox
+  activation, Canopy) are pinned offline by golden fixtures in
+  `zebra_rpc_golden.rs`, captured from a live byte-for-byte
+  differential run against the real zebrad before the oracle
+  dev-dependency was deleted.
 - `client` module: wallet clients are now the third kind of process
   the crate manages, alongside validators and indexers. Unlike both,
   a client binary is not a daemon — each wallet operation is a
@@ -76,7 +312,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pinned Rust toolchain bumped 1.95.0 -> 1.96.0
+  (`rust-toolchain.toml`).
+- **Breaking** — consensus/network vocabulary types
+  (`ActivationHeights`, `ActivationHeightsBuilder`, `NetworkType`)
+  now come from the new zero-dependency `zingo-consensus` workspace
+  crate, replacing `zingo_common_components`. The all-heights-one
+  regtest schedule is the documented `Default` impl.
+- **Breaking** — `zingo_consensus::MinerPool` replaces
+  `zcash_protocol::PoolType` as the mine-to-pool selector. The
+  borrowed shape never fit (zebrad panics on its Sapling variant) and
+  it chained this crate's API to librustzcash's release cadence.
+- getset-derived accessors are replaced by hand-written impls with
+  identical names and signatures (later DRYed into in-repo
+  `macro_rules!`), except `Lightwalletd`'s never-callable
+  `_data_dir()` getter, which is not reproduced.
+- The `generate_zebrad_large_chain_cache` test fixture launches a bare
+  `Zebrad` instead of `LocalNet<Zebrad, Lightwalletd>` — the indexer
+  contributed nothing to cache generation.
+
 ### Removed
+
+- Every zebra / librustzcash / zcash ecosystem dependency:
+  `zebra-node-services` (replaced by `rpc_client`), the `zebra-rpc`
+  differential-oracle dev-dependency (replaced by golden fixtures),
+  `zcash_protocol`, and `zingo_common_components`. The lockfile
+  contains zero zebra or librustzcash entries — the harness still
+  *drives* the zebrad binary, but no longer links its code.
+- `bip0039` (existed only to re-derive a hardcoded seed constant in
+  one unit test; ~18 transitive crates), the unmaintained `json`
+  crate (single call site, migrated to `serde_json`), and `getset`
+  (with it, the unmaintained `proc-macro-error2`, RUSTSEC-2026-0173,
+  whose cargo-deny ignore is deleted — cargo deny passes with no
+  ignored advisories).
+- The checked-in zcashd-generated chain cache
+  (`chain_cache/client_rpc_tests/`) and its generator
+  (`generate_zcashd_chain_cache`): no in-repo consumer remained (the
+  tests use the zebrad-generated `client_rpc_tests_large`).
+- `cert/cert.pem`: no consumer anywhere in the tree (lightwalletd is
+  launched with `--no-tls-very-insecure`).
+- The `[build-dependencies]` section (`hex`, `tokio`): the crate has
+  no `build.rs`, so the section was inert.
 
 ## [0.6.0] - 2026-06-08
 

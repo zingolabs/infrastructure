@@ -1,0 +1,15 @@
+[package]
+name = "workbench"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Developer and CI tooling for this repository. Checked-in scripting lives here, in Rust, per the contributor guidelines."
+authors = ["Zingolabs <zingo@zingolabs.org>"]
+repository = "https://github.com/zingolabs/infrastructure"
+homepage = "https://github.com/zingolabs/infrastructure"
+publish = false
+
+[dependencies]
+
+[dev-dependencies]
+tempfile = { workspace = true }

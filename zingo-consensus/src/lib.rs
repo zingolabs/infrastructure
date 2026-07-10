@@ -30,6 +30,40 @@ impl std::fmt::Display for NetworkType {
     }
 }
 
+/// Network identity without activation heights.
+///
+/// The configuration shape for components that must know *which* network
+/// they serve but must not be told activation heights: the Validator is
+/// the single source of truth for heights (infras ADR 0003), so a config
+/// that accepted heights on such a component would be a false affordance.
+/// Use [`NetworkType`] where heights are genuinely configured (validators)
+/// or asserted by the caller (wallet clients on unmanaged stacks).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NetworkKind {
+    /// Mainnet
+    Mainnet,
+    /// Testnet
+    Testnet,
+    /// Regtest
+    Regtest,
+}
+
+impl From<&NetworkType> for NetworkKind {
+    fn from(network: &NetworkType) -> Self {
+        match network {
+            NetworkType::Mainnet => NetworkKind::Mainnet,
+            NetworkType::Testnet => NetworkKind::Testnet,
+            NetworkType::Regtest(_) => NetworkKind::Regtest,
+        }
+    }
+}
+
+impl From<NetworkType> for NetworkKind {
+    fn from(network: NetworkType) -> Self {
+        (&network).into()
+    }
+}
+
 /// The pool a validator mines block rewards to.
 ///
 /// Validator support differs: zcashd can mine to any variant, while zebrad
@@ -87,62 +121,48 @@ impl ActivationHeights {
     pub fn builder() -> ActivationHeightsBuilder {
         ActivationHeightsBuilder::new()
     }
-
-    /// Returns overwinter network upgrade activation height.
-    pub fn overwinter(&self) -> Option<u32> {
-        self.overwinter
-    }
-
-    /// Returns sapling network upgrade activation height.
-    pub fn sapling(&self) -> Option<u32> {
-        self.sapling
-    }
-
-    /// Returns blossom network upgrade activation height.
-    pub fn blossom(&self) -> Option<u32> {
-        self.blossom
-    }
-
-    /// Returns heartwood network upgrade activation height.
-    pub fn heartwood(&self) -> Option<u32> {
-        self.heartwood
-    }
-
-    /// Returns canopy network upgrade activation height.
-    pub fn canopy(&self) -> Option<u32> {
-        self.canopy
-    }
-
-    /// Returns nu5 network upgrade activation height.
-    pub fn nu5(&self) -> Option<u32> {
-        self.nu5
-    }
-
-    /// Returns nu6 network upgrade activation height.
-    pub fn nu6(&self) -> Option<u32> {
-        self.nu6
-    }
-
-    /// Returns nu6.1 network upgrade activation height.
-    pub fn nu6_1(&self) -> Option<u32> {
-        self.nu6_1
-    }
-
-    /// Returns nu6.2 network upgrade activation height.
-    pub fn nu6_2(&self) -> Option<u32> {
-        self.nu6_2
-    }
-
-    /// Returns nu6.3 network upgrade activation height.
-    pub fn nu6_3(&self) -> Option<u32> {
-        self.nu6_3
-    }
-
-    /// Returns nu7 network upgrade activation height.
-    pub fn nu7(&self) -> Option<u32> {
-        self.nu7
-    }
 }
+
+/// Generates the per-upgrade activation-height getter on
+/// [`ActivationHeights`] for each listed field. A `macro_rules!`
+/// because method definitions cannot be deduplicated with a helper fn.
+macro_rules! height_getters {
+    ($($(#[$doc:meta])* $field:ident),+ $(,)?) => {
+        impl ActivationHeights {
+            $(
+                $(#[$doc])*
+                pub fn $field(&self) -> Option<u32> {
+                    self.$field
+                }
+            )+
+        }
+    };
+}
+
+height_getters!(
+    /// Returns overwinter network upgrade activation height.
+    overwinter,
+    /// Returns sapling network upgrade activation height.
+    sapling,
+    /// Returns blossom network upgrade activation height.
+    blossom,
+    /// Returns heartwood network upgrade activation height.
+    heartwood,
+    /// Returns canopy network upgrade activation height.
+    canopy,
+    /// Returns nu5 network upgrade activation height.
+    nu5,
+    /// Returns nu6 network upgrade activation height.
+    nu6,
+    /// Returns nu6.1 network upgrade activation height.
+    nu6_1,
+    /// Returns nu6.2 network upgrade activation height.
+    nu6_2,
+    /// Returns nu6.3 network upgrade activation height.
+    nu6_3,
+    /// Returns nu7 network upgrade activation height.
+    nu7,
+);
 
 /// A builder, so that new network upgrades do not cause breaking changes to the public API.
 pub struct ActivationHeightsBuilder {
@@ -181,83 +201,6 @@ impl ActivationHeightsBuilder {
             nu6_3: None,
             nu7: None,
         }
-    }
-
-    /// Set `overwinter` field.
-    pub fn set_overwinter(mut self, height: Option<u32>) -> Self {
-        self.overwinter = height;
-
-        self
-    }
-
-    /// Set `sapling` field.
-    pub fn set_sapling(mut self, height: Option<u32>) -> Self {
-        self.sapling = height;
-
-        self
-    }
-
-    /// Set `blossom` field.
-    pub fn set_blossom(mut self, height: Option<u32>) -> Self {
-        self.blossom = height;
-
-        self
-    }
-
-    /// Set `heartwood` field.
-    pub fn set_heartwood(mut self, height: Option<u32>) -> Self {
-        self.heartwood = height;
-
-        self
-    }
-
-    /// Set `canopy` field.
-    pub fn set_canopy(mut self, height: Option<u32>) -> Self {
-        self.canopy = height;
-
-        self
-    }
-
-    /// Set `nu5` field.
-    pub fn set_nu5(mut self, height: Option<u32>) -> Self {
-        self.nu5 = height;
-
-        self
-    }
-
-    /// Set `nu6` field.
-    pub fn set_nu6(mut self, height: Option<u32>) -> Self {
-        self.nu6 = height;
-
-        self
-    }
-
-    /// Set `nu6_1` field.
-    pub fn set_nu6_1(mut self, height: Option<u32>) -> Self {
-        self.nu6_1 = height;
-
-        self
-    }
-
-    /// Set `nu6_2` field.
-    pub fn set_nu6_2(mut self, height: Option<u32>) -> Self {
-        self.nu6_2 = height;
-
-        self
-    }
-
-    /// Set `nu6_3` field.
-    pub fn set_nu6_3(mut self, height: Option<u32>) -> Self {
-        self.nu6_3 = height;
-
-        self
-    }
-
-    /// Set `nu7` field.
-    pub fn set_nu7(mut self, height: Option<u32>) -> Self {
-        self.nu7 = height;
-
-        self
     }
 
     /// Builds `ActivationHeights` with assertions to ensure all earlier network upgrades are active with an activation
@@ -314,6 +257,49 @@ impl ActivationHeightsBuilder {
         }
     }
 }
+
+/// Generates the chaining per-upgrade setter on
+/// [`ActivationHeightsBuilder`] for each listed `set_x => x` pair. A
+/// `macro_rules!` because method definitions cannot be deduplicated
+/// with a helper fn.
+macro_rules! height_setters {
+    ($($(#[$doc:meta])* $setter:ident => $field:ident),+ $(,)?) => {
+        impl ActivationHeightsBuilder {
+            $(
+                $(#[$doc])*
+                pub fn $setter(mut self, height: Option<u32>) -> Self {
+                    self.$field = height;
+                    self
+                }
+            )+
+        }
+    };
+}
+
+height_setters!(
+    /// Set `overwinter` field.
+    set_overwinter => overwinter,
+    /// Set `sapling` field.
+    set_sapling => sapling,
+    /// Set `blossom` field.
+    set_blossom => blossom,
+    /// Set `heartwood` field.
+    set_heartwood => heartwood,
+    /// Set `canopy` field.
+    set_canopy => canopy,
+    /// Set `nu5` field.
+    set_nu5 => nu5,
+    /// Set `nu6` field.
+    set_nu6 => nu6,
+    /// Set `nu6_1` field.
+    set_nu6_1 => nu6_1,
+    /// Set `nu6_2` field.
+    set_nu6_2 => nu6_2,
+    /// Set `nu6_3` field.
+    set_nu6_3 => nu6_3,
+    /// Set `nu7` field.
+    set_nu7 => nu7,
+);
 
 #[cfg(test)]
 mod tests {

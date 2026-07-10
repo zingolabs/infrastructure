@@ -11,42 +11,40 @@
 //!
 //! # List of Managed Processes
 //! - Zebrad
-//! - Zcashd
 //! - Zainod
-//! - Lightwalletd
-//! - zcash-devtool (wallet client; per-operation subprocess, see [`crate::client`])
+//! - zcash-devtool (wallet; per-operation subprocess, see [`crate::wallet`])
 //!
 //! # Prerequisites
 //!
 //! Set `TEST_BINARIES_DIR` to a directory containing the executables
-//! the harness needs (`zebrad`, `zcashd`, `zcash-cli`, `zainod`,
-//! `lightwalletd`, `zcash-devtool`); otherwise each binary is resolved
-//! via `PATH`. `zcash-devtool` must be built with
-//! `--features regtest_support` for regtest wallets.
+//! the harness needs (`zebrad`, `zainod`, `zcash-devtool`); otherwise
+//! each binary is resolved via `PATH`. `zcash-devtool` must be built
+//! with `--features regtest_support` for regtest wallets.
 //! Each processes `launch` fn and [`crate::LocalNet::launch`] take
 //! config structs for defining additional parameters; see the config
 //! structs for each process in `validator.rs` and `indexer.rs`.
 //!
-//! ## Patched zcashd required for the default-true fast path
+//! ## Legacy stack (feature `legacy-stack`)
 //!
-//! `ZcashdConfig::disable_shielded_proving` defaults to `true`, which
-//! passes `-disableshieldedproving` at launch. Stock zcashd does not
-//! accept this flag; the harness requires the Zingolabs patched fork
-//! (<https://github.com/zingolabs/zcash>). `Zcashd::launch` runs a
-//! pre-launch capability probe that fails fast with
-//! [`crate::error::LaunchError::UnsupportedZcashdCapability`] if the
-//! resolved binary doesn't accept the flag. To use stock zcashd
-//! anyway, set `disable_shielded_proving = false` (slower; loads
-//! Sapling/Orchard proving keys at startup).
+//! The `Zcashd` validator and `Lightwalletd` indexer are gated behind
+//! the non-default `legacy-stack` cargo feature. The feature is
+//! **unsupported and untested** — CI never enables it — and both
+//! processes are scheduled for complete removal (see
+//! `docs/adr/0001-excise-legacy-stack.md`). It exists only as a
+//! short-lived stopgap for consumers migrating to the zebrad + zainod
+//! stack. Running the legacy processes additionally requires `zcashd`,
+//! `zcash-cli`, and `lightwalletd` binaries, and zcashd's
+//! default-`true` `disable_shielded_proving` fast path requires the
+//! Zingolabs patched fork (<https://github.com/zingolabs/zcash>).
 //!
 //! ## Launching multiple processes
 //!
 //! See [`crate::LocalNet`].
 //!
 
-pub mod client;
 pub mod config;
 pub mod error;
+pub mod front;
 pub mod indexer;
 pub mod logs;
 pub mod network;
@@ -54,16 +52,22 @@ pub mod process;
 pub mod rpc_client;
 pub mod utils;
 pub mod validator;
+pub mod wallet;
 pub mod zebra_rpc;
 
+mod backend;
 mod launch;
+mod macros;
 mod poll;
 
 use indexer::Indexer;
 use validator::Validator;
 
 use crate::{
-    error::LaunchError, indexer::IndexerConfig, logs::LogsToStdoutAndStderr, process::Process,
+    error::{IndexerSyncError, LaunchError},
+    indexer::IndexerConfig,
+    logs::LogsToStdoutAndStderr,
+    process::Process,
 };
 
 pub use zingo_consensus::MinerPool;
@@ -72,7 +76,7 @@ pub use zingo_consensus::MinerPool;
 pub mod protocol {
     pub use crate::rpc_client::RpcRequestClient;
     pub use zingo_consensus::{
-        ActivationHeights, ActivationHeightsBuilder, MinerPool, NetworkType,
+        ActivationHeights, ActivationHeightsBuilder, MinerPool, NetworkKind, NetworkType,
     };
 }
 
@@ -85,9 +89,11 @@ pub mod external {
 #[derive(Clone, Copy)]
 #[allow(missing_docs)]
 pub enum ProcessId {
+    #[cfg(feature = "legacy-stack")]
     Zcashd,
     Zebrad,
     Zainod,
+    #[cfg(feature = "legacy-stack")]
     Lightwalletd,
     Empty, // TODO: to be revised
     LocalNet,
@@ -96,9 +102,11 @@ pub enum ProcessId {
 impl std::fmt::Display for ProcessId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let process = match self {
+            #[cfg(feature = "legacy-stack")]
             Self::Zcashd => "zcashd",
             Self::Zebrad => "zebrad",
             Self::Zainod => "zainod",
+            #[cfg(feature = "legacy-stack")]
             Self::Lightwalletd => "lightwalletd",
             Self::Empty => "empty",
             Self::LocalNet => "LocalNet",
@@ -150,6 +158,25 @@ where
         &mut self.validator
     }
 
+    /// Assemble a `LocalNet` from processes the caller launched and
+    /// wired itself, so the caller can interpose anything — for
+    /// example a recording proxy — between the Indexer and the
+    /// Validator.
+    ///
+    /// The caller owns the launch ordering and the wiring. Launch the
+    /// Validator first. Set the indexer config's validator connection
+    /// yourself: point it at a proxy (for zainod,
+    /// [`indexer::zainod::ZainodConfig::validator_port`] is `pub`), or
+    /// call [`IndexerConfig::setup_validator_connection`] when no
+    /// interposition is wanted. Launch the Indexer, then assemble.
+    ///
+    /// Dropping the assembled `LocalNet` stops both processes, exactly
+    /// as with [`Self::launch_from_two_configs`], so the caller must
+    /// hand over ownership here and must not stop them independently.
+    pub fn from_parts(validator: V, indexer: I) -> Self {
+        LocalNet { indexer, validator }
+    }
+
     /// Briskly create a local net from validator config and indexer config.
     /// # Errors
     /// Returns `LaunchError` if a sub process fails to launch.
@@ -162,6 +189,88 @@ where
             validator_config,
         })
         .await
+    }
+
+    /// Launch a wallet against this network, generically over the
+    /// wallet implementation `W`. The wallet's network is minted from
+    /// the running Validator ([`wallet::WalletNetwork::from_validator`],
+    /// the only source of regtest heights for a wallet config — ADR
+    /// 0003) and its server connection is wired to the Indexer.
+    /// `make_config` is one of the implementation's constructors, e.g.
+    /// `ZcashDevtoolConfig::faucet`.
+    pub async fn launch_wallet<W: wallet::Wallet>(
+        &self,
+        make_config: impl FnOnce(wallet::WalletNetwork) -> W::Config,
+    ) -> Result<W, crate::error::WalletError> {
+        let network = wallet::WalletNetwork::from_validator(self.validator()).await;
+        let mut config = make_config(network);
+        wallet::WalletConfig::setup_indexer_connection(&mut config, self.indexer());
+        W::launch(config).await
+    }
+}
+
+impl<V> LocalNet<V, indexer::zainod::Zainod>
+where
+    V: Validator + LogsToStdoutAndStderr + Send,
+    <V as Process>::Config: Send,
+{
+    /// How long [`Self::await_indexer_convergence`] waits before
+    /// failing. Zainod's `fetch`-backend sync loop runs on an interval
+    /// timer — a first batch has been observed landing ~25 seconds
+    /// after the blocks were mined — so the bound must comfortably
+    /// exceed one full interval plus block verification time.
+    pub const INDEXER_CONVERGENCE_TIMEOUT: std::time::Duration =
+        std::time::Duration::from_secs(120);
+    /// How often [`Self::await_indexer_convergence`] re-reads the
+    /// Indexer's log while waiting.
+    pub const INDEXER_CONVERGENCE_POLL_INTERVAL: std::time::Duration =
+        std::time::Duration::from_millis(250);
+
+    /// Block until the Indexer's chain index has reported `target`
+    /// (Indexer convergence). The Validator reports a mined block
+    /// immediately, but the Indexer serves wallets and indexes on its
+    /// own cadence — a test that reads through the Indexer right after
+    /// mining races it. This barrier removes the race in the harness,
+    /// so callers need no wallet-side polling workarounds.
+    ///
+    /// Failure is loud and precise, never a silent hang: an
+    /// unreadable log, a drifted log contract, or a timeout each
+    /// return their own [`IndexerSyncError`] variant carrying the
+    /// evidence (offending line, or target/observed heights plus the
+    /// log tail).
+    pub async fn await_indexer_convergence(&self, target: u32) -> Result<(), IndexerSyncError> {
+        let started = std::time::Instant::now();
+        let mut last_observed = None;
+        while started.elapsed() < Self::INDEXER_CONVERGENCE_TIMEOUT {
+            last_observed = self.indexer().logged_sync_height()?;
+            if last_observed.is_some_and(|height| height >= target) {
+                return Ok(());
+            }
+            tokio::time::sleep(Self::INDEXER_CONVERGENCE_POLL_INTERVAL).await;
+        }
+        Err(IndexerSyncError::ConvergenceTimeout {
+            target,
+            last_observed,
+            waited_secs: started.elapsed().as_secs(),
+            log_tail: self
+                .indexer()
+                .stripped_log_tail(15)
+                .unwrap_or_else(|error| format!("<indexer log unreadable: {error}>")),
+        })
+    }
+
+    /// Mine `n` blocks and wait for Indexer convergence: when this
+    /// returns, the Indexer's chain index includes the Validator's
+    /// tip, so a single wallet sync pass observes every mined block.
+    pub async fn generate_blocks_converged(&self, n: u32) -> Result<(), IndexerSyncError> {
+        self.validator()
+            .generate_blocks(n)
+            .await
+            .map_err(|io_error| IndexerSyncError::Mining {
+                io_error: io_error.to_string(),
+            })?;
+        let target = self.validator().get_chain_height().await;
+        self.await_indexer_convergence(target).await
     }
 }
 
