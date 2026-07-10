@@ -65,6 +65,25 @@ pub enum LaunchError {
         /// Additional log content if applicable
         additional_log: Option<String>,
     },
+    /// The launch log never reported a bound address for every
+    /// configured listener within the discovery budget, or a bind
+    /// report was present but its address did not parse (log-contract
+    /// drift). Unpinned listeners bind port 0, so the launch log is
+    /// the only place their kernel-assigned addresses appear; a launch
+    /// whose raw addresses cannot be discovered cannot be fronted and
+    /// must fail loudly with the evidence.
+    #[error(
+        "{process_name} raw listener endpoints could not be discovered from the launch log: {detail}\nStdout: {stdout}"
+    )]
+    ListenerEndpointsUndiscovered {
+        /// Process name
+        process_name: String,
+        /// Which listener reports were missing, or the offending line
+        /// when a report was present but unparseable.
+        detail: String,
+        /// Captured stdout at the time discovery gave up.
+        stdout: String,
+    },
     /// RPC endpoint did not respond within the readiness budget
     #[error(
         "{process_name} RPC endpoint at {address} did not respond within {timeout:?}: {last_error}"
@@ -85,6 +104,7 @@ pub enum LaunchError {
     /// missing-capability before any state is created so callers
     /// see a clear, descriptive failure instead of a deep failure
     /// downstream of the actual launch.
+    #[cfg(feature = "legacy-stack")]
     #[error(
         "{process_name} binary does not accept `{capability}`.\n{hint}\nProbe stderr: {stderr}"
     )]
@@ -104,6 +124,7 @@ pub enum LaunchError {
     /// at all (PATH/permission/etc.) — distinct from
     /// `UnsupportedZcashdCapability` where the binary ran but
     /// rejected the flag.
+    #[cfg(feature = "legacy-stack")]
     #[error("{process_name} capability probe for `{capability}` failed to spawn: {io_error}")]
     CapabilityProbeFailed {
         /// Process name
@@ -112,6 +133,118 @@ pub enum LaunchError {
         capability: &'static str,
         /// Underlying io::Error / spawn-failure description
         io_error: String,
+    },
+}
+
+/// Errors associated with driving wallet client operations
+/// (see [`crate::wallet`]). Shared by every [`crate::wallet::Wallet`]
+/// implementation, so messages name the operation, not one binary.
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum WalletError {
+    /// The client binary could not be spawned at all
+    /// (PATH/`TEST_BINARIES_DIR`/permission problems).
+    #[error("wallet {operation} failed to spawn: {io_error}")]
+    SpawnFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Underlying io::Error description
+        io_error: String,
+    },
+    /// Writing to the child's stdin failed (used by `init`, which
+    /// receives the mnemonic on stdin).
+    #[error("wallet {operation}: writing to child stdin failed: {io_error}")]
+    StdinWriteFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Underlying io::Error description
+        io_error: String,
+    },
+    /// The operation subprocess exited non-zero.
+    #[error(
+        "wallet {operation} failed.\nExit status: {exit_status}\nStdout: {stdout}\nStderr: {stderr}"
+    )]
+    OperationFailed {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// Exit status of the subprocess
+        exit_status: std::process::ExitStatus,
+        /// Captured stdout
+        stdout: String,
+        /// Captured stderr
+        stderr: String,
+    },
+    /// The operation subprocess exited zero but its stdout did not
+    /// match the expected shape (txid line, balance lines, …). This is
+    /// the contract-drift tripwire: it fires when the client binary's
+    /// output format changes out from under the harness's parsers.
+    #[error(
+        "wallet {operation} succeeded but its output could not be parsed: {reason}\nStdout: {stdout}"
+    )]
+    UnexpectedOutput {
+        /// The wallet operation being attempted
+        operation: &'static str,
+        /// What the parser was looking for and didn't find
+        reason: String,
+        /// Captured stdout that failed to parse
+        stdout: String,
+    },
+}
+
+/// Errors from observing Indexer convergence — the harness reading the
+/// Indexer's log to learn how far its chain index has synced (see
+/// `LocalNet::await_indexer_convergence`). Every variant is loud and
+/// precise by design: the observation channel is a log-format contract
+/// with the zainod binary, and a drifted contract must fail with the
+/// offending evidence, never hang or silently pass.
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum IndexerSyncError {
+    /// Mining failed before the convergence wait began.
+    #[error("mining failed before the convergence wait: {io_error}")]
+    Mining {
+        /// Underlying io::Error description from the validator's
+        /// block-generation call.
+        io_error: String,
+    },
+    /// The Indexer's stdout log could not be read at all.
+    #[error("could not read the indexer log at {path}: {io_error}")]
+    LogUnreadable {
+        /// Path of the log file the harness tried to read.
+        path: std::path::PathBuf,
+        /// Underlying io::Error description.
+        io_error: String,
+    },
+    /// A log line matched the sync marker but its height field did not
+    /// parse. This is the contract-drift tripwire: it fires when the
+    /// zainod binary's log format changes out from under the harness's
+    /// parser (contract pinned against zainod 0.4.3-ironwood.1 by the
+    /// `zainod_converges_to_validator_tip_after_generate_blocks` integration test).
+    #[error(
+        "an indexer log line matched the sync marker {marker:?} but its height did not parse: \
+         expected \"{marker}height: <digits>\" after ANSI stripping, got {line:?} — \
+         the zainod log contract has drifted"
+    )]
+    SyncMarkerDrift {
+        /// The marker the line matched.
+        marker: &'static str,
+        /// The full line, after ANSI stripping, that failed to parse.
+        line: String,
+    },
+    /// The Indexer never reported the target height within the timeout.
+    #[error(
+        "indexer did not converge to height {target} within {waited_secs}s; \
+         last height it logged: {last_observed:?}.\nIndexer log tail:\n{log_tail}"
+    )]
+    ConvergenceTimeout {
+        /// The validator tip height the wait was for.
+        target: u32,
+        /// The last height the indexer had logged when the wait gave
+        /// up, or `None` if it never logged one.
+        last_observed: Option<u32>,
+        /// How long the wait ran before giving up.
+        waited_secs: u64,
+        /// The final lines of the indexer's log (ANSI-stripped), for
+        /// diagnosing why it stalled.
+        log_tail: String,
     },
 }
 
@@ -155,9 +288,15 @@ impl LaunchError {
                 }
                 combined
             }
-            Self::RpcReadinessTimeout { .. }
-            | Self::UnsupportedZcashdCapability { .. }
-            | Self::CapabilityProbeFailed { .. } => String::new(),
+            // Discovery failures carry stdout only: the retry helper's
+            // signature scan must still see a pinned-port bind error
+            // that surfaced after `launch::wait` returned.
+            Self::ListenerEndpointsUndiscovered { stdout, .. } => stdout.clone(),
+            Self::RpcReadinessTimeout { .. } => String::new(),
+            #[cfg(feature = "legacy-stack")]
+            Self::UnsupportedZcashdCapability { .. } | Self::CapabilityProbeFailed { .. } => {
+                String::new()
+            }
         }
     }
 }

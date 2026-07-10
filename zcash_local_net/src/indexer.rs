@@ -23,6 +23,7 @@ pub trait Indexer: Process<Config: IndexerConfig> + std::fmt::Debug {
 pub mod zainod;
 
 /// The Lightwalletd executable support struct.
+#[cfg(feature = "legacy-stack")]
 pub mod lightwalletd;
 
 /// Empty

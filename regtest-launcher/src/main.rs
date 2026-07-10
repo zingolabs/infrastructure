@@ -11,44 +11,31 @@ use std::{
 };
 
 use clap::Parser;
-use zcash_protocol::{consensus::BlockHeight, local_consensus::LocalNetwork};
-use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
 use local_net::{
     LocalNet,
-    indexer::lightwalletd::Lightwalletd,
+    indexer::zainod::Zainod,
     validator::{
         Validator,
         zebrad::{Zebrad, ZebradConfig},
     },
 };
 use owo_colors::OwoColorize;
+use zcash_protocol::{consensus::BlockHeight, local_consensus::LocalNetwork};
 
 use tokio::{signal::ctrl_c, time::interval};
 
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{
-        BlockTemplateTimeSource, GetBlockTemplateResponse,
-        zebra_chain::{
-            parameters::{
-                Network,
-                testnet::{Parameters, RegtestParameters},
-            },
-            serialization::ZcashSerialize,
-        },
-    },
-    proposal_block_from_template,
-};
-use zingo_common_components::protocol::ActivationHeights;
+use local_net::protocol::ActivationHeights;
+use local_net::protocol::RpcRequestClient;
+use local_net::zebra_rpc::submit_template_block;
 
 use regtest_launcher::{
     faucet::{self, FaucetState},
     keygen::generate_regtest_transparent_keypair,
 };
 
-use crate::cli::Cli;
+use crate::cli::{Cli, ConfiguredActivationHeights};
 
-/// Maps zebra's `ConfiguredActivationHeights` onto librustzcash's
+/// Maps the CLI's `ConfiguredActivationHeights` onto librustzcash's
 /// `LocalNetwork` so the faucet's transaction builder uses the same regtest
 /// activation heights the node runs with (and thus the correct branch id).
 fn local_network(h: &ConfiguredActivationHeights) -> LocalNetwork {
@@ -88,6 +75,10 @@ async fn main() {
         .set_nu7(cli.activation_heights.nu7)
         .build();
 
+    // A supplied `--miner-address` mines to a wallet the operator controls but
+    // leaves this process without the secret key (faucet disabled). With no
+    // address we generate a regtest transparent keypair and keep the secret
+    // key, which is what the faucet spends.
     let (mnemonic_opt, sk_opt, taddr_str) = match cli.miner_address.as_deref() {
         Some(addr) => (None, None, addr.to_string()),
         None => {
@@ -100,7 +91,7 @@ async fn main() {
         .with_miner_address(taddr_str.clone())
         .with_regtest_enabled(heights);
     let network =
-        LocalNet::<Zebrad, Lightwalletd>::launch_from_two_configs(zebrad_config, Default::default())
+        LocalNet::<Zebrad, Zainod>::launch_from_two_configs(zebrad_config, Default::default())
             .await
             .unwrap();
 
@@ -134,22 +125,13 @@ async fn main() {
     );
     let client = RpcRequestClient::new(SocketAddr::from_str(&rpc_addr.to_string()).unwrap());
 
-    let regtest_network = Network::Testnet(Arc::new(
-        Parameters::new_regtest(RegtestParameters {
-            activation_heights: cli.activation_heights,
-            funding_streams: None,
-            lockbox_disbursements: None,
-            checkpoints: None,
-            extend_funding_stream_addresses_as_required: None,
-        })
-        .unwrap(),
-    ));
-
     let running = Arc::new(AtomicBool::new(true));
     let running_miner = running.clone();
 
     let seconds_per_block = 5u64;
 
+    // Bootstrap past coinbase maturity (100 confirmations) so the faucet has a
+    // spendable coinbase UTXO to fund from.
     let target_height = 101u32;
     loop {
         let cur_height = network.validator().get_chain_height().await;
@@ -158,30 +140,14 @@ async fn main() {
             break;
         }
 
-        let tpl: GetBlockTemplateResponse = client
-            .json_result_from_call("getblocktemplate", "[]".to_string())
+        let submission = submit_template_block(&client, &heights)
             .await
-            .expect("getblocktemplate failed");
+            .expect("block submission failed");
 
-        let tpl_resp = tpl.try_into_template().unwrap();
-        let block = proposal_block_from_template(
-            &tpl_resp,
-            BlockTemplateTimeSource::default(),
-            &regtest_network,
-        )
-        .expect("proposal_block_from_template failed");
-
-        let submitted_hash = block.hash();
-        let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
-        let submit_response = client
-            .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
-            .await
-            .expect("submitblock failed");
-
-        let ok = submit_response.contains(r#""result":null"#);
-        if !ok {
+        if !submission.accepted() {
             eprintln!(
-                "bootstrap submitblock rejected. submitted={submitted_hash} resp={submit_response}"
+                "bootstrap submitblock rejected. submitted={} resp={}",
+                submission.block_hash, submission.response
             );
             continue;
         }
@@ -203,9 +169,7 @@ async fn main() {
                 "Faucet listening at: http://127.0.0.1:{}  (POST /fund)",
                 faucet_port.bright_green().bold()
             );
-            println!(
-                "  fund a wallet with: faucet --to <uregtest1...> --amount <ZEC>"
-            );
+            println!("  fund a wallet with: faucet --to <uregtest1...> --amount <ZEC>");
             println!();
             tokio::spawn(async move {
                 if let Err(e) = faucet::serve(faucet_state, faucet_port).await {
@@ -229,31 +193,14 @@ async fn main() {
         while running_miner.load(Ordering::Relaxed) {
             tick.tick().await;
 
-            let tpl: GetBlockTemplateResponse = client
-                .json_result_from_call("getblocktemplate", "[]".to_string())
+            let submission = submit_template_block(&client, &heights)
                 .await
-                .expect("getblocktemplate failed");
+                .expect("block submission failed");
 
-            let tpl_resp = tpl.try_into_template().unwrap();
-            let block = proposal_block_from_template(
-                &tpl_resp,
-                BlockTemplateTimeSource::default(),
-                &regtest_network,
-            )
-            .expect("proposal_block_from_template failed");
-
-            let submitted_hash = block.hash();
-
-            let block_hex = hex::encode(block.zcash_serialize_to_vec().expect("serialize block"));
-            let submit_response = client
-                .text_from_call("submitblock", format!(r#"["{block_hex}"]"#))
-                .await
-                .expect("submitblock failed");
-
-            let ok = submit_response.contains(r#""result":null"#);
-            if !ok {
+            if !submission.accepted() {
                 eprintln!(
-                    "submitblock rejected. submitted={submitted_hash} resp={submit_response}"
+                    "submitblock rejected. submitted={} resp={}",
+                    submission.block_hash, submission.response
                 );
                 continue;
             }
@@ -264,7 +211,7 @@ async fn main() {
                 .expect("getbestblockhash failed");
 
             if last_tip.as_deref() != Some(&tip) {
-                println!("mined new_tip={tip} height={}", tpl_resp.height());
+                println!("mined new_tip={tip} height={}", submission.height);
 
                 last_tip = Some(tip);
             }

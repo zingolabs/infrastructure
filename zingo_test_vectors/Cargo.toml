@@ -7,6 +7,3 @@ authors = ["Zingolabs <zingo@zingolabs.org>"]
 repository = "https://github.com/zingolabs/infrastructure"
 homepage = "https://github.com/zingolabs/infrastructure"
 license = "MIT"
-
-[dependencies]
-bip0039.workspace = true

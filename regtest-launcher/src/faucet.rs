@@ -33,15 +33,12 @@ use zcash_primitives::transaction::{
     fees::zip317::FeeRule,
 };
 use zcash_protocol::{
-    consensus::BlockHeight,
-    local_consensus::LocalNetwork,
-    memo::MemoBytes,
-    value::Zatoshis,
+    consensus::BlockHeight, local_consensus::LocalNetwork, memo::MemoBytes, value::Zatoshis,
 };
 use zcash_transparent::{
     address::{Script, TransparentAddress},
-    bundle::{OutPoint, TxOut},
     builder::{SpendInfo, TransparentInputInfo, TransparentSigningSet},
+    bundle::{OutPoint, TxOut},
 };
 use zebra_node_services::rpc_client::RpcRequestClient;
 
@@ -334,10 +331,7 @@ async fn build_and_send(
 
     let needed = amount_zats.saturating_add(fee);
     if total_in < needed {
-        return Err(FaucetError::InsufficientFunds {
-            needed,
-            available,
-        });
+        return Err(FaucetError::InsufficientFunds { needed, available });
     }
 
     // Change back to the faucet's own shielded address (same pool as the
@@ -345,8 +339,8 @@ async fn build_and_send(
     let change = total_in - amount_zats - fee;
     if change > 0 {
         let (_fvk, change_ovk, change_addr) = orchard_change_keys(&state.seed);
-        let change_amount = Zatoshis::from_u64(change)
-            .map_err(|e| FaucetError::Build(format!("change: {e:?}")))?;
+        let change_amount =
+            Zatoshis::from_u64(change).map_err(|e| FaucetError::Build(format!("change: {e:?}")))?;
         add_shielded_output(
             &mut builder,
             use_ironwood,
@@ -503,12 +497,9 @@ pub async fn run_client(to: &str, amount_zec: f64, faucet_port: u16) -> Result<S
         Ok(parsed.txid)
     } else {
         let status = resp.status();
-        let err: ErrorResponse = resp
-            .json()
-            .await
-            .unwrap_or_else(|_| ErrorResponse {
-                error: format!("faucet returned HTTP {status}"),
-            });
+        let err: ErrorResponse = resp.json().await.unwrap_or_else(|_| ErrorResponse {
+            error: format!("faucet returned HTTP {status}"),
+        });
         Err(err.error)
     }
 }

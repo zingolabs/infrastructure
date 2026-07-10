@@ -2,12 +2,9 @@
 
 use std::{path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
-use zcash_protocol::PoolType;
-
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 use zingo_test_vectors::{
     REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, REG_Z_ADDR_FROM_ABANDONART,
 };
@@ -98,7 +95,7 @@ impl Default for ZcashdConfig {
             // use the funds — the proving cost was pure overhead.
             // Tests that need shielded-mined funds opt in via
             // `ValidatorConfig::set_test_parameters` with
-            // `PoolType::ORCHARD` or `PoolType::SAPLING`.
+            // `MinerPool::Orchard` or `MinerPool::Sapling`.
             miner_address: Some(REG_T_ADDR_FROM_ABANDONART),
             chain_cache: None,
             disable_shielded_proving: true,
@@ -110,14 +107,14 @@ impl Default for ZcashdConfig {
 impl ValidatorConfig for ZcashdConfig {
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         self.miner_address = Some(match mine_to_pool {
-            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
-            PoolType::SAPLING => REG_Z_ADDR_FROM_ABANDONART,
-            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            MinerPool::Orchard => REG_O_ADDR_FROM_ABANDONART,
+            MinerPool::Sapling => REG_Z_ADDR_FROM_ABANDONART,
+            MinerPool::Transparent => REG_T_ADDR_FROM_ABANDONART,
         });
         self.activation_heights = activation_heights;
         self.chain_cache = chain_cache;
@@ -125,7 +122,7 @@ impl ValidatorConfig for ZcashdConfig {
         // mineraddress output, and the prover to construct the
         // shielded output itself. Re-enable both for non-Transparent
         // pools so callers don't have to know about either default.
-        if !matches!(mine_to_pool, PoolType::Transparent) {
+        if !matches!(mine_to_pool, MinerPool::Transparent) {
             self.disable_wallet = false;
             self.disable_shielded_proving = false;
         }
@@ -133,14 +130,11 @@ impl ValidatorConfig for ZcashdConfig {
 }
 
 /// This struct is used to represent and manage the Zcashd process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zcashd {
     /// Child process handle
     handle: Child,
     /// RPC port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     port: u16,
     /// Config directory
     config_dir: TempDir,
@@ -149,6 +143,18 @@ pub struct Zcashd {
     /// Data directory
     data_dir: TempDir,
 }
+
+crate::macros::ref_getters!(Zcashd {
+    /// Child process handle.
+    handle: Child,
+    /// Config directory.
+    config_dir: TempDir,
+});
+
+crate::macros::copy_getters!(Zcashd {
+    /// RPC port.
+    port: u16,
+});
 
 impl Zcashd {
     /// Returns path to config file.
@@ -176,21 +182,16 @@ impl LogsToDir for Zcashd {
     }
 }
 
-/// Listen ports zcashd needs to bind during launch. A single-field
-/// counterpart to `ZebradPorts` — kept symmetric so the planned
-/// retry-on-collision helper in `launch::wait` can treat all
-/// validators uniformly and re-roll an entire validator's port set
-/// in one call rather than open-coding the picks per validator.
-#[derive(Debug, Clone, Copy)]
-struct ZcashdPorts {
-    rpc: u16,
-}
+impl launch::PortPins for ZcashdConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        self.rpc_listen_port.into_iter().collect()
+    }
 
-impl ZcashdPorts {
-    fn pick(config: &ZcashdConfig) -> Self {
-        Self {
-            rpc: network::pick_unused_port(config.rpc_listen_port),
-        }
+    fn clear_port_pins(&mut self) {
+        // Single-port validator — clear the only pin so the next
+        // attempt's pick calls `network::pick_unused_port(None)` and
+        // the allocator walks to a fresh candidate.
+        self.rpc_listen_port = None;
     }
 }
 
@@ -240,8 +241,8 @@ impl Zcashd {
     /// not loading from a cache. Wrapped by `Process::launch` in a
     /// bounded retry-on-port-collision loop (see
     /// `launch::with_retry_on_collision`); each retry calls this fresh
-    /// with a config whose port pins have been cleared so
-    /// `ZcashdPorts::pick` re-rolls them via `network::pick_unused_port`.
+    /// with a config whose port pin has been cleared so the pick
+    /// re-rolls via `network::pick_unused_port`.
     async fn launch_once(config: ZcashdConfig) -> Result<Self, LaunchError> {
         if config.disable_shielded_proving {
             ensure_disableshieldedproving_supported()?;
@@ -263,7 +264,7 @@ impl Zcashd {
             "Configuring zcashd to regtest with these activation heights: {activation_heights:?}"
         );
 
-        let ZcashdPorts { rpc: port } = ZcashdPorts::pick(&config);
+        let port = network::pick_unused_port(config.rpc_listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zcashd_config(
             config_dir.path(),
@@ -278,23 +279,20 @@ impl Zcashd {
         trace_version_and_location("zcash-cli", "--version");
 
         let mut command = pick_command(executable_name, false);
-        command
-            .args([
-                "--printtoconsole",
-                format!(
-                    "--conf={}",
-                    config_file_path.to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                format!(
-                    "--datadir={}",
-                    data_dir.path().to_str().expect("should be valid UTF-8")
-                )
-                .as_str(),
-                "-debug=1",
-            ])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args([
+            "--printtoconsole",
+            format!(
+                "--conf={}",
+                config_file_path.to_str().expect("should be valid UTF-8")
+            )
+            .as_str(),
+            format!(
+                "--datadir={}",
+                data_dir.path().to_str().expect("should be valid UTF-8")
+            )
+            .as_str(),
+            "-debug=1",
+        ]);
 
         // Skip Sapling/Orchard proving-key load when no test on this
         // launch needs zcashd to build a shielded proof. Default-true
@@ -312,17 +310,9 @@ impl Zcashd {
             command.arg("-disablewallet");
         }
 
-        let spawn_start = std::time::Instant::now();
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        tracing::info!(
-            elapsed_ms = spawn_start.elapsed().as_millis() as u64,
-            "zcashd: process spawned"
-        );
-
-        let wait_start = std::time::Instant::now();
-        launch::wait(
+        let handle = launch::spawn_and_wait(
             ProcessId::Zcashd,
-            &mut handle,
+            &mut command,
             &logs_dir,
             None,
             &["init message: Done loading"],
@@ -330,10 +320,6 @@ impl Zcashd {
             &[],
         )
         .await?;
-        tracing::info!(
-            elapsed_ms = wait_start.elapsed().as_millis() as u64,
-            "zcashd: launch::wait returned (Done loading observed)"
-        );
 
         let zcashd = Zcashd {
             handle,
@@ -377,21 +363,12 @@ impl Process for Zcashd {
             "AddrInUse",
             "Address already in use",
         ];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "zcashd",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &ZcashdConfig| c.rpc_listen_port.into_iter().collect(),
-            |c: &mut ZcashdConfig| {
-                // Single-port validator — clear the only pin so the
-                // next attempt's `ZcashdPorts::pick` calls
-                // `network::pick_unused_port(None)` and the kernel
-                // hands back a fresh ephemeral.
-                c.rpc_listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
@@ -443,13 +420,7 @@ impl Validator for Zcashd {
             serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
                 .expect("should parse JSON response");
 
-        let upgrades = response
-            .get("upgrades")
-            .expect("upgrades field should exist")
-            .as_object()
-            .expect("upgrades should be an object");
-
-        crate::validator::parse_activation_heights_from_rpc(upgrades)
+        crate::validator::activation_heights_from_getblockchaininfo(&response)
     }
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
         let chain_height = self.get_chain_height().await;
@@ -477,8 +448,13 @@ impl Validator for Zcashd {
         let output = self
             .zcash_cli_command(&["getchaintips"])
             .expect(EXPECT_SPAWN);
-        let stdout_json = json::parse(&String::from_utf8_lossy(&output.stdout)).unwrap();
-        stdout_json[0]["height"].as_u32().unwrap()
+        let stdout_json: serde_json::Value =
+            serde_json::from_str(&String::from_utf8_lossy(&output.stdout))
+                .expect("should parse JSON response");
+        let height = stdout_json[0]["height"]
+            .as_u64()
+            .expect("height should be a number");
+        u32::try_from(height).expect("height should fit in u32")
     }
 
     fn data_dir(&self) -> &TempDir {
@@ -515,11 +491,7 @@ impl Validator for Zcashd {
     }
 }
 
-impl Drop for Zcashd {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Zcashd);
 
 #[cfg(test)]
 mod unit_tests {
@@ -558,26 +530,26 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_transparent_pool_keeps_wallet_disabled() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Transparent, ActivationHeights::default(), None);
             assert!(
                 config.disable_wallet,
                 "Transparent mining does not need zcashd's wallet to \
                  materialize coinbase outputs; set_test_parameters must \
                  preserve the default-true `disable_wallet` for \
-                 PoolType::Transparent."
+                 MinerPool::Transparent."
             );
         }
 
         #[test]
         fn set_test_parameters_orchard_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Orchard, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Orchard mining needs zcashd's wallet to materialize the \
                  shielded coinbase output from `mineraddress`; \
                  set_test_parameters must auto-flip `disable_wallet` to \
-                 false for PoolType::ORCHARD so callers don't have to \
+                 false for MinerPool::Orchard so callers don't have to \
                  know about the default."
             );
         }
@@ -585,13 +557,13 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_sapling_pool_enables_wallet() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Sapling, ActivationHeights::default(), None);
             assert!(
                 !config.disable_wallet,
                 "Sapling mining needs zcashd's wallet to materialize \
                  the shielded coinbase output from `mineraddress`; \
                  set_test_parameters must auto-flip `disable_wallet` to \
-                 false for PoolType::SAPLING so callers don't have to \
+                 false for MinerPool::Sapling so callers don't have to \
                  know about the default."
             );
         }
@@ -599,26 +571,26 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_transparent_pool_keeps_shielded_proving_disabled() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::Transparent, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Transparent, ActivationHeights::default(), None);
             assert!(
                 config.disable_shielded_proving,
                 "Transparent mining does not construct shielded outputs \
                  and so does not need the prover; set_test_parameters \
                  must preserve the default-true `disable_shielded_proving` \
-                 for PoolType::Transparent."
+                 for MinerPool::Transparent."
             );
         }
 
         #[test]
         fn set_test_parameters_orchard_pool_enables_shielded_proving() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::ORCHARD, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Orchard, ActivationHeights::default(), None);
             assert!(
                 !config.disable_shielded_proving,
                 "Orchard mining constructs the shielded coinbase output \
                  and so needs the prover; set_test_parameters must \
                  auto-flip `disable_shielded_proving` to false for \
-                 PoolType::ORCHARD so callers don't have to know about \
+                 MinerPool::Orchard so callers don't have to know about \
                  the default."
             );
         }
@@ -626,13 +598,13 @@ mod unit_tests {
         #[test]
         fn set_test_parameters_sapling_pool_enables_shielded_proving() {
             let mut config = ZcashdConfig::default();
-            config.set_test_parameters(PoolType::SAPLING, ActivationHeights::default(), None);
+            config.set_test_parameters(MinerPool::Sapling, ActivationHeights::default(), None);
             assert!(
                 !config.disable_shielded_proving,
                 "Sapling mining constructs the shielded coinbase output \
                  and so needs the prover; set_test_parameters must \
                  auto-flip `disable_shielded_proving` to false for \
-                 PoolType::SAPLING so callers don't have to know about \
+                 MinerPool::Sapling so callers don't have to know about \
                  the default."
             );
         }

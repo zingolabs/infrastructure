@@ -1,9 +1,9 @@
 [package]
 name = "zcash_local_net"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT"
-description = "Utilities for launching and managing local Zcash processes (zebrad, zcashd, zainod, lightwalletd) for integration testing."
+description = "Utilities for launching and managing local Zcash processes (zebrad, zainod, zcash-devtool) for integration testing."
 authors = ["Zingolabs <zingo@zingolabs.org>"]
 repository = "https://github.com/zingolabs/infrastructure"
 homepage = "https://github.com/zingolabs/infrastructure"
@@ -11,44 +11,51 @@ homepage = "https://github.com/zingolabs/infrastructure"
 [badges]
 github = { repository = "zingolabs/infrastructure/services" }
 
+[features]
+# UNSUPPORTED and UNTESTED: opt-in gate for the legacy stack (the
+# `Zcashd` validator and `Lightwalletd` indexer), scheduled for complete
+# removal (see docs/adr/0001-excise-legacy-stack.md). CI never enables
+# this feature; it exists only as a short-lived migration stopgap for
+# consumers still constructing the legacy processes.
+legacy-stack = []
+
 [dependencies]
 
 # zingo
-zingo_common_components = { workspace = true }
+zingo-consensus = { workspace = true }
 zingo_test_vectors = { workspace = true }
-
-# zcash
-zcash_protocol = { workspace = true }
-
-# zebra
-zebra-node-services = { workspace = true }
-zebra-rpc = { workspace = true }
-zebra-chain = { workspace = true }
 
 # Community
 tempfile = { workspace = true }
 reqwest = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-getset = { workspace = true }
-json = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "net", "rt", "time", "process"] }
+serde = { version = "1.0", features = ["derive"] }
+sha2 = "0.10"
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }
 tracing-subscriber = { workspace = true }
-
-[build-dependencies]
-hex = { workspace = true }
-tokio = { workspace = true, features = ["macros", "fs", "rt-multi-thread"] }
 
 [package.metadata.cargo_check_external_types]
 allowed_external_types = [
     "tempfile::dir::TempDir",
-    "zcash_protocol::PoolType",
-    "zingo_common_components::protocol::ActivationHeights",
-    "zingo_common_components::protocol::NetworkType",
-    "zebra_node_services::rpc_client::RpcRequestClient",
+    "zingo_consensus::ActivationHeights",
+    "zingo_consensus::ActivationHeightsBuilder",
+    "zingo_consensus::MinerPool",
+    "zingo_consensus::NetworkKind",
+    "zingo_consensus::NetworkType",
+    # rpc_client speaks reqwest at its transport boundary and serde_json in
+    # its error type; zebra_rpc's template model is generic over serde
+    # deserialization.
     "reqwest::error::Error",
+    "reqwest::error::Result",
+    "reqwest::async_impl::response::Response",
+    "serde_core::de::Deserialize",
+    "serde_core::de::DeserializeOwned",
+    "serde_json::error::Error",
+    "serde_json::value::Value",
 ]

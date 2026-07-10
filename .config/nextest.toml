@@ -3,4 +3,14 @@ fail-fast = false
 
 [profile.ci]
 fail-fast = false
-default-filter = 'not (test(zebra) | test(zaino))'
+# These test binaries spawn real zcashd/zebrad/zainod/lightwalletd/devtool
+# processes, which the CI image does not provide. Exclude by binary_id, not
+# by test-name substring: name filters both missed binary-requiring tests
+# with unconventional names and silently hid pure unit tests that happened
+# to mention a binary in their name.
+default-filter = '''
+not (
+  binary_id(zcash_local_net::integration)
+  | binary_id(regtest-launcher::e2e)
+)
+'''

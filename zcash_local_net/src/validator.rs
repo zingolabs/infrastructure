@@ -2,11 +2,11 @@
 use std::path::PathBuf;
 
 use tempfile::TempDir;
-use zcash_protocol::PoolType;
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 
 use crate::process::Process;
 
+#[cfg(feature = "legacy-stack")]
 pub mod zcashd;
 pub mod zebrad;
 
@@ -46,9 +46,12 @@ pub mod zebrad;
 /// zebrad's view of activation heights differs from zainod's, the
 /// chain-index sync loop fails with
 /// `InvalidData("Block commitment could not be computed")`. The same
-/// (NU5=2, NU6=2, NU6.1=5) tuple must therefore be set in
+/// (NU5=2, NU6=2, NU6.1=NU6.2=NU6.3=5) tuple must therefore be set in
 /// `zaino-common::ZEBRAD_DEFAULT_ACTIVATION_HEIGHTS`. Tracked in
-/// zingolabs/zaino#1076.
+/// zingolabs/zaino#1076. zainod <= 0.4.2 predates NU6.3 (and cannot
+/// parse zebra 6.x `getblockchaininfo` at all — its `valuePools`
+/// array is fixed at 5 entries, before Ironwood); indexer-sync tests
+/// fail against it until a NU6.3-aware zainod ships.
 pub fn regtest_test_activation_heights() -> ActivationHeights {
     ActivationHeights::builder()
         .set_overwinter(Some(1))
@@ -60,6 +63,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
         .set_nu6(Some(2))
         .set_nu6_1(Some(5))
         .set_nu6_2(Some(5))
+        .set_nu6_3(Some(5))
         .set_nu7(None)
         .build()
 }
@@ -72,7 +76,7 @@ pub fn regtest_test_activation_heights() -> ActivationHeights {
 /// this string and verifies the result, after the same conversion
 /// that `regtest-launcher::main` applies, equals the helper output.
 pub const REGTEST_FIXTURE_HEIGHTS_CLI_STRING: &str =
-    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=off,nu7=off";
+    "all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=5,nu7=off";
 
 /// One lockbox disbursement output to inject into Zebra's regtest
 /// `[network.testnet_parameters]` configuration.
@@ -230,10 +234,16 @@ pub fn regtest_test_post_nu6_funding_streams() -> FundingStreams {
     }
 }
 
-/// Parse activation heights from the upgrades object returned by getblockchaininfo RPC.
-fn parse_activation_heights_from_rpc(
-    upgrades: &serde_json::Map<String, serde_json::Value>,
-) -> ActivationHeights {
+/// Parse activation heights from a `getblockchaininfo` RPC response.
+/// Shared by every validator's `get_activation_heights`; only the RPC
+/// transport that fetches the response differs per validator.
+fn activation_heights_from_getblockchaininfo(response: &serde_json::Value) -> ActivationHeights {
+    let upgrades = response
+        .get("upgrades")
+        .expect("upgrades field should exist")
+        .as_object()
+        .expect("upgrades should be an object");
+
     // Helper function to extract activation height for a network upgrade by name
     let get_height = |name: &str| -> Option<u32> {
         upgrades.values().find_map(|upgrade| {
@@ -273,7 +283,7 @@ pub trait ValidatorConfig: Default {
     /// To set the config for common Regtest parameters.
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     );
@@ -358,12 +368,14 @@ pub trait Validator: Process<Config: ValidatorConfig> + Send + Sync + std::fmt::
 
     /// Returns path to zcashd-like config file.
     /// Lightwalletd pulls some information from the config file that zcashd builds. When running zebra-lightwalletd, we create compatibility zcash.conf. This is the path to that.
+    /// Lightwalletd is the only consumer; the method dies with the legacy stack.
+    #[cfg(feature = "legacy-stack")]
     fn get_zcashd_conf_path(&self) -> PathBuf;
 
     /// Network type
     fn network(&self) -> NetworkType;
 
-    /// Caches chain. This stops the zcashd process.
+    /// Caches chain. This stops the validator process.
     fn cache_chain(
         &mut self,
         chain_cache: PathBuf,
