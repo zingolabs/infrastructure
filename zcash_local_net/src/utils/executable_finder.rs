@@ -79,9 +79,9 @@ mod tests {
         assert_eq!(pick_path, None);
     }
     #[test]
-    #[ignore = "Needs TEST_BINARIES_DIR to be set and contain zcashd."]
-    fn zcashd() {
-        let pick_path = pick_path("zcashd", true);
+    #[ignore = "Needs TEST_BINARIES_DIR to be set and contain zebrad."]
+    fn zebrad() {
+        let pick_path = pick_path("zebrad", true);
         assert!(pick_path.is_some());
     }
 }

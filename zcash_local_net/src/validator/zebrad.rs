@@ -5,41 +5,32 @@ use crate::{
     error::LaunchError,
     launch,
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
-    network,
     process::Process,
-    utils::{
-        executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
-        type_conversions::zingo_to_zebra_activation_heights,
-    },
+    utils::executable_finder::{pick_command, trace_version_and_location},
     validator::{Validator, ValidatorConfig},
 };
-use zcash_protocol::PoolType;
-use zingo_common_components::protocol::{ActivationHeights, NetworkType};
+use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
 use zingo_test_vectors::{
     REG_O_ADDR_FROM_ABANDONART, REG_T_ADDR_FROM_ABANDONART, ZEBRAD_DEFAULT_MINER,
 };
 
-use std::{
-    net::{IpAddr, Ipv4Addr, SocketAddr},
-    path::PathBuf,
-    process::Child,
-};
+use std::{net::SocketAddr, path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
+use crate::rpc_client::RpcRequestClient;
 use tempfile::TempDir;
-use zebra_chain::serialization::ZcashSerialize as _;
-use zebra_node_services::rpc_client::RpcRequestClient;
-use zebra_rpc::{
-    client::{BlockTemplateResponse, BlockTemplateTimeSource},
-    proposal_block_from_template,
-};
 
 /// Zebrad configuration
 ///
 /// Use `zebrad_bin` to specify the binary location.
 /// If the binary is in $PATH, `None` can be specified to run "zebrad".
 ///
-/// If `rpc_listen_port` is `None`, a port is picked at random between 15000-25000.
+/// Each `*_listen_port` field pins the corresponding **raw** zebrad
+/// listener when `Some(N)`; `None` (the default) lets zebrad bind port
+/// 0 so the kernel assigns the port atomically, and the harness reads
+/// the assigned address back out of zebrad's launch log. Note that the
+/// raw JSON-RPC listener is never published: every accessor returns
+/// the address of the front proxy instead (see
+/// [`Zebrad::rpc_listen_port`]).
 ///
 /// Use `activation_heights` to specify custom network upgrade activation heights.
 ///
@@ -92,6 +83,12 @@ pub struct ZebradConfig {
     /// field is effectively a forward-compatible placeholder until
     /// the harness wires in `wait_for_rpc_ready` against `/healthy`.
     pub min_connected_peers: usize,
+    /// Observer registered on the JSON-RPC front proxy before the
+    /// backend starts, so it sees every byte of the backend's
+    /// networked lifetime — including the launch-time readiness
+    /// probes and the regtest launch-mine. `None` (the default) is a
+    /// passthrough front with no observer.
+    pub rpc_front_observer: Option<std::sync::Arc<dyn crate::front::FrontObserver>>,
 }
 
 impl Default for ZebradConfig {
@@ -115,6 +112,7 @@ impl Default for ZebradConfig {
                 crate::validator::regtest_test_post_nu6_funding_streams(),
             ),
             min_connected_peers: 0,
+            rpc_front_observer: None,
         }
     }
 }
@@ -136,15 +134,15 @@ impl ZebradConfig {
 impl ValidatorConfig for ZebradConfig {
     fn set_test_parameters(
         &mut self,
-        mine_to_pool: PoolType,
+        mine_to_pool: MinerPool,
         activation_heights: ActivationHeights,
         chain_cache: Option<PathBuf>,
     ) {
         self.miner_address = match mine_to_pool {
-            PoolType::ORCHARD => REG_O_ADDR_FROM_ABANDONART,
-            PoolType::Transparent => REG_T_ADDR_FROM_ABANDONART,
-            PoolType::SAPLING => {
-                panic!("zebrad does not support mining to a Sapling address; use ORCHARD or Transparent")
+            MinerPool::Orchard => REG_O_ADDR_FROM_ABANDONART,
+            MinerPool::Transparent => REG_T_ADDR_FROM_ABANDONART,
+            MinerPool::Sapling => {
+                panic!("zebrad does not support mining to a Sapling address; use Orchard or Transparent")
             }
         }
         .to_string();
@@ -154,37 +152,74 @@ impl ValidatorConfig for ZebradConfig {
 }
 
 /// This struct is used to represent and manage the Zebrad process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Zebrad {
     /// Child process handle
     handle: Child,
-    /// network listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
-    network_listen_port: u16,
-    /// json RPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
-    rpc_listen_port: u16,
-    /// gRPC listen port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
-    indexer_listen_port: u16,
-    /// `[health]` HTTP listen port (serves `/healthy` and `/ready`)
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
-    health_listen_port: u16,
+    /// JSON-RPC front proxy — the canonical public endpoint of the
+    /// JSON-RPC listener, bound before the process started.
+    rpc_front: crate::front::Front,
+    /// Raw listener addresses, discovered from the launch log. The
+    /// JSON-RPC one is what the front dials; none of them are
+    /// published.
+    raw_listen_addrs: RawListenAddrs,
     /// Config directory
     config_dir: TempDir,
     /// Logs directory
     logs_dir: TempDir,
     /// Data directory
     data_dir: TempDir,
-    /// RPC request client
+    /// RPC request client, targeting the JSON-RPC front — so even the
+    /// harness's own launch-time traffic crosses the front.
     client: RpcRequestClient,
     /// Network type
     network: NetworkType,
+}
+
+crate::macros::ref_getters!(Zebrad {
+    /// Child process handle.
+    handle: Child,
+    /// Config directory.
+    config_dir: TempDir,
+    /// RPC request client for the launched node.
+    client: RpcRequestClient,
+    /// Network type the node was launched with.
+    network: NetworkType,
+});
+
+impl Zebrad {
+    /// The public JSON-RPC address. **This is the address of the
+    /// front proxy**, not of zebrad's own listener: the raw endpoint
+    /// is a private detail of launch plumbing and is never published.
+    pub fn rpc_listen_addr(&self) -> SocketAddr {
+        self.rpc_front.public_addr()
+    }
+
+    /// The public JSON-RPC port. **This is the port of the front
+    /// proxy**, not of zebrad's own listener — see
+    /// [`Self::rpc_listen_addr`].
+    pub fn rpc_listen_port(&self) -> u16 {
+        self.rpc_front.public_port()
+    }
+
+    /// Raw network (Zcash peer protocol) listen port. Launch plumbing
+    /// only; no front exists for this listener.
+    pub fn network_listen_port(&self) -> u16 {
+        self.raw_listen_addrs.network.port()
+    }
+
+    /// Raw indexer-gRPC listen port. Launch plumbing only; no front
+    /// exists for this listener.
+    pub fn indexer_listen_port(&self) -> u16 {
+        self.raw_listen_addrs.indexer.port()
+    }
+
+    /// Raw `[health]` HTTP listen port (serves `/healthy` and
+    /// `/ready`). Launch plumbing only; no front exists for this
+    /// listener.
+    pub fn health_listen_port(&self) -> u16 {
+        self.raw_listen_addrs.health.port()
+    }
 }
 
 impl LogsToDir for Zebrad {
@@ -210,46 +245,175 @@ impl Zebrad {
     }
 
     async fn fetch_health_status(&self, path: &str) -> Result<bool, reqwest::Error> {
-        let url = format!("http://127.0.0.1:{}/{}", self.health_listen_port, path);
+        let url = format!("http://{}/{}", self.raw_listen_addrs.health, path);
         let response = reqwest::get(&url).await?;
         Ok(response.status() == reqwest::StatusCode::OK)
     }
 }
 
-/// Listen ports zebrad needs to bind during launch. Picked atomically
-/// as a unit so the planned retry-on-collision helper in `launch::wait`
-/// can re-roll all four in a single call rather than open-coding the
-/// picks per validator. Re-rolling individual fields would risk one of
-/// the surviving picks being a port a sibling test subprocess just
-/// claimed (the cross-process TOCTOU these tests document).
+/// The raw listener addresses zebrad reports in its launch log, one
+/// per configured listener. Unpinned listeners are configured on port
+/// 0, so these are the kernel-assigned endpoints — the only place the
+/// harness learns them.
 #[derive(Debug, Clone, Copy)]
-struct ZebradPorts {
-    network: u16,
-    rpc: u16,
-    indexer: u16,
-    health: u16,
+struct RawListenAddrs {
+    network: SocketAddr,
+    rpc: SocketAddr,
+    indexer: SocketAddr,
+    health: SocketAddr,
 }
 
-impl ZebradPorts {
-    fn pick(config: &ZebradConfig) -> Self {
-        Self {
-            network: network::pick_unused_port(config.network_listen_port),
-            rpc: network::pick_unused_port(config.rpc_listen_port),
-            indexer: network::pick_unused_port(config.indexer_listen_port),
-            health: network::pick_unused_port(config.health_listen_port),
+/// The launch-log markers zebrad prints after each listener bind, each
+/// followed by the bound socket address. A log-format contract with
+/// the zebrad binary (captured verbatim from zebrad 6.0.0-rc.0);
+/// every real launch exercises it, and the unit tests below pin the
+/// captured lines. Order in this table is bind order.
+const ZEBRAD_BOUND_MARKERS: [(&str, &str); 4] = [
+    ("network", "Opened Zcash protocol endpoint at "),
+    ("rpc", "zebra_rpc::server: Opened RPC endpoint at "),
+    (
+        "indexer",
+        "zebra_rpc::indexer::server: Opened RPC endpoint at ",
+    ),
+    ("health", "opened health endpoint at "),
+];
+
+/// Parse the socket address following `marker` on the first log line
+/// that carries it. `Ok(None)` means the marker has not appeared yet;
+/// `Err` carries the offending line when the marker is present but the
+/// address does not parse — the log contract has drifted, and that
+/// must fail loudly rather than time a launch out.
+fn bound_addr_after(log: &str, marker: &str) -> Result<Option<SocketAddr>, String> {
+    let Some(line) = log.lines().find(|line| line.contains(marker)) else {
+        return Ok(None);
+    };
+    let start = line.find(marker).expect("line was found by the marker") + marker.len();
+    let token = line[start..]
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .trim_end_matches(['.', ',']);
+    token
+        .parse::<SocketAddr>()
+        .map(Some)
+        .map_err(|parse_error| format!("{line} ({parse_error})"))
+}
+
+/// Poll zebrad's captured stdout until every listener in
+/// [`ZEBRAD_BOUND_MARKERS`] has reported its bound address, the child
+/// exits, or the budget elapses. The bind reports land within
+/// microseconds of each other right before the readiness indicator
+/// `launch::wait` already saw, so the happy path costs one file read.
+async fn discover_raw_listen_addrs(
+    handle: &mut Child,
+    logs_dir: &TempDir,
+) -> Result<RawListenAddrs, LaunchError> {
+    const BUDGET: std::time::Duration = std::time::Duration::from_secs(10);
+    const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+
+    let stdout_path = logs_dir.path().join(crate::logs::STDOUT_LOG);
+    let read_logs = || {
+        let stdout = std::fs::read_to_string(&stdout_path).unwrap_or_default();
+        let stderr = std::fs::read_to_string(logs_dir.path().join(crate::logs::STDERR_LOG))
+            .unwrap_or_default();
+        (stdout, stderr)
+    };
+
+    let deadline = tokio::time::Instant::now() + BUDGET;
+    loop {
+        let stdout = std::fs::read_to_string(&stdout_path).unwrap_or_default();
+        let mut addrs = Vec::with_capacity(ZEBRAD_BOUND_MARKERS.len());
+        let mut missing = Vec::new();
+        for (listener, marker) in ZEBRAD_BOUND_MARKERS {
+            match bound_addr_after(&stdout, marker) {
+                Ok(Some(addr)) => addrs.push(addr),
+                Ok(None) => missing.push(listener),
+                Err(offending_line) => {
+                    return Err(LaunchError::ListenerEndpointsUndiscovered {
+                        process_name: ProcessId::Zebrad.to_string(),
+                        detail: format!(
+                            "the {listener} bind report matched marker {marker:?} but its \
+                             address did not parse — the zebrad log contract has drifted: \
+                             {offending_line}"
+                        ),
+                        stdout,
+                    });
+                }
+            }
         }
+        if let [network, rpc, indexer, health] = addrs[..] {
+            return Ok(RawListenAddrs {
+                network,
+                rpc,
+                indexer,
+                health,
+            });
+        }
+
+        // A pinned port can still collide on a bind that happens after
+        // `launch::wait`'s readiness indicator; the child then exits
+        // and its captured output carries the AddrInUse signature the
+        // retry helper scans for.
+        if let Ok(Some(exit_status)) = handle.try_wait() {
+            let (stdout, stderr) = read_logs();
+            return Err(LaunchError::ProcessFailed {
+                process_name: ProcessId::Zebrad.to_string(),
+                exit_status,
+                stdout,
+                stderr,
+                additional_log: None,
+            });
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Err(LaunchError::ListenerEndpointsUndiscovered {
+                process_name: ProcessId::Zebrad.to_string(),
+                detail: format!(
+                    "no bind report for listener(s) {} within {BUDGET:?}",
+                    missing.join(", ")
+                ),
+                stdout,
+            });
+        }
+        tokio::time::sleep(POLL_INTERVAL).await;
+    }
+}
+
+impl launch::PortPins for ZebradConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        [
+            self.network_listen_port,
+            self.rpc_listen_port,
+            self.indexer_listen_port,
+            self.health_listen_port,
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
+    fn clear_port_pins(&mut self) {
+        // Four-port validator — clear all four pins. A cleared pin
+        // makes the listener bind port 0, where the kernel assigns
+        // the port atomically and no collision is possible, so the
+        // retry cannot re-collide.
+        self.network_listen_port = None;
+        self.rpc_listen_port = None;
+        self.indexer_listen_port = None;
+        self.health_listen_port = None;
     }
 }
 
 impl Zebrad {
-    /// Single launch attempt: pick all four ports, write configs,
-    /// spawn zebrad, wait for the readiness indicator, then probe RPC
-    /// readiness. Wrapped by `Process::launch` in a bounded
-    /// retry-on-port-collision loop (see
-    /// `launch::with_retry_on_collision`); each retry calls this fresh
-    /// with a config whose port pins have been cleared so
-    /// `ZebradPorts::pick` re-rolls all four atomically via
-    /// `network::pick_unused_port`.
+    /// Single launch attempt: bind the JSON-RPC front, write configs
+    /// (unpinned listeners on port 0), spawn zebrad, wait for the
+    /// readiness indicator, discover the raw listener addresses from
+    /// the launch log, point the front at the raw JSON-RPC endpoint,
+    /// then probe RPC readiness *through the front*. Wrapped by
+    /// `Process::launch` in a bounded retry-on-port-collision loop
+    /// (see `launch::with_retry_on_collision`) that only matters for
+    /// pinned ports; each retry calls this fresh with a config whose
+    /// port pins have been cleared, i.e. with kernel-assigned ports
+    /// that cannot collide.
     async fn launch_once(config: ZebradConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let data_dir = tempfile::tempdir().unwrap();
@@ -265,12 +429,21 @@ impl Zebrad {
             Self::load_chain(src.clone(), working_cache_dir.clone(), config.network_type);
         }
 
-        let ZebradPorts {
-            network: network_listen_port,
-            rpc: rpc_listen_port,
-            indexer: indexer_listen_port,
-            health: health_listen_port,
-        } = ZebradPorts::pick(&config);
+        // The front binds before the backend starts: its public
+        // address exists for the backend's entire networked lifetime,
+        // and the OS assigns it atomically on 127.0.0.1:0 — the public
+        // surface has no check-then-bind race, ever.
+        let rpc_front = crate::front::Front::bind(config.rpc_front_observer.clone())
+            .expect("the JSON-RPC front should bind on 127.0.0.1:0");
+
+        // Raw listener ports: `Some(N)` pins N (the collision-retry
+        // machinery remains the backstop for pinned ports); `None`
+        // becomes port 0, kernel-assigned at bind time and read back
+        // out of the launch log by `discover_raw_listen_addrs`.
+        let network_listen_port = config.network_listen_port.unwrap_or(0);
+        let rpc_listen_port = config.rpc_listen_port.unwrap_or(0);
+        let indexer_listen_port = config.indexer_listen_port.unwrap_or(0);
+        let health_listen_port = config.health_listen_port.unwrap_or(0);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_zebrad_config(
             config_dir.path().to_path_buf(),
@@ -286,40 +459,19 @@ impl Zebrad {
             config.min_connected_peers,
         )
         .unwrap();
-        // create zcashd conf necessary for lightwalletd
-        config::write_zcashd_config(
-            config_dir.path(),
-            rpc_listen_port,
-            if let NetworkType::Regtest(activation_heights) = config.network_type {
-                activation_heights
-            } else {
-                ActivationHeights::default()
-            },
-            None,
-        )
-        .unwrap();
 
         let executable_name = "zebrad";
         trace_version_and_location(executable_name, "--version");
         let mut command = pick_command(executable_name, false);
-        command
-            .args([
-                "--config",
-                config_file_path
-                    .to_str()
-                    .expect("should be valid UTF-8")
-                    .to_string()
-                    .as_str(),
-                "start",
-            ])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args([
+            "--config",
+            config_file_path.to_str().expect("should be valid UTF-8"),
+            "start",
+        ]);
 
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-
-        launch::wait(
+        let mut handle = launch::spawn_and_wait(
         ProcessId::Zebrad,
-        &mut handle,
+        &mut command,
         &logs_dir,
         None,
         // Only the indexer-RPC indicator is reliably *post-bind* for
@@ -357,21 +509,46 @@ impl Zebrad {
     )
     .await?;
 
-        let rpc_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), rpc_listen_port);
-        let client = zebra_node_services::rpc_client::RpcRequestClient::new(rpc_address);
+        // Discover where zebrad actually bound each listener. With
+        // unpinned (port 0) listeners the launch log is the only place
+        // the kernel-assigned addresses appear.
+        let raw_listen_addrs = match discover_raw_listen_addrs(&mut handle, &logs_dir).await {
+            Ok(addrs) => addrs,
+            Err(error) => {
+                // The child may still be running (an undiscoverable
+                // endpoint is not an exited process); don't leak it
+                // past the failed launch. A kill error only means the
+                // child already exited, which is the state kill wants.
+                let _ = handle.kill();
+                return Err(error);
+            }
+        };
 
-        // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
-        // confirmed via stdout that the RPC listener bound; this confirms it
-        // actually answers, which is the readiness signal every caller needs.
-        // Cost in the happy path is one RPC round-trip (~ms), not 5s.
-        wait_for_rpc_ready(&client, rpc_address, std::time::Duration::from_secs(30)).await?;
+        // create zcashd conf necessary for lightwalletd, which reads
+        // the validator's RPC port out of it — written post-discovery
+        // because the raw port is kernel-assigned.
+        #[cfg(feature = "legacy-stack")]
+        config::write_zcashd_config(
+            config_dir.path(),
+            raw_listen_addrs.rpc.port(),
+            if let NetworkType::Regtest(activation_heights) = config.network_type {
+                activation_heights
+            } else {
+                ActivationHeights::default()
+            },
+            None,
+        )
+        .unwrap();
+
+        // The client targets the front, so every internal client —
+        // the readiness probe below and the launch-mine — crosses the
+        // front like any external caller would.
+        let client = RpcRequestClient::new(rpc_front.public_addr());
 
         let zebrad = Zebrad {
             handle,
-            network_listen_port,
-            indexer_listen_port,
-            rpc_listen_port,
-            health_listen_port,
+            rpc_front,
+            raw_listen_addrs,
             config_dir,
             logs_dir,
             data_dir,
@@ -379,16 +556,52 @@ impl Zebrad {
             network: config.network_type,
         };
 
+        // Point the front at the raw JSON-RPC endpoint, discovered
+        // through the backend abstraction: connections the front has
+        // been holding proceed from here.
+        zebrad
+            .rpc_front
+            .point_at(&zebrad, ZEBRAD_RPC_LISTENER_INDEX);
+
+        // Replaces a fixed `std::thread::sleep(5s)`. `launch::wait` already
+        // confirmed via stdout that the RPC listener bound; this confirms it
+        // actually answers, which is the readiness signal every caller needs.
+        // Cost in the happy path is one RPC round-trip (~ms), not 5s.
+        wait_for_rpc_ready(
+            &zebrad.client,
+            zebrad.rpc_front.public_addr(),
+            std::time::Duration::from_secs(30),
+        )
+        .await?;
+
         if config.chain_cache.is_none() && matches!(config.network_type, NetworkType::Regtest(_)) {
             // Generate genesis block. `generate_blocks` calls `poll_chain_height`
             // to the new tip, so by the time it returns the RPC has answered
             // multiple times AND the genesis block is observable. The previously
             // unconditional `sleep(5s)` after this point had no documented
-            // rationale and no successor predicate — deleted.
+            // rationale and no successor predicate — deleted. This is the
+            // launch-mine: it speaks through `client`, i.e. through the
+            // front, so a registered observer sees it.
             zebrad.generate_blocks(1).await.unwrap();
         }
 
         Ok(zebrad)
+    }
+}
+
+/// Index of the JSON-RPC endpoint in [`Zebrad`]'s declared listener
+/// order (`crate::backend::Backend::listener_endpoints`). The JSON-RPC
+/// listener is the only one zebrad exposes to clients, so it is the
+/// only entry.
+const ZEBRAD_RPC_LISTENER_INDEX: usize = 0;
+
+impl crate::backend::Backend for Zebrad {
+    fn log_text(&self) -> std::io::Result<String> {
+        std::fs::read_to_string(self.logs_dir.path().join(crate::logs::STDOUT_LOG))
+    }
+
+    fn listener_endpoints(&self) -> Vec<SocketAddr> {
+        vec![self.raw_listen_addrs.rpc]
     }
 }
 
@@ -406,35 +619,12 @@ impl Process for Zebrad {
         // includes "AddrInUse" in its `{:?}` rendering. All four
         // bind paths funnel through one of these strings.
         const COLLISION_SIGNATURES: &[&str] = &["AddrInUse", "code: 98", "Address already in use"];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "zebrad",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &ZebradConfig| {
-                [
-                    c.network_listen_port,
-                    c.rpc_listen_port,
-                    c.indexer_listen_port,
-                    c.health_listen_port,
-                ]
-                .into_iter()
-                .flatten()
-                .collect()
-            },
-            |c: &mut ZebradConfig| {
-                // Four-port validator — clear all four pins. Re-rolling
-                // only the conflicted port would leave the surviving
-                // three exposed to a sibling test subprocess that may
-                // have just claimed one of them; cheaper to re-pick the
-                // whole set than to detect-which-one and partial-clear.
-                c.network_listen_port = None;
-                c.rpc_listen_port = None;
-                c.indexer_listen_port = None;
-                c.health_listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
@@ -494,13 +684,7 @@ impl Validator for Zebrad {
             .await
             .expect("getblockchaininfo should succeed");
 
-        let upgrades = response
-            .get("upgrades")
-            .expect("upgrades field should exist")
-            .as_object()
-            .expect("upgrades should be an object");
-
-        crate::validator::parse_activation_heights_from_rpc(upgrades)
+        crate::validator::activation_heights_from_getblockchaininfo(&response)
     }
 
     async fn generate_blocks(&self, n: u32) -> std::io::Result<()> {
@@ -508,9 +692,6 @@ impl Validator for Zebrad {
         let NetworkType::Regtest(activation_heights) = self.network() else {
             panic!("Can only generate blocks on regtest networks!");
         };
-        let network = zebra_chain::parameters::Network::new_regtest(
-            zingo_to_zebra_activation_heights(*activation_heights).into(),
-        );
 
         // Drive the chain forward one block per outer iteration. Success
         // criterion is *chain advance*, not the RPC response: zebra returns
@@ -526,30 +707,11 @@ impl Validator for Zebrad {
             let mut last_response = String::new();
             let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
-                let block_template: BlockTemplateResponse = self
-                    .client
-                    .json_result_from_call("getblocktemplate", "[]".to_string())
-                    .await
-                    .expect(
-                        "response should be success output with a serialized `GetBlockTemplate`",
-                    );
-
-                let block_data = hex::encode(
-                    proposal_block_from_template(
-                        &block_template,
-                        BlockTemplateTimeSource::default(),
-                        &network,
-                    )
-                    .unwrap()
-                    .zcash_serialize_to_vec()
-                    .unwrap(),
-                );
-
-                last_response = self
-                    .client
-                    .text_from_call("submitblock", format!(r#"["{block_data}"]"#))
-                    .await
-                    .unwrap();
+                let submission =
+                    crate::zebra_rpc::submit_template_block(&self.client, activation_heights)
+                        .await
+                        .expect("template block submission should succeed");
+                last_response = submission.response;
 
                 if self.get_chain_height().await >= target_height {
                     advanced = true;
@@ -590,6 +752,7 @@ impl Validator for Zebrad {
         &self.data_dir
     }
 
+    #[cfg(feature = "legacy-stack")]
     fn get_zcashd_conf_path(&self) -> PathBuf {
         self.config_dir.path().join(config::ZCASHD_FILENAME)
     }
@@ -624,8 +787,73 @@ impl Validator for Zebrad {
     }
 }
 
-impl Drop for Zebrad {
-    fn drop(&mut self) {
-        self.stop();
+crate::macros::impl_stop_on_drop!(Zebrad);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The four bind-report lines captured verbatim from a zebrad
+    /// 6.0.0-rc.0 launch whose config put every listener on port 0.
+    /// This pins the log-format contract `discover_raw_listen_addrs`
+    /// parses; every real launch exercises it live.
+    const CAPTURED_BIND_REPORT: &str = "\
+2026-07-09T01:02:35.994662Z  INFO open_listener{addr=127.0.0.1:0}: zebra_network::peer_set::initialize: Trying to open Zcash protocol endpoint at 127.0.0.1:0...
+2026-07-09T01:02:35.994684Z  INFO open_listener{addr=127.0.0.1:0}: zebra_network::peer_set::initialize: Opened Zcash protocol endpoint at 127.0.0.1:36971
+2026-07-09T01:02:35.995300Z  INFO zebra_rpc::server: Opened RPC endpoint at 127.0.0.1:46389
+2026-07-09T01:02:35.995400Z  INFO init: zebra_rpc::indexer::server: Trying to open indexer RPC endpoint at 127.0.0.1:0...
+2026-07-09T01:02:35.995408Z  INFO init: zebra_rpc::indexer::server: Opened RPC endpoint at 127.0.0.1:45685
+2026-07-09T01:02:35.995431Z  INFO zebrad::commands::start: initializing health endpoints
+2026-07-09T01:02:35.995432Z  INFO zebrad::components::health: opening health endpoint at 127.0.0.1:0...
+2026-07-09T01:02:35.995438Z  INFO zebrad::components::health: opened health endpoint at 127.0.0.1:34961";
+
+    #[test]
+    fn captured_bind_report_yields_all_four_raw_addresses() {
+        let expected: [(&str, u16); 4] = [
+            ("network", 36971),
+            ("rpc", 46389),
+            ("indexer", 45685),
+            ("health", 34961),
+        ];
+        for ((listener, marker), (expected_listener, expected_port)) in
+            ZEBRAD_BOUND_MARKERS.into_iter().zip(expected)
+        {
+            assert_eq!(listener, expected_listener);
+            let addr = bound_addr_after(CAPTURED_BIND_REPORT, marker)
+                .unwrap_or_else(|line| panic!("{listener} report did not parse: {line}"))
+                .unwrap_or_else(|| panic!("{listener} report not found"));
+            assert_eq!(addr, SocketAddr::from(([127, 0, 0, 1], expected_port)));
+        }
+    }
+
+    /// The `Trying to open … at 127.0.0.1:0...` announcement lines must
+    /// not satisfy the markers — they carry the configured port-0
+    /// address, not the bound one.
+    #[test]
+    fn announcement_lines_do_not_match_the_bound_markers() {
+        let announcements = "\
+Trying to open Zcash protocol endpoint at 127.0.0.1:0...
+zebra_rpc::indexer::server: Trying to open indexer RPC endpoint at 127.0.0.1:0...
+zebrad::components::health: opening health endpoint at 127.0.0.1:0...";
+        for (listener, marker) in ZEBRAD_BOUND_MARKERS {
+            assert_eq!(
+                bound_addr_after(announcements, marker),
+                Ok(None),
+                "{listener} marker matched an announcement line"
+            );
+        }
+    }
+
+    /// A marker line whose address does not parse must fail loudly
+    /// with the offending line — the drift tripwire.
+    #[test]
+    fn drifted_bind_report_fails_loud() {
+        let drifted = "zebra_rpc::server: Opened RPC endpoint at <dynamic>";
+        let error = bound_addr_after(drifted, "zebra_rpc::server: Opened RPC endpoint at ")
+            .expect_err("a non-address token should not parse");
+        assert!(
+            error.contains("<dynamic>"),
+            "drift error should carry the offending line, got {error:?}"
+        );
     }
 }

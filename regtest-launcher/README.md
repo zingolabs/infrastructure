@@ -4,7 +4,7 @@ Tiny Rust binary that launches a local Zcash regtest network (Zebrad & Lightwall
 
 ## Overview
 
-- Starts a local validator (Zebrad) + indexer (Lightwalletd) using `zcash_local_net`.
+- Starts a local validator (Zebrad) + indexer (Zainod) using `zcash_local_net`.
 - Uses a provided miner transparent address **or** generates a fresh regtest transparent keypair.
 - Bootstraps the chain up to height **101**.
 - Then mines a new block every **5s**.
@@ -71,14 +71,16 @@ Usage: regtest-launcher [OPTIONS]
 
 Options:
       --activation-heights <ACTIVATION_HEIGHTS>
-          Comma-separated activation heights, e.g. "all=1,nu5=1000,nu6=off,nu6_1=off,nu7=off"
+          Comma-separated activation heights, e.g. "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu6_3=off,nu7=off"
 
-          Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu7, all Values: u32 or off|none|disable
+          Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all Values: u32 or off|none|disable
 
-          [default: all=1,nu7=off]
+          [default: all=1,nu5=2,nu6=2,nu6_1=5,nu6_2=5,nu6_3=off,nu7=off]
 
       --miner-address <MINER_ADDRESS>
-          Optional miner address for receiving block rewards
+          Miner address for receiving block rewards
+
+          [default: tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd]
 
   -h, --help
           Print help (see a summary with '-h')

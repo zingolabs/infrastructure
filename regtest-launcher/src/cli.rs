@@ -1,12 +1,44 @@
 use clap::Parser;
 use local_net::validator::REGTEST_FIXTURE_HEIGHTS_CLI_STRING;
 use regtest_launcher::faucet::DEFAULT_FAUCET_PORT;
-use zebra_rpc::client::zebra_chain::parameters::testnet::ConfiguredActivationHeights;
+
+/// Activation heights parsed from the CLI.
+///
+/// A superset of `zingo_consensus::ActivationHeights`: the CLI also accepts
+/// zebra's `before_overwinter` slot, which the zingo type does not model
+/// (it is dropped when the parsed heights convert for the harness).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConfiguredActivationHeights {
+    /// BeforeOverwinter activation height.
+    pub before_overwinter: Option<u32>,
+    /// Overwinter activation height.
+    pub overwinter: Option<u32>,
+    /// Sapling activation height.
+    pub sapling: Option<u32>,
+    /// Blossom activation height.
+    pub blossom: Option<u32>,
+    /// Heartwood activation height.
+    pub heartwood: Option<u32>,
+    /// Canopy activation height.
+    pub canopy: Option<u32>,
+    /// NU5 activation height.
+    pub nu5: Option<u32>,
+    /// NU6 activation height.
+    pub nu6: Option<u32>,
+    /// NU6.1 activation height.
+    pub nu6_1: Option<u32>,
+    /// NU6.2 activation height.
+    pub nu6_2: Option<u32>,
+    /// NU6.3 activation height.
+    pub nu6_3: Option<u32>,
+    /// NU7 activation height.
+    pub nu7: Option<u32>,
+}
 
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// Comma-separated activation heights, e.g.
-    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu7=off"
+    /// "all=1,nu5=1000,nu6=off,nu6_1=off,nu6_2=off,nu6_3=off,nu7=off"
     ///
     /// Keys: before_overwinter, overwinter, sapling, blossom, heartwood, canopy, nu5, nu6, nu6_1, nu6_2, nu6_3, nu7, all
     /// Values: u32 or off|none|disable
@@ -24,7 +56,13 @@ pub struct Cli {
     )]
     pub activation_heights: ConfiguredActivationHeights,
 
-    /// Optional miner address for receiving block rewards.
+    /// Miner address for receiving block rewards.
+    ///
+    /// When omitted, the launcher generates a fresh regtest transparent
+    /// keypair and holds its secret key, which is what enables the built-in
+    /// faucet (the faucet spends the miner's coinbase). Supply an address to
+    /// mine directly to a wallet you control — the faucet is then disabled,
+    /// since this process does not know that address's secret key.
     #[arg(long)]
     pub miner_address: Option<String>,
 
@@ -405,9 +443,9 @@ mod tests {
 
         // Mirror the field-by-field conversion done in
         // regtest-launcher::main: ConfiguredActivationHeights ->
-        // zingo_common_components::ActivationHeights. `before_overwinter`
+        // local_net::protocol::ActivationHeights. `before_overwinter`
         // exists on the former but not the latter and is dropped.
-        let from_cli = zingo_common_components::protocol::ActivationHeights::builder()
+        let from_cli = local_net::protocol::ActivationHeights::builder()
             .set_overwinter(parsed.overwinter)
             .set_sapling(parsed.sapling)
             .set_blossom(parsed.blossom)

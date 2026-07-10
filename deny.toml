@@ -4,7 +4,6 @@ all-features = false
 no-default-features = false
 exclude = ["bincode", "json"]
 
-
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"

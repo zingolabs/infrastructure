@@ -8,12 +8,18 @@ pub mod seeds {
 
     /// TODO: Add Doc Comment Here!
     pub const DARKSIDE_SEED: &str = "still champion voice habit trend flight survey between bitter process artefact blind carbon truly provide dizzy crush flush breeze blouse charge solid fish spread";
+    /// `ABANDON_ART_SEED` is the canonical BIP-39 vector for all-zero
+    /// 256-bit entropy: 23 repetitions of the wordlist's first word
+    /// ("abandon") plus the checksum word "art". See the reference
+    /// vectors published with BIP-39
+    /// (<https://github.com/trezor/python-mnemonic/blob/master/vectors.json>).
+    /// This guards the escaped multi-line constant against whitespace
+    /// or wording drift without re-deriving the mnemonic.
     #[test]
     fn validate_seeds() {
-        let abandon_art_seed = bip0039::Mnemonic::<bip0039::English>::from_entropy([0; 32])
-            .unwrap()
-            .to_string();
-        assert_eq!(ABANDON_ART_SEED, abandon_art_seed);
+        let mut words = vec!["abandon"; 23];
+        words.push("art");
+        assert_eq!(ABANDON_ART_SEED, words.join(" "));
         // TODO user get_zaddr_from_bip39seed to generate this address from that seed.
     }
 

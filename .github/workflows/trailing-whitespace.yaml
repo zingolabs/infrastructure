@@ -11,5 +11,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
       - name: Reject trailing whitespace
-        run: ./utils/trailing-whitespace.sh reject
+        run: cargo run --release -p workbench -- trailing-whitespace reject

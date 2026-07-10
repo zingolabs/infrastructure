@@ -1,6 +1,5 @@
 use std::{fs::File, path::PathBuf, process::Child};
 
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
     logs::{self, LogsToDir, LogsToStdoutAndStderr as _},
     network::{self},
     process::Process,
-    utils::executable_finder::{EXPECT_SPAWN, pick_command, trace_version_and_location},
+    utils::executable_finder::{pick_command, trace_version_and_location},
 };
 
 /// Lightwalletd configuration
@@ -51,14 +50,11 @@ impl IndexerConfig for LightwalletdConfig {
     }
 }
 /// This struct is used to represent and manage the Lightwalletd process.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Lightwalletd {
     /// Child process handle
     handle: Child,
     /// RPC Port
-    #[getset(skip)]
-    #[getset(get_copy = "pub")]
     port: u16,
     /// Data directory
     _data_dir: TempDir,
@@ -67,6 +63,18 @@ pub struct Lightwalletd {
     /// Config directory
     config_dir: TempDir,
 }
+
+crate::macros::ref_getters!(Lightwalletd {
+    /// Child process handle.
+    handle: Child,
+    /// Config directory.
+    config_dir: TempDir,
+});
+
+crate::macros::copy_getters!(Lightwalletd {
+    /// RPC port.
+    port: u16,
+});
 
 impl Lightwalletd {
     /// Prints the stdout log.
@@ -82,20 +90,16 @@ impl LogsToDir for Lightwalletd {
     }
 }
 
-/// Listen ports lightwalletd needs to bind during launch. Single-field
-/// counterpart to the validator `*Ports` aggregators — kept symmetric
-/// so `launch::with_retry_on_collision` re-rolls every process's port
-/// set through the same `*Ports::pick(&config)` shape.
-#[derive(Debug, Clone, Copy)]
-struct LightwalletdPorts {
-    listen: u16,
-}
+impl launch::PortPins for LightwalletdConfig {
+    fn pinned_ports(&self) -> Vec<u16> {
+        self.listen_port.into_iter().collect()
+    }
 
-impl LightwalletdPorts {
-    fn pick(config: &LightwalletdConfig) -> Self {
-        Self {
-            listen: network::pick_unused_port(config.listen_port),
-        }
+    fn clear_port_pins(&mut self) {
+        // Single-port indexer — clear the only pin so the next
+        // attempt's pick calls `network::pick_unused_port(None)` and
+        // the allocator walks to a fresh candidate.
+        self.listen_port = None;
     }
 }
 
@@ -104,9 +108,8 @@ impl Lightwalletd {
     /// lightwalletd, wait for the readiness indicator. Wrapped by
     /// `Process::launch` in a bounded retry-on-port-collision loop
     /// (see `launch::with_retry_on_collision`); each retry calls this
-    /// fresh with a config whose port pin has been cleared so
-    /// `LightwalletdPorts::pick` re-rolls via
-    /// `network::pick_unused_port`.
+    /// fresh with a config whose port pin has been cleared so the pick
+    /// re-rolls via `network::pick_unused_port`.
     async fn launch_once(config: LightwalletdConfig) -> Result<Self, LaunchError> {
         let logs_dir = tempfile::tempdir().unwrap();
         let lwd_log_file_path = logs_dir.path().join(logs::LIGHTWALLETD_LOG);
@@ -114,7 +117,7 @@ impl Lightwalletd {
 
         let data_dir = tempfile::tempdir().unwrap();
 
-        let LightwalletdPorts { listen: port } = LightwalletdPorts::pick(&config);
+        let port = network::pick_unused_port(config.listen_port);
         let config_dir = tempfile::tempdir().unwrap();
         let config_file_path = config::write_lightwalletd_config(
             config_dir.path(),
@@ -142,15 +145,11 @@ impl Lightwalletd {
             args.push("--darkside-very-insecure");
         }
 
-        command
-            .args(args)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
+        command.args(args);
 
-        let mut handle = command.spawn().expect(EXPECT_SPAWN);
-        launch::wait(
+        let mut handle = launch::spawn_and_wait(
             ProcessId::Lightwalletd,
-            &mut handle,
+            &mut command,
             &logs_dir,
             Some(lwd_log_file_path.clone()),
             &["Starting insecure no-TLS (plaintext) server"],
@@ -196,21 +195,12 @@ impl Process for Lightwalletd {
         // `"address already in use"` matches that and any libc-shaped
         // variant a future build might emit.
         const COLLISION_SIGNATURES: &[&str] = &["address already in use", "bind:"];
-        const MAX_ATTEMPTS: u32 = 3;
 
         launch::with_retry_on_collision(
             "lightwalletd",
             config,
             COLLISION_SIGNATURES,
-            MAX_ATTEMPTS,
-            |c: &LightwalletdConfig| c.listen_port.into_iter().collect(),
-            |c: &mut LightwalletdConfig| {
-                // Single-port indexer — clear the only pin so the
-                // next attempt's `LightwalletdPorts::pick` calls
-                // `network::pick_unused_port(None)` and the kernel
-                // hands back a fresh ephemeral.
-                c.listen_port = None;
-            },
+            launch::MAX_LAUNCH_ATTEMPTS,
             Self::launch_once,
         )
         .await
@@ -234,8 +224,4 @@ impl Indexer for Lightwalletd {
     }
 }
 
-impl Drop for Lightwalletd {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Lightwalletd);

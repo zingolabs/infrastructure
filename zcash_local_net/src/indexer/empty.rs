@@ -1,4 +1,3 @@
-use getset::{CopyGetters, Getters};
 use tempfile::TempDir;
 
 use crate::{
@@ -28,14 +27,20 @@ impl IndexerConfig for EmptyConfig {
 /// This struct is used to represent and manage an empty Indexer process.
 ///
 /// Dirs are created for integration.
-#[derive(Debug, Getters, CopyGetters)]
-#[getset(get = "pub")]
+#[derive(Debug)]
 pub struct Empty {
     /// Logs directory
     logs_dir: TempDir,
     /// Config directory
     config_dir: TempDir,
 }
+
+crate::macros::ref_getters!(Empty {
+    /// Logs directory.
+    logs_dir: TempDir,
+    /// Config directory.
+    config_dir: TempDir,
+});
 
 impl LogsToStdoutAndStderr for Empty {
     fn print_stdout(&self) {
@@ -70,11 +75,7 @@ impl Process for Empty {
     }
 }
 
-impl Drop for Empty {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+crate::macros::impl_stop_on_drop!(Empty);
 
 impl Indexer for Empty {
     fn listen_port(&self) -> u16 {
