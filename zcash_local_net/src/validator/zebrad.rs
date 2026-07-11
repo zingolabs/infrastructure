@@ -6,7 +6,6 @@ use crate::{
     launch,
     logs::{LogsToDir, LogsToStdoutAndStderr as _},
     process::Process,
-    utils::executable_finder::{pick_command, trace_version_and_location},
     validator::{Validator, ValidatorConfig},
 };
 use zingo_consensus::{ActivationHeights, MinerPool, NetworkType};
@@ -21,8 +20,10 @@ use tempfile::TempDir;
 
 /// Zebrad configuration
 ///
-/// Use `zebrad_bin` to specify the binary location.
-/// If the binary is in $PATH, `None` can be specified to run "zebrad".
+/// Use `source` to say where the zebrad binary comes from: the default
+/// resolves via `TEST_BINARIES_DIR` / `PATH`, and the alternatives are
+/// an explicit local-build path or a container image (see
+/// [`crate::container::ArtifactSource`]).
 ///
 /// Each `*_listen_port` field pins the corresponding **raw** zebrad
 /// listener when `Some(N)`; `None` (the default) lets zebrad bind port
@@ -89,6 +90,11 @@ pub struct ZebradConfig {
     /// probes and the regtest launch-mine. `None` (the default) is a
     /// passthrough front with no observer.
     pub rpc_front_observer: Option<std::sync::Arc<dyn crate::front::FrontObserver>>,
+    /// Where the zebrad binary comes from: host-process resolution
+    /// (the default), an explicit local build, or a container image.
+    /// See [`crate::container::ArtifactSource`]; typically seeded from
+    /// an [`crate::container::manifest::ArtifactManifest`].
+    pub source: crate::container::ArtifactSource,
 }
 
 impl Default for ZebradConfig {
@@ -113,6 +119,7 @@ impl Default for ZebradConfig {
             ),
             min_connected_peers: 0,
             rpc_front_observer: None,
+            source: crate::container::ArtifactSource::default(),
         }
     }
 }
@@ -154,8 +161,15 @@ impl ValidatorConfig for ZebradConfig {
 /// This struct is used to represent and manage the Zebrad process.
 #[derive(Debug)]
 pub struct Zebrad {
-    /// Child process handle
+    /// Child process handle. In container mode this is the foreground
+    /// runtime client (`docker|podman run`), through which the
+    /// container's stdio streams.
     handle: Child,
+    /// The named container zebrad runs as when the artifact source is
+    /// a container image; `None` in host-process mode. Held so `stop`
+    /// can force-remove the container — killing the client alone would
+    /// leave it running.
+    container: Option<crate::container::ContainerInstance>,
     /// JSON-RPC front proxy — the canonical public endpoint of the
     /// JSON-RPC listener, bound before the process started.
     rpc_front: crate::front::Front,
@@ -461,15 +475,29 @@ impl Zebrad {
         .unwrap();
 
         let executable_name = "zebrad";
-        trace_version_and_location(executable_name, "--version");
-        let mut command = pick_command(executable_name, false);
+        crate::container::trace_version(&config.source, executable_name, "--version");
+        // In container mode, mount the harness dirs at identical paths
+        // so the config file just written is valid verbatim inside the
+        // container (see `crate::container`). The chain cache is
+        // mounted too so cached-chain launches can read it.
+        let container = config.source.new_instance(executable_name);
+        let mut mounts: Vec<&std::path::Path> = vec![config_dir.path(), data_dir.path()];
+        if let Some(cache) = config.chain_cache.as_ref() {
+            mounts.push(cache.as_path());
+        }
+        let mut command = config.source.command(&crate::container::LaunchSpec {
+            executable_name,
+            container_name: container.as_ref().map(|c| c.name()),
+            mounts: &mounts,
+            interactive: false,
+        });
         command.args([
             "--config",
             config_file_path.to_str().expect("should be valid UTF-8"),
             "start",
         ]);
 
-        let mut handle = launch::spawn_and_wait(
+        let spawned = launch::spawn_and_wait(
         ProcessId::Zebrad,
         &mut command,
         &logs_dir,
@@ -507,7 +535,20 @@ impl Zebrad {
             "warning: some trace filter directives would enable traces that are disabled statically",
         ],
     )
-    .await?;
+    .await;
+        let mut handle = match spawned {
+            Ok(handle) => handle,
+            Err(error) => {
+                // A failed container launch may leave the container
+                // running even though `launch::wait` gave up on it
+                // (e.g. an error indicator matched while the process
+                // survives); don't leak it past the failed launch.
+                if let Some(container) = &container {
+                    container.force_remove();
+                }
+                return Err(error);
+            }
+        };
 
         // Discover where zebrad actually bound each listener. With
         // unpinned (port 0) listeners the launch log is the only place
@@ -519,6 +560,9 @@ impl Zebrad {
                 // endpoint is not an exited process); don't leak it
                 // past the failed launch. A kill error only means the
                 // child already exited, which is the state kill wants.
+                if let Some(container) = &container {
+                    container.force_remove();
+                }
                 let _ = handle.kill();
                 return Err(error);
             }
@@ -547,6 +591,7 @@ impl Zebrad {
 
         let zebrad = Zebrad {
             handle,
+            container,
             rpc_front,
             raw_listen_addrs,
             config_dir,
@@ -631,7 +676,20 @@ impl Process for Zebrad {
     }
 
     fn stop(&mut self) {
-        self.handle.kill().expect("zebrad couldn't be killed");
+        // Container mode: the handle is only the runtime client;
+        // killing it would orphan the container, so remove the
+        // container first (which also ends the client).
+        if let Some(container) = &self.container {
+            container.force_remove();
+        }
+        match self.handle.kill() {
+            Ok(()) => {}
+            // `kill` returns `InvalidInput` when the child has already
+            // exited and been reaped — e.g. the runtime client after
+            // its container was just force-removed.
+            Err(e) if e.kind() == std::io::ErrorKind::InvalidInput => {}
+            Err(e) => panic!("zebrad couldn't be killed: {e}"),
+        }
     }
 
     fn print_all(&self) {

@@ -25,7 +25,6 @@ use crate::{
     error::WalletError,
     indexer::Indexer,
     logs::LogsToDir,
-    utils::executable_finder::pick_command,
     wallet::{
         AddressReceiver, GetInfo, ValidatorHeights, Wallet, WalletBalance, WalletConfig,
         WalletNetwork,
@@ -117,6 +116,14 @@ pub struct ZcashDevtoolConfig {
     /// policy (3 trusted / 10 untrusted confirmations) makes nothing
     /// spendable on a shallow regtest chain.
     pub min_confirmations: std::num::NonZeroU32,
+    /// Where the zcash-devtool binary comes from: host-process
+    /// resolution (the default), an explicit local build, or a
+    /// container image — in which case **every wallet operation runs
+    /// as its own one-shot container** (the wallet has no resident
+    /// process to containerize). See
+    /// [`crate::container::ArtifactSource`]; typically seeded from an
+    /// [`crate::container::manifest::ArtifactManifest::wallet_source`].
+    pub source: crate::container::ArtifactSource,
 }
 
 impl ZcashDevtoolConfig {
@@ -137,6 +144,7 @@ impl ZcashDevtoolConfig {
             indexer_port: 0,
             network,
             min_confirmations: std::num::NonZeroU32::MIN,
+            source: crate::container::ArtifactSource::default(),
         }
     }
 
@@ -158,6 +166,7 @@ impl ZcashDevtoolConfig {
             indexer_port: 0,
             network,
             min_confirmations: std::num::NonZeroU32::MIN,
+            source: crate::container::ArtifactSource::default(),
         }
     }
 }
@@ -307,7 +316,15 @@ impl ZcashDevtool {
         args: &[&str],
         stdin_line: Option<&str>,
     ) -> Result<std::process::Output, WalletError> {
-        let mut command = pick_command(EXECUTABLE_NAME, false);
+        // The wallet dir is bind-mounted at an identical path in
+        // container mode, so `-w` and the identity/heights paths under
+        // it are valid verbatim inside the one-shot container.
+        let mut command = self.config.source.command(&crate::container::LaunchSpec {
+            executable_name: EXECUTABLE_NAME,
+            container_name: None,
+            mounts: &[self.wallet_dir.path()],
+            interactive: stdin_line.is_some(),
+        });
         command
             .arg("wallet")
             .arg("-w")
@@ -372,7 +389,7 @@ impl Wallet for ZcashDevtool {
     type Config = ZcashDevtoolConfig;
 
     async fn launch(config: Self::Config) -> Result<Self, WalletError> {
-        crate::utils::executable_finder::trace_version_and_location(EXECUTABLE_NAME, "--help");
+        crate::container::trace_version(&config.source, EXECUTABLE_NAME, "--help");
 
         // tempfile failures here are environment errors (no tmpfs
         // space/permissions), same unwrap policy as the daemon structs.

@@ -7,8 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Containerized artifacts.** Every managed process (the zebrad
+  Validator, the zainod Indexer, the zcash-devtool Wallet) can now run
+  from a container image via the `docker` or `podman` CLI instead of a
+  host binary. Launch configs gained a `source:
+  container::ArtifactSource` field (default: the historical
+  `TEST_BINARIES_DIR` / `PATH` resolution, so existing callers are
+  unaffected). Container mode changes *nothing else*: the container
+  runs in the **foreground** (`run --rm`) so its stdio streams through
+  the child the harness already manages, joins the **host network
+  namespace**, and has the harness's temp config/data dirs
+  bind-mounted at identical paths — readiness-indicator scanning,
+  launch-log endpoint discovery, port-collision retry, the front
+  proxies, and Indexer-convergence parsing are shared verbatim with
+  host processes. Host networking makes container mode Linux-first
+  (Docker Desktop's VM loopback is not reachable from the host).
+  Wallet operations in container mode each run as their own one-shot
+  container. Stopping a containerized process force-removes the
+  container by name (`zcash-local-net-<binary>-<pid>-<n>`).
+- **Artifact manifest** (`container::manifest::ArtifactManifest`): a
+  small JSON file consumers keep with their test setup describing
+  where each artifact comes from — an `image` (with optional
+  `entrypoint` and `pull` policy `never`/`if-missing`/`always`) or a
+  `local` path to a locally built binary (the **escape hatch**; also
+  available programmatically as `ArtifactSource::local_binary`).
+  `ArtifactManifest::from_env()` loads the file named by
+  `ZCASH_LOCAL_NET_MANIFEST`; `launch_local_net()` launches the core
+  stack from it; `zebrad_config()` / `zainod_config()` /
+  `wallet_source()` seed individual configs for customized launches.
+- **Preflight pre-check** (`ArtifactManifest::preflight`): validates a
+  manifest against the current environment before any launch — runtime
+  client present and daemon reachable, images present locally (pulled
+  per their pull policy), host binaries resolvable and executable —
+  and reports every problem at once instead of as buried launch
+  failures.
+- **`zcash-local-net` CLI** (new binary in this crate):
+  `zcash-local-net preflight [--manifest <path>]` runs the pre-check
+  from a shell (exit 0/1), resolving the manifest from the flag, then
+  `$ZCASH_LOCAL_NET_MANIFEST`, then `./zcash-local-net.json`, then the
+  built-in host-process default; `zcash-local-net template` prints a
+  starting-point manifest. Intended use:
+  `zcash-local-net preflight --manifest m.json &&
+  ZCASH_LOCAL_NET_MANIFEST=m.json cargo nextest run`.
+
 ### Changed
 
+- **Breaking** — `ZebradConfig`, `ZainodConfig`, and
+  `ZcashDevtoolConfig` gained the public `source` field described
+  above. Callers constructing these configs with struct literals must
+  add `source: Default::default()` (or use `..Default::default()`);
+  callers using `Default` and the builder methods are unaffected.
+- **Breaking** — `Zebrad::stop` no longer panics when the child was
+  already reaped (`InvalidInput` from `kill`), matching `Zainod::stop`;
+  in container mode the child is the runtime client and routinely
+  exits when its container is removed first.
 - **Breaking, read this one** — **every published port and address
   accessor of the core stack now returns a front proxy, not the
   process's own listener.** A transparent TCP relay (the *front*)

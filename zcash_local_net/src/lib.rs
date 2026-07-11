@@ -41,8 +41,33 @@
 //!
 //! See [`crate::LocalNet`].
 //!
+//! ## Containers and the artifact manifest
+//!
+//! Every managed process can alternatively run from a **container
+//! image** (via the `docker` or `podman` CLI) instead of a host
+//! binary. Which artifacts come from where is described by an
+//! [artifact manifest](crate::container::manifest::ArtifactManifest)
+//! — a small JSON file consumers keep with their test setup — with a
+//! `local` **escape hatch** for artifacts built locally from source.
+//! The manifest doubles as a pre-check: validate it against the
+//! current environment with
+//! [`ArtifactManifest::preflight`](crate::container::manifest::ArtifactManifest::preflight),
+//! or from a shell with the bundled `zcash-local-net preflight` CLI
+//! before invoking the test runner:
+//!
+//! ```sh
+//! zcash-local-net preflight --manifest ci-artifacts.json \
+//!   && ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.json cargo nextest run
+//! ```
+//!
+//! See [`crate::container`] for the mechanics (foreground containers
+//! on the host network, harness dirs bind-mounted at identical
+//! paths — all launch/readiness/proxy machinery is shared with host
+//! processes).
+//!
 
 pub mod config;
+pub mod container;
 pub mod error;
 pub mod front;
 pub mod indexer;
