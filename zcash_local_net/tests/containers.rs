@@ -7,8 +7,8 @@
 //! Run them explicitly once the environment provides both:
 //!
 //! ```sh
-//! zcash-local-net preflight --manifest ci-artifacts.json
-//! ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.json \
+//! zcash-local-net preflight --manifest ci-artifacts.toml
+//! ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.toml \
 //!     cargo test -p zcash_local_net --test containers -- --ignored
 //! ```
 //!

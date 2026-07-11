@@ -169,9 +169,7 @@ where
     // before it replaces the file.
     ArtifactManifest::from_raw(raw.clone())?;
 
-    let mut rendered =
-        serde_json::to_string_pretty(&raw).expect("the manifest schema serializes infallibly");
-    rendered.push('\n');
+    let rendered = toml::to_string(&raw).expect("the manifest schema serializes infallibly");
     std::fs::write(path, rendered).map_err(|io_error| UpdateError::Write {
         path: path.to_path_buf(),
         io_error: io_error.to_string(),
@@ -304,10 +302,10 @@ mod tests {
 
     const DIGEST: &str = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
 
-    fn write_manifest(json: &str) -> (tempfile::TempDir, PathBuf) {
+    fn write_manifest(toml_text: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("zcash-local-net.json");
-        std::fs::write(&path, json).unwrap();
+        let path = dir.path().join("zcash-local-net.toml");
+        std::fs::write(&path, toml_text).unwrap();
         (dir, path)
     }
 
@@ -320,13 +318,20 @@ mod tests {
     #[tokio::test]
     async fn update_pins_tracked_and_tagged_artifacts_and_rewrites_the_file() {
         let (_dir, path) = write_manifest(
-            r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "image": "zfnd/zebra:v6.0.0", "track": "zfnd/zebra:latest" },
-                "indexer": { "image": "example.com/zainod:0.4.3" },
-                "wallet": { "local": "/builds/zcash-devtool" }
-            }"#,
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                image = "zfnd/zebra:v6.0.0"
+                track = "zfnd/zebra:latest"
+
+                [indexer]
+                image = "example.com/zainod:0.4.3"
+
+                [wallet]
+                local = "/builds/zcash-devtool"
+            "#,
         );
         let bumps = update_with_resolver(&path, &[], stub_resolver())
             .await
@@ -348,8 +353,11 @@ mod tests {
         // The rewritten file is valid, keeps `track`, and carries the
         // new pins.
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains(&format!(r#""image": "zfnd/zebra:latest@{DIGEST}""#)));
-        assert!(text.contains(r#""track": "zfnd/zebra:latest""#));
+        assert!(
+            text.contains(&format!(r#"image = "zfnd/zebra:latest@{DIGEST}""#)),
+            "{text}"
+        );
+        assert!(text.contains(r#"track = "zfnd/zebra:latest""#), "{text}");
         assert!(text.ends_with('\n'));
         let reloaded = ArtifactManifest::load(&path).unwrap();
         assert!(reloaded.validator.is_container());
@@ -364,11 +372,13 @@ mod tests {
     #[tokio::test]
     async fn update_mints_the_first_pin_for_a_track_only_artifact() {
         let (_dir, path) = write_manifest(
-            r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "track": "zfnd/zebra:latest" }
-            }"#,
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                track = "zfnd/zebra:latest"
+            "#,
         );
         // Not launchable before the update…
         assert!(matches!(
@@ -393,12 +403,16 @@ mod tests {
     #[tokio::test]
     async fn update_respects_the_artifact_filter() {
         let (_dir, path) = write_manifest(
-            r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "image": "zfnd/zebra:v6.0.0" },
-                "indexer": { "image": "example.com/zainod:0.4.3" }
-            }"#,
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                image = "zfnd/zebra:v6.0.0"
+
+                [indexer]
+                image = "example.com/zainod:0.4.3"
+            "#,
         );
         let bumps = update_with_resolver(&path, &["indexer"], stub_resolver())
             .await
@@ -407,12 +421,12 @@ mod tests {
         assert_eq!(bumps[0].artifact, "indexer");
         let text = std::fs::read_to_string(&path).unwrap();
         // The unselected validator pin is untouched.
-        assert!(text.contains(r#""image": "zfnd/zebra:v6.0.0""#));
+        assert!(text.contains(r#"image = "zfnd/zebra:v6.0.0""#), "{text}");
     }
 
     #[tokio::test]
     async fn update_rejects_unknown_artifact_filters() {
-        let (_dir, path) = write_manifest(r#"{ "version": 1 }"#);
+        let (_dir, path) = write_manifest("version = 1\n");
         let error = update_with_resolver(&path, &["validatr"], stub_resolver())
             .await
             .unwrap_err();
@@ -422,11 +436,7 @@ mod tests {
     #[tokio::test]
     async fn digest_only_pin_without_track_is_left_untouched() {
         let manifest = format!(
-            r#"{{
-                "version": 1,
-                "runtime": "docker",
-                "validator": {{ "image": "zfnd/zebra@{DIGEST}" }}
-            }}"#,
+            "version = 1\nruntime = \"docker\"\n\n[validator]\nimage = \"zfnd/zebra@{DIGEST}\"\n",
         );
         let (_dir, path) = write_manifest(&manifest);
         let bumps = update_with_resolver(&path, &[], stub_resolver())
@@ -434,16 +444,16 @@ mod tests {
             .unwrap();
         assert!(bumps.is_empty());
         let text = std::fs::read_to_string(&path).unwrap();
-        assert!(text.contains(&format!(r#""image": "zfnd/zebra@{DIGEST}""#)));
+        assert!(
+            text.contains(&format!(r#"image = "zfnd/zebra@{DIGEST}""#)),
+            "{text}"
+        );
     }
 
     #[tokio::test]
     async fn resolver_failure_surfaces_without_touching_the_file() {
-        let original = r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "image": "zfnd/zebra:v6.0.0" }
-            }"#;
+        let original =
+            "version = 1\nruntime = \"docker\"\n\n[validator]\nimage = \"zfnd/zebra:v6.0.0\"\n";
         let (_dir, path) = write_manifest(original);
         let error = update_with_resolver(&path, &[], async |_runtime, _reference| {
             Err("registry unreachable".to_string())

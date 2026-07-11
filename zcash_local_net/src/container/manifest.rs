@@ -8,21 +8,23 @@
 //! developer iterating on zebrad or zaino flips one artifact to a
 //! `local` path — the escape hatch — without touching the tests.
 //!
-//! The format is JSON (this crate already depends on serde_json;
-//! adding a TOML parser was rejected to keep the supply-chain surface
-//! flat). `zcash-local-net template` prints a starting point.
+//! The format is TOML — the configuration language everything else in
+//! this ecosystem already speaks (`zebrad.toml`, `zindexer.toml`,
+//! `Cargo.toml`), comments included. `zcash-local-net template`
+//! prints a starting point.
 //!
-//! ```json
-//! {
-//!   "version": 1,
-//!   "runtime": "docker",
-//!   "validator": {
-//!     "image": "zfnd/zebra:v6.0.0",
-//!     "track": "zfnd/zebra:latest"
-//!   },
-//!   "indexer": { "local": "/home/dev/zaino/target/release/zainod" },
-//!   "wallet": {}
-//! }
+//! ```toml
+//! version = 1
+//! runtime = "docker"
+//!
+//! [validator]
+//! image = "zfnd/zebra:v6.0.0"
+//! track = "zfnd/zebra:latest"
+//!
+//! [indexer]
+//! local = "/home/dev/zaino/target/release/zainod"
+//!
+//! [wallet]
 //! ```
 //!
 //! ## Intent vs pin: bumping references explicitly
@@ -36,7 +38,7 @@
 //! the pin is a deliberate act:
 //!
 //! ```sh
-//! zcash-local-net update --manifest ci-artifacts.json
+//! zcash-local-net update --manifest ci-artifacts.toml
 //! ```
 //!
 //! resolves each artifact's tracked reference against the registry,
@@ -82,7 +84,7 @@ use crate::{
 
 /// The manifest file name looked for in the working directory when no
 /// explicit path is given (CLI convention).
-pub const DEFAULT_MANIFEST_FILENAME: &str = "zcash-local-net.json";
+pub const DEFAULT_MANIFEST_FILENAME: &str = "zcash-local-net.toml";
 
 /// Environment variable naming the manifest file test suites should
 /// load (see [`ArtifactManifest::from_env`]).
@@ -102,7 +104,7 @@ pub enum ManifestError {
         /// Underlying io::Error description.
         io_error: String,
     },
-    /// The manifest is not valid JSON, or does not match the schema
+    /// The manifest is not valid TOML, or does not match the schema
     /// (unknown fields are rejected so typos fail loudly).
     #[error("manifest {path:?} did not parse: {detail}")]
     Parse {
@@ -234,9 +236,9 @@ impl ArtifactManifest {
         Self::parse(&text, Some(path))
     }
 
-    /// Parse and validate a manifest from a JSON string.
-    pub fn from_json_str(json: &str) -> Result<Self, ManifestError> {
-        Self::parse(json, None)
+    /// Parse and validate a manifest from a TOML string.
+    pub fn from_toml_str(toml_text: &str) -> Result<Self, ManifestError> {
+        Self::parse(toml_text, None)
     }
 
     /// Load the manifest named by the `ZCASH_LOCAL_NET_MANIFEST`
@@ -260,20 +262,22 @@ impl ArtifactManifest {
         }
     }
 
-    fn parse(json: &str, path: Option<&Path>) -> Result<Self, ManifestError> {
-        Self::from_raw(Self::parse_raw(json, path)?)
+    fn parse(toml_text: &str, path: Option<&Path>) -> Result<Self, ManifestError> {
+        Self::from_raw(Self::parse_raw(toml_text, path)?)
     }
 
     /// Parse the serde-facing schema and check the version, without
     /// resolving artifacts. `zcash-local-net update` operates on this
     /// representation: a manifest whose `track`-only artifacts are not
     /// yet launchable must still be readable for updating.
-    pub(crate) fn parse_raw(json: &str, path: Option<&Path>) -> Result<RawManifest, ManifestError> {
-        let raw: RawManifest =
-            serde_json::from_str(json).map_err(|error| ManifestError::Parse {
-                path: path.map(Path::to_path_buf),
-                detail: error.to_string(),
-            })?;
+    pub(crate) fn parse_raw(
+        toml_text: &str,
+        path: Option<&Path>,
+    ) -> Result<RawManifest, ManifestError> {
+        let raw: RawManifest = toml::from_str(toml_text).map_err(|error| ManifestError::Parse {
+            path: path.map(Path::to_path_buf),
+            detail: error.to_string(),
+        })?;
         if raw.version != SUPPORTED_VERSION {
             return Err(ManifestError::UnsupportedVersion { found: raw.version });
         }
@@ -357,21 +361,34 @@ impl ArtifactManifest {
 
     /// An example manifest, printed by `zcash-local-net template`.
     /// Kept parseable by a unit test.
-    pub fn template_json() -> &'static str {
-        r#"{
-  "version": 1,
-  "runtime": "docker",
-  "validator": {
-    "image": "zfnd/zebra:v6.0.0",
-    "track": "zfnd/zebra:latest",
-    "entrypoint": "zebrad",
-    "pull": "if-missing"
-  },
-  "indexer": {
-    "local": "/home/dev/zaino/target/release/zainod"
-  },
-  "wallet": {}
-}
+    pub fn template_toml() -> &'static str {
+        r#"# zcash_local_net artifact manifest.
+# Validate with `zcash-local-net preflight`; bump image pins with
+# `zcash-local-net update`. Point tests at it via ZCASH_LOCAL_NET_MANIFEST.
+version = 1
+
+# "docker" or "podman"; omit to auto-detect (docker first).
+runtime = "docker"
+
+[validator]
+# The binary's actual published image. Must be pinned: a digest
+# (`repo@sha256:...`) or an explicit non-`latest` tag.
+image = "zfnd/zebra:v6.0.0"
+# Optional floating reference to follow; `zcash-local-net update`
+# resolves it and rewrites `image` to the digest-pinned result.
+track = "zfnd/zebra:latest"
+# Optional; defaults to the artifact's binary name ("zebrad").
+entrypoint = "zebrad"
+# "never" | "if-missing" (default) | "always"
+pull = "if-missing"
+
+[indexer]
+# Escape hatch: a locally built binary runs as a host process.
+local = "/home/dev/zaino/target/release/zainod"
+
+# An empty (or omitted) table resolves the binary via
+# TEST_BINARIES_DIR / PATH, the historical default.
+[wallet]
 "#
     }
 }
@@ -481,7 +498,7 @@ mod tests {
 
     #[test]
     fn empty_manifest_resolves_everything_to_host_defaults() {
-        let manifest = ArtifactManifest::from_json_str(r#"{ "version": 1 }"#).unwrap();
+        let manifest = ArtifactManifest::from_toml_str("version = 1\n").unwrap();
         for source in [&manifest.validator, &manifest.indexer, &manifest.wallet] {
             assert!(matches!(
                 source,
@@ -492,11 +509,13 @@ mod tests {
 
     #[test]
     fn local_escape_hatch_resolves_to_explicit_binary() {
-        let manifest = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "indexer": { "local": "/builds/zainod" }
-            }"#,
+        let manifest = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+
+                [indexer]
+                local = "/builds/zainod"
+            "#,
         )
         .unwrap();
         let ArtifactSource::HostProcess {
@@ -515,16 +534,16 @@ mod tests {
 
     #[test]
     fn image_artifact_carries_entrypoint_and_pull_policy() {
-        let manifest = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "runtime": "podman",
-                "validator": {
-                    "image": "example.com/zebra:v6.0.0",
-                    "entrypoint": "/usr/bin/zebrad",
-                    "pull": "never"
-                }
-            }"#,
+        let manifest = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "podman"
+
+                [validator]
+                image = "example.com/zebra:v6.0.0"
+                entrypoint = "/usr/bin/zebrad"
+                pull = "never"
+            "#,
         )
         .unwrap();
         let ArtifactSource::Container(image) = &manifest.validator else {
@@ -538,12 +557,15 @@ mod tests {
 
     #[test]
     fn image_and_local_are_mutually_exclusive() {
-        let error = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "image": "zebra", "local": "/builds/zebrad" }
-            }"#,
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                image = "zebra"
+                local = "/builds/zebrad"
+            "#,
         )
         .unwrap_err();
         assert!(matches!(
@@ -557,11 +579,14 @@ mod tests {
 
     #[test]
     fn image_only_fields_are_rejected_on_host_artifacts() {
-        let error = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "wallet": { "local": "/builds/zcash-devtool", "pull": "always" }
-            }"#,
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+
+                [wallet]
+                local = "/builds/zcash-devtool"
+                pull = "always"
+            "#,
         )
         .unwrap_err();
         assert!(matches!(
@@ -574,9 +599,78 @@ mod tests {
     }
 
     #[test]
+    fn track_is_rejected_on_local_artifacts() {
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+
+                [indexer]
+                local = "/builds/zainod"
+                track = "zainod:latest"
+            "#,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ManifestError::InvalidArtifact {
+                artifact: "indexer",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn digest_pinned_track_is_rejected() {
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                image = "zfnd/zebra:v6.0.0"
+                track = "zfnd/zebra@sha256:aaaa"
+            "#,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ManifestError::InvalidArtifact {
+                artifact: "validator",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn track_without_image_is_not_launchable() {
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                track = "zfnd/zebra:latest"
+            "#,
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            ManifestError::UnresolvedTrack {
+                artifact: "validator",
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn unknown_keys_fail_loudly() {
-        let error = ArtifactManifest::from_json_str(
-            r#"{ "version": 1, "validatr": { "image": "zebra" } }"#,
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+
+                [validatr]
+                image = "zebra:v1"
+            "#,
         )
         .unwrap_err();
         assert!(matches!(error, ManifestError::Parse { .. }), "{error:?}");
@@ -584,7 +678,7 @@ mod tests {
 
     #[test]
     fn unsupported_version_is_rejected() {
-        let error = ArtifactManifest::from_json_str(r#"{ "version": 2 }"#).unwrap_err();
+        let error = ArtifactManifest::from_toml_str("version = 2\n").unwrap_err();
         assert!(matches!(
             error,
             ManifestError::UnsupportedVersion { found: 2 }
@@ -593,8 +687,14 @@ mod tests {
 
     #[test]
     fn unknown_runtime_is_rejected() {
-        let error = ArtifactManifest::from_json_str(
-            r#"{ "version": 1, "runtime": "containerd", "validator": { "image": "zebra" } }"#,
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "containerd"
+
+                [validator]
+                image = "zebra:v1"
+            "#,
         )
         .unwrap_err();
         assert!(matches!(error, ManifestError::UnknownRuntime { name } if name == "containerd"));
@@ -602,12 +702,15 @@ mod tests {
 
     #[test]
     fn unknown_pull_policy_is_rejected() {
-        let error = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "runtime": "docker",
-                "validator": { "image": "zebra:v1", "pull": "sometimes" }
-            }"#,
+        let error = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+                runtime = "docker"
+
+                [validator]
+                image = "zebra:v1"
+                pull = "sometimes"
+            "#,
         )
         .unwrap_err();
         assert!(matches!(
@@ -630,12 +733,8 @@ mod tests {
             // A registry port is not a tag.
             ("registry:5000/zebra", "no tag or digest"),
         ] {
-            let error = ArtifactManifest::from_json_str(&format!(
-                r#"{{
-                    "version": 1,
-                    "runtime": "docker",
-                    "validator": {{ "image": "{image}" }}
-                }}"#,
+            let error = ArtifactManifest::from_toml_str(&format!(
+                "version = 1\nruntime = \"docker\"\n\n[validator]\nimage = \"{image}\"\n",
             ))
             .unwrap_err();
             let ManifestError::UnpinnedImage {
@@ -665,12 +764,8 @@ mod tests {
             "zfnd/zebra:v6.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "zln-test-daemon:local",
         ] {
-            let manifest = ArtifactManifest::from_json_str(&format!(
-                r#"{{
-                    "version": 1,
-                    "runtime": "docker",
-                    "validator": {{ "image": "{image}" }}
-                }}"#,
+            let manifest = ArtifactManifest::from_toml_str(&format!(
+                "version = 1\nruntime = \"docker\"\n\n[validator]\nimage = \"{image}\"\n",
             ))
             .unwrap_or_else(|error| panic!("{image:?} should be accepted, got {error:?}"));
             assert!(manifest.validator.is_container());
@@ -684,13 +779,19 @@ mod tests {
     /// regardless of what's installed.
     #[test]
     fn local_only_manifest_needs_no_runtime() {
-        let manifest = ArtifactManifest::from_json_str(
-            r#"{
-                "version": 1,
-                "validator": { "local": "/builds/zebrad" },
-                "indexer": { "local": "/builds/zainod" },
-                "wallet": { "local": "/builds/zcash-devtool" }
-            }"#,
+        let manifest = ArtifactManifest::from_toml_str(
+            r#"
+                version = 1
+
+                [validator]
+                local = "/builds/zebrad"
+
+                [indexer]
+                local = "/builds/zainod"
+
+                [wallet]
+                local = "/builds/zcash-devtool"
+            "#,
         )
         .unwrap();
         assert!(!manifest.validator.is_container());
@@ -701,7 +802,7 @@ mod tests {
     /// hermetic on hosts without either installed.
     #[test]
     fn template_parses() {
-        let manifest = ArtifactManifest::from_json_str(ArtifactManifest::template_json()).unwrap();
+        let manifest = ArtifactManifest::from_toml_str(ArtifactManifest::template_toml()).unwrap();
         assert!(manifest.validator.is_container());
         assert!(matches!(
             &manifest.indexer,

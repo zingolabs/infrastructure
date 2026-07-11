@@ -27,7 +27,7 @@
 //! from the host.
 //!
 //! Consumers describe which artifacts come from where with an
-//! [`manifest::ArtifactManifest`] — a small JSON file that can be
+//! [`manifest::ArtifactManifest`] — a small TOML file that can be
 //! validated ahead of a test run with [`manifest::ArtifactManifest::preflight`]
 //! (also exposed by the `zcash-local-net` CLI as `zcash-local-net
 //! preflight`).

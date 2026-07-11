@@ -7,8 +7,8 @@
 //! binary is one clear report instead of N launch failures:
 //!
 //! ```sh
-//! zcash-local-net preflight --manifest ci-artifacts.json \
-//!   && ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.json cargo nextest run
+//! zcash-local-net preflight --manifest ci-artifacts.toml \
+//!   && ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.toml cargo nextest run
 //! ```
 //!
 //! Argument parsing is hand-rolled: two subcommands and one flag do
@@ -44,13 +44,13 @@ COMMANDS:
                 this command is the only thing that moves them. Name
                 artifacts to bump a subset. The file is rewritten in
                 canonical formatting; review the diff and commit it.
-    template    Print an example manifest (JSON) to stdout.
+    template    Print an example manifest (TOML) to stdout.
     help        Print this message.
 
 MANIFEST RESOLUTION:
     1. --manifest <PATH>
     2. $ZCASH_LOCAL_NET_MANIFEST
-    3. ./zcash-local-net.json, if it exists
+    3. ./zcash-local-net.toml, if it exists
     4. none — for `preflight`, the built-in default (every artifact
        resolved as a host process via TEST_BINARIES_DIR / PATH);
        `update` needs a file to rewrite and exits with an error.
@@ -62,7 +62,7 @@ fn main() -> ExitCode {
         Some("preflight") => preflight(&args[1..]),
         Some("update") => update(&args[1..]),
         Some("template") => {
-            print!("{}", ArtifactManifest::template_json());
+            print!("{}", ArtifactManifest::template_toml());
             ExitCode::SUCCESS
         }
         Some("help") | Some("--help") | Some("-h") => {

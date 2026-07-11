@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   container. Stopping a containerized process force-removes the
   container by name (`zcash-local-net-<binary>-<pid>-<n>`).
 - **Artifact manifest** (`container::manifest::ArtifactManifest`): a
-  small JSON file consumers keep with their test setup describing
+  small TOML file consumers keep with their test setup describing
   where each artifact comes from — an `image` (with optional
   `entrypoint` and `pull` policy `never`/`if-missing`/`always`) or a
   `local` path to a locally built binary (the **escape hatch**; also
@@ -67,11 +67,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`zcash-local-net` CLI** (new binary in this crate):
   `zcash-local-net preflight [--manifest <path>]` runs the pre-check
   from a shell (exit 0/1), resolving the manifest from the flag, then
-  `$ZCASH_LOCAL_NET_MANIFEST`, then `./zcash-local-net.json`, then the
+  `$ZCASH_LOCAL_NET_MANIFEST`, then `./zcash-local-net.toml`, then the
   built-in host-process default; `zcash-local-net template` prints a
   starting-point manifest. Intended use:
-  `zcash-local-net preflight --manifest m.json &&
-  ZCASH_LOCAL_NET_MANIFEST=m.json cargo nextest run`.
+  `zcash-local-net preflight --manifest m.toml &&
+  ZCASH_LOCAL_NET_MANIFEST=m.toml cargo nextest run`. The `toml`
+  crate is a new dependency (already covered by existing cargo-vet
+  exemptions for its stack).
 
 ### Changed
 

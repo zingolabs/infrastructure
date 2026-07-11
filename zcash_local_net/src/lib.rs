@@ -47,7 +47,7 @@
 //! image** (via the `docker` or `podman` CLI) instead of a host
 //! binary. Which artifacts come from where is described by an
 //! [artifact manifest](crate::container::manifest::ArtifactManifest)
-//! — a small JSON file consumers keep with their test setup — with a
+//! — a small TOML file consumers keep with their test setup — with a
 //! `local` **escape hatch** for artifacts built locally from source.
 //! The manifest doubles as a pre-check: validate it against the
 //! current environment with
@@ -56,8 +56,8 @@
 //! before invoking the test runner:
 //!
 //! ```sh
-//! zcash-local-net preflight --manifest ci-artifacts.json \
-//!   && ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.json cargo nextest run
+//! zcash-local-net preflight --manifest ci-artifacts.toml \
+//!   && ZCASH_LOCAL_NET_MANIFEST=ci-artifacts.toml cargo nextest run
 //! ```
 //!
 //! See [`crate::container`] for the mechanics (foreground containers
