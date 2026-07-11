@@ -24,10 +24,17 @@
 //!
 //! Per artifact (`validator`, `indexer`, `wallet`):
 //!
-//! - `image`: run from this container image reference. Optional
-//!   companions: `entrypoint` (defaults to the artifact's binary
-//!   name) and `pull` (`"never"` / `"if-missing"` / `"always"`,
-//!   default `"if-missing"`).
+//! - `image`: run from this container image reference — the binary's
+//!   *actual published image* (e.g. Zebra's official `zfnd/zebra`),
+//!   one image per artifact. The reference **must be pinned**: either
+//!   digest-pinned (`repo@sha256:…`, the strongest form — immune to
+//!   tag reassignment) or carrying an explicit non-`latest` tag.
+//!   Untagged and `:latest` references are rejected at load time,
+//!   because a floating reference silently changes what a test run
+//!   means when the registry moves the tag. Optional companions:
+//!   `entrypoint` (defaults to the artifact's binary name) and `pull`
+//!   (`"never"` / `"if-missing"` / `"always"`, default
+//!   `"if-missing"`).
 //! - `local`: run this host binary directly — the escape hatch for
 //!   locally built artifacts. Mutually exclusive with `image`.
 //! - `{}` or omitted: resolve the binary via `TEST_BINARIES_DIR` /
@@ -92,6 +99,22 @@ pub enum ManifestError {
         artifact: &'static str,
         /// What is wrong with it.
         reason: String,
+    },
+    /// An `image` reference is not pinned (no tag/digest, or the
+    /// floating `latest` tag). Pinning is mandatory: container
+    /// artifacts exist to make test runs reproducible, and a floating
+    /// reference silently changes meaning when the registry moves it.
+    #[error(
+        "manifest artifact `{artifact}`: image {image:?} is not pinned ({reason}); \
+         pin it with a digest (`repo@sha256:…`) or an explicit non-`latest` tag"
+    )]
+    UnpinnedImage {
+        /// Which artifact table (`validator` / `indexer` / `wallet`).
+        artifact: &'static str,
+        /// The offending image reference.
+        image: String,
+        /// What makes the reference floating.
+        reason: &'static str,
     },
     /// `runtime` names something other than `docker` or `podman`.
     #[error("unknown container runtime {name:?} (expected \"docker\" or \"podman\")")]
@@ -309,6 +332,13 @@ fn resolve_artifact(
             Ok(ArtifactSource::HostProcess { binary: local })
         }
         (Some(image), None) => {
+            if let Err(reason) = require_pinned(&image) {
+                return Err(ManifestError::UnpinnedImage {
+                    artifact,
+                    image,
+                    reason,
+                });
+            }
             let pull = raw
                 .pull
                 .as_deref()
@@ -333,6 +363,26 @@ fn resolve_artifact(
                 pull,
             }))
         }
+    }
+}
+
+/// `Ok(())` when `image` is a pinned reference: digest-pinned
+/// (`…@sha256:…`) or carrying an explicit tag other than `latest`.
+/// `Err` names what makes it floating.
+///
+/// The tag is looked for after the last `/`, so a registry port
+/// (`registry:5000/zebra`) is not mistaken for a tag.
+fn require_pinned(image: &str) -> Result<(), &'static str> {
+    if image.contains('@') {
+        // Digest-pinned: immutable by construction.
+        return Ok(());
+    }
+    let last_component = image.rsplit('/').next().unwrap_or(image);
+    match last_component.split_once(':') {
+        None => Err("it has no tag or digest"),
+        Some((_, "latest")) => Err("`latest` is a floating tag"),
+        Some((_, "")) => Err("its tag is empty"),
+        Some((_, _tag)) => Ok(()),
     }
 }
 
@@ -467,7 +517,7 @@ mod tests {
             r#"{
                 "version": 1,
                 "runtime": "docker",
-                "validator": { "image": "zebra", "pull": "sometimes" }
+                "validator": { "image": "zebra:v1", "pull": "sometimes" }
             }"#,
         )
         .unwrap_err();
@@ -478,6 +528,64 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    /// Unpinned image references must be rejected at load time, with
+    /// the offending reference and the reason in the error.
+    #[test]
+    fn unpinned_image_references_are_rejected() {
+        for (image, expected_reason_fragment) in [
+            ("zebra", "no tag or digest"),
+            ("zfnd/zebra:latest", "floating tag"),
+            ("zfnd/zebra:", "tag is empty"),
+            // A registry port is not a tag.
+            ("registry:5000/zebra", "no tag or digest"),
+        ] {
+            let error = ArtifactManifest::from_json_str(&format!(
+                r#"{{
+                    "version": 1,
+                    "runtime": "docker",
+                    "validator": {{ "image": "{image}" }}
+                }}"#,
+            ))
+            .unwrap_err();
+            let ManifestError::UnpinnedImage {
+                artifact: "validator",
+                image: reported,
+                reason,
+            } = &error
+            else {
+                panic!("expected UnpinnedImage for {image:?}, got {error:?}");
+            };
+            assert_eq!(reported, image);
+            assert!(
+                reason.contains(expected_reason_fragment),
+                "{image:?}: reason {reason:?} should mention {expected_reason_fragment:?}"
+            );
+        }
+    }
+
+    /// Pinned references — explicit tags and digests, with or without
+    /// a ported registry — must pass.
+    #[test]
+    fn pinned_image_references_are_accepted() {
+        for image in [
+            "zfnd/zebra:v6.0.0",
+            "registry:5000/zebra:v6.0.0",
+            "zfnd/zebra@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "zfnd/zebra:v6.0.0@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "zln-test-daemon:local",
+        ] {
+            let manifest = ArtifactManifest::from_json_str(&format!(
+                r#"{{
+                    "version": 1,
+                    "runtime": "docker",
+                    "validator": {{ "image": "{image}" }}
+                }}"#,
+            ))
+            .unwrap_or_else(|error| panic!("{image:?} should be accepted, got {error:?}"));
+            assert!(manifest.validator.is_container());
+        }
     }
 
     /// A manifest with no `image` artifacts must never probe for a

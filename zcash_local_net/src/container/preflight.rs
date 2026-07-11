@@ -182,7 +182,10 @@ async fn check_image(artifact: &str, image: &ContainerImage) -> PreflightCheck {
             return PreflightCheck {
                 subject,
                 passed: true,
-                detail: "image present locally".to_string(),
+                detail: format!(
+                    "image present locally ({})",
+                    image_identity(cli, &image.image).await
+                ),
             };
         }
         (false, PullPolicy::Never) => {
@@ -205,15 +208,18 @@ async fn check_image(artifact: &str, image: &ContainerImage) -> PreflightCheck {
         .output()
         .await
     {
-        Ok(output) if output.status.success() => PreflightCheck {
-            subject,
-            passed: true,
-            detail: if present {
-                "image refreshed (pull policy \"always\")".to_string()
-            } else {
-                "image pulled".to_string()
-            },
-        },
+        Ok(output) if output.status.success() => {
+            let identity = image_identity(cli, &image.image).await;
+            PreflightCheck {
+                subject,
+                passed: true,
+                detail: if present {
+                    format!("image refreshed (pull policy \"always\"; {identity})")
+                } else {
+                    format!("image pulled ({identity})")
+                },
+            }
+        }
         Ok(output) => PreflightCheck {
             subject,
             passed: false,
@@ -230,6 +236,48 @@ async fn check_image(artifact: &str, image: &ContainerImage) -> PreflightCheck {
             detail: format!("`{cli} pull {}` failed to spawn: {io_error}", image.image),
         },
     }
+}
+
+/// The image's immutable identity, as reproducibility evidence in the
+/// report: the first registry digest (`repo@sha256:…`) when the image
+/// came from a registry, else the local image ID (locally built
+/// images have no repo digest). Manifests must already *pin* their
+/// references; this states what the pin resolved to on this machine —
+/// for a tag-pinned reference, the line to compare across machines.
+async fn image_identity(cli: &str, image: &str) -> String {
+    // `{{json .RepoDigests}}` rather than `{{index …}}`: the json
+    // helper exists in both docker's and podman's template engines and
+    // does not error on an empty list.
+    let repo_digest = tokio::process::Command::new(cli)
+        .args([
+            "image",
+            "inspect",
+            "--format",
+            "{{json .RepoDigests}}",
+            image,
+        ])
+        .output()
+        .await
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| serde_json::from_slice::<Vec<String>>(&output.stdout).ok())
+        .and_then(|digests| digests.into_iter().next());
+    if let Some(digest) = repo_digest {
+        return digest;
+    }
+    tokio::process::Command::new(cli)
+        .args(["image", "inspect", "--format", "{{.Id}}", image])
+        .output()
+        .await
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| {
+            format!(
+                "local image id {}",
+                String::from_utf8_lossy(&output.stdout).trim()
+            )
+        })
+        .unwrap_or_else(|| "identity unavailable".to_string())
 }
 
 /// Host binary resolvable and executable — explicit path, or the

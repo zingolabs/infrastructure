@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `entrypoint` and `pull` policy `never`/`if-missing`/`always`) or a
   `local` path to a locally built binary (the **escape hatch**; also
   available programmatically as `ArtifactSource::local_binary`).
+  Image references name each binary's actual published image, one per
+  artifact, and **must be pinned**: digest-pinned (`repo@sha256:…`)
+  or carrying an explicit non-`latest` tag. Untagged and `:latest`
+  references are rejected at load time
+  (`ManifestError::UnpinnedImage`), and preflight reports the digest
+  each reference resolved to as reproducibility evidence.
   `ArtifactManifest::from_env()` loads the file named by
   `ZCASH_LOCAL_NET_MANIFEST`; `launch_local_net()` launches the core
   stack from it; `zebrad_config()` / `zainod_config()` /

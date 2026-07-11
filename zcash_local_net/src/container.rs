@@ -152,7 +152,13 @@ pub struct ContainerImage {
     /// The runtime CLI that runs this image.
     pub runtime: ContainerRuntime,
     /// Image reference (`repository[:tag][@digest]`), passed verbatim
-    /// to the runtime.
+    /// to the runtime — the binary's *actual published image* (e.g.
+    /// Zebra's official `zfnd/zebra`). Pin it: prefer a digest
+    /// (`repo@sha256:…`), or at least an explicit non-`latest` tag.
+    /// Manifest loading enforces this
+    /// ([`manifest::ManifestError::UnpinnedImage`]); constructing this
+    /// struct directly bypasses that check, so programmatic callers
+    /// carry the reproducibility responsibility themselves.
     pub image: String,
     /// Entrypoint override. `None` uses the artifact's executable name
     /// (`zebrad`, `zainod`, `zcash-devtool`), which deliberately
