@@ -8,7 +8,6 @@ use zingo_consensus::NetworkKind;
 
 use crate::logs::LogsToDir;
 use crate::logs::LogsToStdoutAndStderr as _;
-use crate::utils::executable_finder::trace_version_and_location;
 use crate::{
     ProcessId, config,
     error::{IndexerSyncError, LaunchError},
@@ -16,7 +15,6 @@ use crate::{
     launch,
     network::{self},
     process::Process,
-    utils::executable_finder::pick_command,
 };
 
 /// The stdout marker zainod prints for every block its chain index
@@ -133,6 +131,11 @@ pub struct ZainodConfig {
     /// lifetime — the launch-time listener probe included. `None`
     /// (the default) is a passthrough front with no observer.
     pub grpc_front_observer: Option<std::sync::Arc<dyn crate::front::FrontObserver>>,
+    /// Where the zainod binary comes from: host-process resolution
+    /// (the default), an explicit local build, or a container image.
+    /// See [`crate::container::ArtifactSource`]; typically seeded from
+    /// an [`crate::container::manifest::ArtifactManifest`].
+    pub source: crate::container::ArtifactSource,
 }
 
 impl Default for ZainodConfig {
@@ -143,6 +146,7 @@ impl Default for ZainodConfig {
             chain_cache: None,
             network: NetworkKind::Regtest,
             grpc_front_observer: None,
+            source: crate::container::ArtifactSource::default(),
         }
     }
 }
@@ -160,8 +164,15 @@ impl IndexerConfig for ZainodConfig {
 /// This struct is used to represent and manage the Zainod process.
 #[derive(Debug)]
 pub struct Zainod {
-    /// Child process handle
+    /// Child process handle. In container mode this is the foreground
+    /// runtime client (`docker|podman run`), through which the
+    /// container's stdio streams.
     handle: Child,
+    /// The named container zainod runs as when the artifact source is
+    /// a container image; `None` in host-process mode. Held so `stop`
+    /// can force-remove the container — killing the client alone would
+    /// leave it running.
+    container: Option<crate::container::ContainerInstance>,
     /// gRPC front proxy — the canonical public endpoint of the gRPC
     /// listener, bound before the process started.
     grpc_front: crate::front::Front,
@@ -291,15 +302,33 @@ impl Zainod {
         .unwrap();
 
         let executable_name = "zainod";
-        trace_version_and_location(executable_name, "--version");
-        let mut command = pick_command(executable_name, false);
+        crate::container::trace_version(&config.source, executable_name, "--version");
+        // In container mode, mount the config dir (and the caller's
+        // chain cache, when one is set) at identical paths so the
+        // config file just written is valid verbatim inside the
+        // container. The ephemeral cache dir is deliberately *not*
+        // mounted: its `TempDir` is deleted when this function
+        // returns even in host mode, and zainod (re)creates the
+        // configured path itself — inside the container's own
+        // filesystem, reaped with the container by `--rm`.
+        let container = config.source.new_instance(executable_name);
+        let mut mounts: Vec<&std::path::Path> = vec![config_dir.path()];
+        if let Some(cache) = config.chain_cache.as_ref() {
+            mounts.push(cache.as_path());
+        }
+        let mut command = config.source.command(&crate::container::LaunchSpec {
+            executable_name,
+            container_name: container.as_ref().map(|c| c.name()),
+            mounts: &mounts,
+            interactive: false,
+        });
         command.args([
             "start",
             "--config",
             config_file_path.to_str().expect("should be valid UTF-8"),
         ]);
 
-        let handle = launch::spawn_and_wait(
+        let spawned = launch::spawn_and_wait(
             ProcessId::Zainod,
             &mut command,
             &logs_dir,
@@ -308,10 +337,23 @@ impl Zainod {
             &["Error:"],
             &[],
         )
-        .await?;
+        .await;
+        let handle = match spawned {
+            Ok(handle) => handle,
+            Err(error) => {
+                // A failed container launch may leave the container
+                // running even though `launch::wait` gave up on it;
+                // don't leak it past the failed launch.
+                if let Some(container) = &container {
+                    container.force_remove();
+                }
+                return Err(error);
+            }
+        };
 
         let mut zainod = Zainod {
             handle,
+            container,
             grpc_front,
             raw_grpc_listen_addr: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
             logs_dir,
@@ -397,6 +439,12 @@ impl Process for Zainod {
     }
 
     fn stop(&mut self) {
+        // Container mode: the handle is only the runtime client;
+        // killing it would orphan the container, so remove the
+        // container first (which also ends the client).
+        if let Some(container) = &self.container {
+            container.force_remove();
+        }
         match self.handle.kill() {
             Ok(()) => {}
             // `kill` returns `InvalidInput` when the child has already
