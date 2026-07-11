@@ -11,7 +11,10 @@
 //! The format is TOML — the configuration language everything else in
 //! this ecosystem already speaks (`zebrad.toml`, `zindexer.toml`,
 //! `Cargo.toml`), comments included. `zcash-local-net template`
-//! prints a starting point.
+//! prints a starting point. Manifests are parsed by a deliberately
+//! minimal in-repo subset of TOML, not a full TOML parser; the
+//! crate-internal `toml` module documents the exact dialect, and
+//! rejects — loudly, never silently — every construct outside it.
 //!
 //! ```toml
 //! version = 1
@@ -78,7 +81,7 @@ use serde::Deserialize;
 
 use super::{ArtifactSource, ContainerImage, ContainerRuntime, PullPolicy};
 use crate::{
-    LocalNet, error::LaunchError, indexer::zainod::Zainod, indexer::zainod::ZainodConfig,
+    LocalNet, error::LaunchError, indexer::zainod::Zainod, indexer::zainod::ZainodConfig, toml,
     validator::zebrad::Zebrad, validator::zebrad::ZebradConfig,
 };
 

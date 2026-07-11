@@ -35,7 +35,6 @@ hex = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "rt", "time", "process"] }
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
-toml = "0.8"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }

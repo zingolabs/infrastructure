@@ -84,6 +84,7 @@ mod backend;
 mod launch;
 mod macros;
 mod poll;
+mod toml;
 
 use indexer::Indexer;
 use validator::Validator;
