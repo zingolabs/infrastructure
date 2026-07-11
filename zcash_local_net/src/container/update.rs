@@ -22,7 +22,6 @@ use std::path::{Path, PathBuf};
 
 use super::ContainerRuntime;
 use super::manifest::{ArtifactManifest, ManifestError};
-use crate::toml;
 
 /// The outcome of updating one container artifact.
 #[derive(Clone, Debug)]
@@ -86,8 +85,7 @@ pub enum UpdateError {
 /// unchanged ones, so callers can report "already current".
 ///
 /// The file is rewritten in the manifest's canonical formatting
-/// (fields in schema declaration order, one blank line before each
-/// artifact table, no indentation). Host-process artifacts and
+/// (stable field order, two-space indent). Host-process artifacts and
 /// digest-only images without `track` are untouched and produce no
 /// bump entry.
 pub async fn update_manifest_file(

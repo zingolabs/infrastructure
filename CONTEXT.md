@@ -91,11 +91,3 @@ heights. The Validator is configured with heights exactly once, at
 launch; the Indexer and the wallet client derive theirs from it, and
 supplying heights to those components by hand is unrepresentable.
 _Avoid_: provider heights, custom heights, caller heights
-
-**Manifest dialect**:
-The deliberately minimal subset of TOML that artifact manifests are
-written in: comments, bare keys, tables, basic strings, and decimal
-integers. A manifest is either inside the dialect or rejected loudly at
-load time — no construct outside it is ever silently misread. Full TOML
-is not the contract.
-_Avoid_: full TOML (as a description of what manifests may contain)
