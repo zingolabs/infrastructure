@@ -16,11 +16,37 @@
 //! {
 //!   "version": 1,
 //!   "runtime": "docker",
-//!   "validator": { "image": "zfnd/zebra:v6.0.0" },
+//!   "validator": {
+//!     "image": "zfnd/zebra:v6.0.0",
+//!     "track": "zfnd/zebra:latest"
+//!   },
 //!   "indexer": { "local": "/home/dev/zaino/target/release/zainod" },
 //!   "wallet": {}
 //! }
 //! ```
+//!
+//! ## Intent vs pin: bumping references explicitly
+//!
+//! The manifest plays both the role of *intent* and of *lockfile*
+//! (think `Cargo.toml` and `Cargo.lock` in one file): `track` records
+//! the floating reference a consumer prefers to follow (`…:latest`, a
+//! release-channel tag, …), while `image` records the pinned
+//! reference every run actually uses. Nothing at run time ever
+//! consults the registry for "what does the tag mean now" — moving
+//! the pin is a deliberate act:
+//!
+//! ```sh
+//! zcash-local-net update --manifest ci-artifacts.json
+//! ```
+//!
+//! resolves each artifact's tracked reference against the registry,
+//! rewrites `image` to the digest-pinned result
+//! (`repo:tag@sha256:…`), and reports every bump — leaving a
+//! reviewable diff in version control. Artifacts without `track` are
+//! bumped by re-resolving their `image` tag; digest-only images
+//! without `track` are left untouched (there is no floating
+//! preference to follow). See [`crate::container::update`] for the
+//! library entry point.
 //!
 //! Per artifact (`validator`, `indexer`, `wallet`):
 //!
@@ -100,6 +126,19 @@ pub enum ManifestError {
         /// What is wrong with it.
         reason: String,
     },
+    /// An artifact has a `track` preference but no pinned `image` yet.
+    /// The manifest cannot be launched from until the pin is minted —
+    /// deliberately, by running the update command.
+    #[error(
+        "manifest artifact `{artifact}` tracks {track:?} but has no pinned `image` yet; \
+         run `zcash-local-net update` to resolve the tracked reference and write the pin"
+    )]
+    UnresolvedTrack {
+        /// Which artifact table (`validator` / `indexer` / `wallet`).
+        artifact: &'static str,
+        /// The floating reference the artifact tracks.
+        track: String,
+    },
     /// An `image` reference is not pinned (no tag/digest, or the
     /// floating `latest` tag). Pinning is mandatory: container
     /// artifacts exist to make test runs reproducible, and a floating
@@ -134,24 +173,38 @@ pub enum ManifestError {
 /// Serde-facing manifest schema. Unknown fields are rejected so a
 /// typo'd key fails at load time instead of silently reverting an
 /// artifact to its default source.
-#[derive(Debug, Deserialize)]
+///
+/// Also `Serialize`, because `zcash-local-net update` rewrites the
+/// manifest file in place; struct fields serialize in declaration
+/// order, so this doubles as the manifest's canonical field order.
+#[derive(Clone, Debug, Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-struct RawManifest {
-    version: u32,
-    runtime: Option<String>,
-    validator: Option<RawArtifact>,
-    indexer: Option<RawArtifact>,
-    wallet: Option<RawArtifact>,
+pub(crate) struct RawManifest {
+    pub(crate) version: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) runtime: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) validator: Option<RawArtifact>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) indexer: Option<RawArtifact>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) wallet: Option<RawArtifact>,
 }
 
 /// Serde-facing artifact entry.
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-struct RawArtifact {
-    image: Option<String>,
-    local: Option<PathBuf>,
-    entrypoint: Option<String>,
-    pull: Option<String>,
+pub(crate) struct RawArtifact {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) track: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) local: Option<PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) entrypoint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) pull: Option<String>,
 }
 
 /// A validated artifact manifest: one resolved [`ArtifactSource`] per
@@ -208,6 +261,14 @@ impl ArtifactManifest {
     }
 
     fn parse(json: &str, path: Option<&Path>) -> Result<Self, ManifestError> {
+        Self::from_raw(Self::parse_raw(json, path)?)
+    }
+
+    /// Parse the serde-facing schema and check the version, without
+    /// resolving artifacts. `zcash-local-net update` operates on this
+    /// representation: a manifest whose `track`-only artifacts are not
+    /// yet launchable must still be readable for updating.
+    pub(crate) fn parse_raw(json: &str, path: Option<&Path>) -> Result<RawManifest, ManifestError> {
         let raw: RawManifest =
             serde_json::from_str(json).map_err(|error| ManifestError::Parse {
                 path: path.map(Path::to_path_buf),
@@ -216,7 +277,11 @@ impl ArtifactManifest {
         if raw.version != SUPPORTED_VERSION {
             return Err(ManifestError::UnsupportedVersion { found: raw.version });
         }
+        Ok(raw)
+    }
 
+    /// Validate the raw schema and resolve every artifact source.
+    pub(crate) fn from_raw(raw: RawManifest) -> Result<Self, ManifestError> {
         let declared_runtime = raw
             .runtime
             .as_deref()
@@ -298,6 +363,7 @@ impl ArtifactManifest {
   "runtime": "docker",
   "validator": {
     "image": "zfnd/zebra:v6.0.0",
+    "track": "zfnd/zebra:latest",
     "entrypoint": "zebrad",
     "pull": "if-missing"
   },
@@ -317,6 +383,29 @@ fn resolve_artifact(
     runtime: Option<ContainerRuntime>,
 ) -> Result<ArtifactSource, ManifestError> {
     let raw = raw.unwrap_or_default();
+    if let Some(track) = &raw.track {
+        if raw.local.is_some() {
+            return Err(ManifestError::InvalidArtifact {
+                artifact,
+                reason: "`track` only applies to `image` artifacts, not `local` ones".to_string(),
+            });
+        }
+        if track.contains('@') {
+            return Err(ManifestError::InvalidArtifact {
+                artifact,
+                reason: format!(
+                    "`track` must be a floating reference (a tag to follow), \
+                     but {track:?} is digest-pinned — there is nothing to follow"
+                ),
+            });
+        }
+        if raw.image.is_none() {
+            return Err(ManifestError::UnresolvedTrack {
+                artifact,
+                track: track.clone(),
+            });
+        }
+    }
     match (raw.image, raw.local) {
         (Some(_), Some(_)) => Err(ManifestError::InvalidArtifact {
             artifact,

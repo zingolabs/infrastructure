@@ -52,6 +52,7 @@ use crate::utils::executable_finder::pick_command;
 
 pub mod manifest;
 pub mod preflight;
+pub mod update;
 
 /// The container runtime CLI used to run [`ArtifactSource::Container`]
 /// artifacts.

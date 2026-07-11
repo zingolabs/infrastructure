@@ -43,6 +43,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ZCASH_LOCAL_NET_MANIFEST`; `launch_local_net()` launches the core
   stack from it; `zebrad_config()` / `zainod_config()` /
   `wallet_source()` seed individual configs for customized launches.
+- **Explicit pin bumping** (`container::update`, and `zcash-local-net
+  update [--manifest <path>] [artifact…]`): the manifest doubles as
+  intent and lockfile. Each image artifact may declare a `track`
+  field — the floating reference the consumer prefers to follow
+  (`…:latest`, a release channel tag) — while `image` stays the pin
+  every run uses. Pins never move at run time; the update command is
+  the only thing that moves them: it resolves each tracked reference
+  (the `track` field, or the tag `image` was pinned from) against the
+  registry and rewrites `image` to the digest-pinned result
+  (`repo:tag@sha256:…`) in canonical formatting, reporting every
+  bump — a reviewable version-control diff, exactly like a lockfile
+  update. A `track`-only artifact is deliberately not launchable
+  until its first update mints the pin
+  (`ManifestError::UnresolvedTrack`); digest-only images without
+  `track` have no floating preference and are never touched.
 - **Preflight pre-check** (`ArtifactManifest::preflight`): validates a
   manifest against the current environment before any launch — runtime
   client present and daemon reachable, images present locally (pulled
