@@ -319,12 +319,11 @@ impl ZcashDevtool {
         // The wallet dir is bind-mounted at an identical path in
         // container mode, so `-w` and the identity/heights paths under
         // it are valid verbatim inside the one-shot container.
-        let mut command = self.config.source.command(&crate::container::LaunchSpec {
-            executable_name: EXECUTABLE_NAME,
-            container_name: None,
-            mounts: &[self.wallet_dir.path()],
-            interactive: stdin_line.is_some(),
-        });
+        let mut command = self.config.source.command(&crate::container::LaunchSpec::one_shot(
+            EXECUTABLE_NAME,
+            &[self.wallet_dir.path()],
+            stdin_line.is_some(),
+        ));
         command
             .arg("wallet")
             .arg("-w")

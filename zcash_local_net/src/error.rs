@@ -84,6 +84,35 @@ pub enum LaunchError {
         /// Captured stdout at the time discovery gave up.
         stdout: String,
     },
+    /// `launch::wait`'s indicator scan saw neither a success nor an
+    /// error indicator within the readiness budget. Before this
+    /// variant the scan looped forever, so a child whose logging was
+    /// silenced hung the launch unboundedly (the launch indicators are
+    /// log lines) — the zingolib#2488 failure shape. The message names
+    /// the silenced-logging suspect because an empty log from a live
+    /// process is exactly what a starved log filter looks like.
+    #[error(
+        "{process_name} produced neither a success nor an error indicator within {waited_secs}s.\n\
+         Expected one of: {success_indicators}.\n\
+         An empty log from a live process usually means the child's logging was silenced — \
+         the harness pins the child's logging env at spawn; check that recent changes kept \
+         that pin intact.\nStdout: {stdout}\nStderr: {stderr}\nAdditional log: {additional_log:?}"
+    )]
+    ReadinessTimeout {
+        /// Process name
+        process_name: String,
+        /// How long the scan waited before giving up
+        waited_secs: u64,
+        /// The success indicators the scan was looking for, rendered
+        /// for the message.
+        success_indicators: String,
+        /// Captured stdout up to the timeout
+        stdout: String,
+        /// Captured stderr up to the timeout
+        stderr: String,
+        /// Additional log content if `launch::wait` was reading one.
+        additional_log: Option<String>,
+    },
     /// RPC endpoint did not respond within the readiness budget
     #[error(
         "{process_name} RPC endpoint at {address} did not respond within {timeout:?}: {last_error}"
@@ -246,6 +275,29 @@ pub enum IndexerSyncError {
         /// diagnosing why it stalled.
         log_tail: String,
     },
+    /// The convergence wait timed out over a log carrying no sync
+    /// marker at all — not a lagging indexer but a starved observation
+    /// channel. The launcher pins the child's `RUST_LOG` precisely so
+    /// this cannot happen (zingolib#2488); a markerless log therefore
+    /// means the pin was defeated or the zainod log contract moved,
+    /// and the error names that diagnosis instead of presenting as an
+    /// anonymous timeout.
+    #[error(
+        "the indexer log contains no sync markers at all after {waited_secs}s waiting for \
+         height {target}. zainod emits the markers at info level from the `zaino_state` \
+         target, and the harness pins the child's RUST_LOG at spawn (debug values ride \
+         `ZLN_ZAINOD_RUST_LOG`, which keeps the guard directives) — a markerless log means \
+         that pin was defeated or the zainod log contract moved.\nIndexer log tail:\n{log_tail}"
+    )]
+    IndexerSilent {
+        /// The validator tip height the wait was for.
+        target: u32,
+        /// How long the wait ran before giving up.
+        waited_secs: u64,
+        /// The final lines of the indexer's log (ANSI-stripped) —
+        /// typically empty or launch chatter only.
+        log_tail: String,
+    },
 }
 
 impl LaunchError {
@@ -271,6 +323,12 @@ impl LaunchError {
                 ..
             }
             | Self::ListenerNotResponsive {
+                stdout,
+                stderr,
+                additional_log,
+                ..
+            }
+            | Self::ReadinessTimeout {
                 stdout,
                 stderr,
                 additional_log,

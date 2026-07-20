@@ -485,12 +485,12 @@ impl Zebrad {
         if let Some(cache) = config.chain_cache.as_ref() {
             mounts.push(cache.as_path());
         }
-        let mut command = config.source.command(&crate::container::LaunchSpec {
+        let mut command = config.source.command(&crate::container::LaunchSpec::daemon(
             executable_name,
-            container_name: container.as_ref().map(|c| c.name()),
-            mounts: &mounts,
-            interactive: false,
-        });
+            container.as_ref(),
+            &mounts,
+            &[],
+        ));
         command.args([
             "--config",
             config_file_path.to_str().expect("should be valid UTF-8"),

@@ -234,11 +234,19 @@ impl ArtifactSource {
     /// caller appends the binary's own arguments afterwards, identical
     /// in both modes.
     pub(crate) fn command(&self, spec: &LaunchSpec<'_>) -> Command {
-        match self {
+        let mut command = match self {
             Self::HostProcess { binary: None } => pick_command(spec.executable_name, false),
             Self::HostProcess { binary: Some(path) } => Command::new(path),
-            Self::Container(image) => container_run_command(image, spec),
+            Self::Container(image) => return container_run_command(image, spec),
+        };
+        // Container mode returned above: its env rides as `--env` run
+        // flags. Host mode pins the env on the child directly. Either
+        // way the spec's env overrides the harness's own ambient
+        // values for those names, by design.
+        for (name, value) in spec.env {
+            command.env(name, value);
         }
+        command
     }
 }
 
@@ -260,17 +268,59 @@ pub(crate) struct LaunchSpec<'a> {
     /// (the wallet's `init` receives its mnemonic on stdin). Ignored
     /// in host mode — a host `Command` pipes stdin without ceremony.
     pub interactive: bool,
+    /// Environment pinned on the child in both modes (host: set on the
+    /// `Command`; container: `--env` run flags). Entries OVERRIDE the
+    /// harness's own ambient environment for those names — this is the
+    /// mechanism by which a launcher owns a child's env instead of
+    /// letting ambient values leak through (see the zainod logging
+    /// contract in `indexer::zainod`).
+    pub env: &'a [(&'static str, &'a str)],
 }
 
 impl<'a> LaunchSpec<'a> {
-    /// A spec with no mounts, no name, and no stdin — version traces
-    /// and other one-shot probes.
+    /// A spec with no mounts, no name, no stdin, and no pinned env —
+    /// version traces and other one-shot probes.
     pub(crate) fn bare(executable_name: &'static str) -> Self {
         Self {
             executable_name,
             container_name: None,
             mounts: &[],
             interactive: false,
+            env: &[],
+        }
+    }
+
+    /// The daemon shape shared by every long-running launcher: named
+    /// container when containerized (so `stop` can force-remove it),
+    /// non-interactive, with the caller's mounts and pinned env.
+    pub(crate) fn daemon(
+        executable_name: &'static str,
+        container: Option<&'a ContainerInstance>,
+        mounts: &'a [&'a Path],
+        env: &'a [(&'static str, &'a str)],
+    ) -> Self {
+        Self {
+            executable_name,
+            container_name: container.map(|c| c.name()),
+            mounts,
+            interactive: false,
+            env,
+        }
+    }
+
+    /// The one-shot (wallet-op) shape: unnamed `--rm` container,
+    /// interactive when stdin will be piped, no pinned env.
+    pub(crate) fn one_shot(
+        executable_name: &'static str,
+        mounts: &'a [&'a Path],
+        interactive: bool,
+    ) -> Self {
+        Self {
+            executable_name,
+            container_name: None,
+            mounts,
+            interactive,
+            env: &[],
         }
     }
 }
@@ -296,6 +346,9 @@ fn container_run_command(image: &ContainerImage, spec: &LaunchSpec<'_>) -> Comma
     }
     if spec.interactive {
         command.arg("--interactive");
+    }
+    for (name, value) in spec.env {
+        command.arg("--env").arg(format!("{name}={value}"));
     }
     command
         .arg("--entrypoint")
@@ -463,6 +516,7 @@ mod tests {
             container_name: Some("zcash-local-net-zebrad-1-0"),
             mounts,
             interactive: false,
+            env: &[("RUST_LOG", "info")],
         });
 
         assert_eq!(command.get_program(), "docker");
@@ -482,6 +536,8 @@ mod tests {
         }
         expected.extend(
             [
+                "--env",
+                "RUST_LOG=info",
                 "--entrypoint",
                 "zebrad",
                 "--volume",
@@ -510,6 +566,7 @@ mod tests {
             container_name: None,
             mounts,
             interactive: true,
+            env: &[],
         });
 
         let args = rendered_args(&command);
