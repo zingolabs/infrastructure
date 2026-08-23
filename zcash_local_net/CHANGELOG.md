@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `BlockTemplate` gained a `long_poll_id` field.** The
+  field deserializes from `getblocktemplate`'s `longpollid`, so any
+  downstream literal construction of `BlockTemplate` must now populate
+  it. It feeds the new template prefetch in `Zebrad::generate_blocks`:
+  after each mined block the harness parks a long-poll
+  `getblocktemplate` on zebrad, which precomputes the next shielded
+  coinbase (about two seconds of proof work) while the harness does
+  other work, and the next `generate_blocks` call consumes the
+  prefetched template instead of paying that construction inline. The
+  prefetched template is an empty provisional block, so it is consumed
+  only when the mempool is empty, the height matches, and the template
+  carries no transactions; every other case falls back to the previous
+  fetch-fresh path, which keeps the documented contract that generated
+  blocks confirm mempool transactions. Measured on zingolib's
+  `send_shield_cycle` round trip, empty separation blocks drop from
+  about 2.5 seconds to 0.4–1.6 seconds each. `submit_template_block`
+  split into the public `fetch_block_template`,
+  `fetch_block_template_long_poll`, and `submit_block_from_template`
+  stages, and `mempool_txids` exposes the gate's mempool probe.
+
 ### Added
 
 - **Containerized artifacts.** Every managed process (the zebrad

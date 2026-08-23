@@ -68,6 +68,9 @@ pub struct BlockTemplate {
     pub coinbase_txn: TransactionTemplate,
     /// The non-coinbase transactions.
     pub transactions: Vec<TransactionTemplate>,
+    /// The template's long-poll id, which a follow-up `getblocktemplate` call can present to wait server-side for the next chain state instead of paying template construction inline.
+    #[serde(rename = "longpollid")]
+    pub long_poll_id: String,
 }
 
 /// The header roots from a template's `defaultroots` field.
@@ -211,10 +214,39 @@ pub async fn submit_template_block(
     client: &crate::rpc_client::RpcRequestClient,
     activation_heights: &ActivationHeights,
 ) -> Result<BlockSubmission, SubmitBlockError> {
-    let template: BlockTemplate = client
+    let template = fetch_block_template(client).await?;
+    submit_block_from_template(client, &template, activation_heights).await
+}
+
+/// Fetches a fresh block template for the current chain tip.
+pub async fn fetch_block_template(
+    client: &crate::rpc_client::RpcRequestClient,
+) -> Result<BlockTemplate, SubmitBlockError> {
+    Ok(client
         .json_result_from_call("getblocktemplate", "[]".to_string())
-        .await?;
-    let block_bytes = proposal_block_bytes(&template, activation_heights)?;
+        .await?)
+}
+
+/// Fetches a block template by presenting `long_poll_id`, so zebrad precomputes the next template's shielded coinbase while it waits for the tip to change instead of building it inline on the next fresh fetch.
+pub async fn fetch_block_template_long_poll(
+    client: &crate::rpc_client::RpcRequestClient,
+    long_poll_id: &str,
+) -> Result<BlockTemplate, SubmitBlockError> {
+    Ok(client
+        .json_result_from_call(
+            "getblocktemplate",
+            format!(r#"[{{"longpollid":"{long_poll_id}"}}]"#),
+        )
+        .await?)
+}
+
+/// Assembles `template` into a block proposal and submits it.
+pub async fn submit_block_from_template(
+    client: &crate::rpc_client::RpcRequestClient,
+    template: &BlockTemplate,
+    activation_heights: &ActivationHeights,
+) -> Result<BlockSubmission, SubmitBlockError> {
+    let block_bytes = proposal_block_bytes(template, activation_heights)?;
     let block_hash = block_hash_hex(&block_bytes);
     let block_hex = hex::encode(&block_bytes);
     let response = client
@@ -225,6 +257,15 @@ pub async fn submit_template_block(
         block_hash,
         response,
     })
+}
+
+/// Returns the txids currently in zebrad's mempool.
+pub async fn mempool_txids(
+    client: &crate::rpc_client::RpcRequestClient,
+) -> Result<Vec<String>, SubmitBlockError> {
+    Ok(client
+        .json_result_from_call("getrawmempool", "[]".to_string())
+        .await?)
 }
 
 /// Decode a hex template field, mapping failure to [`ZebraRpcError::InvalidHex`].
