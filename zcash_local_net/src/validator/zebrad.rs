@@ -16,6 +16,7 @@ use zingo_test_vectors::{
 use std::{net::SocketAddr, path::PathBuf, process::Child};
 
 use crate::rpc_client::RpcRequestClient;
+use crate::zebra_rpc::BlockTemplate;
 use tempfile::TempDir;
 
 /// Zebrad configuration
@@ -188,6 +189,10 @@ pub struct Zebrad {
     client: RpcRequestClient,
     /// Network type
     network: NetworkType,
+    /// In-flight long-poll `getblocktemplate` request spawned after the
+    /// last mined block, whose response `generate_blocks` may consume as
+    /// the next block's template when the mempool is empty.
+    template_prefetch: std::sync::Mutex<Option<tokio::task::JoinHandle<Option<BlockTemplate>>>>,
 }
 
 crate::macros::ref_getters!(Zebrad {
@@ -598,6 +603,7 @@ impl Zebrad {
             logs_dir,
             data_dir,
             client,
+            template_prefetch: std::sync::Mutex::new(None),
             network: config.network_type,
         };
 
@@ -639,6 +645,55 @@ impl Zebrad {
 /// listener is the only one zebrad exposes to clients, so it is the
 /// only entry.
 const ZEBRAD_RPC_LISTENER_INDEX: usize = 0;
+
+impl Zebrad {
+    /// Ceiling on waiting for a prefetched template's long poll to resolve, sized well above zebrad's observed ~2s shielded-coinbase precompute so a healthy response is never abandoned while a wedged one cannot stall mining.
+    const PREFETCH_RESOLUTION_CEILING: std::time::Duration = std::time::Duration::from_secs(10);
+
+    /// Spawns a long-poll `getblocktemplate` request presenting `long_poll_id`, storing the task so the next `generate_blocks` call can consume its response, and aborting any stale predecessor.
+    fn spawn_template_prefetch(&self, long_poll_id: String) {
+        let client = self.client.clone();
+        let handle = tokio::spawn(async move {
+            crate::zebra_rpc::fetch_block_template_long_poll(&client, &long_poll_id)
+                .await
+                .ok()
+        });
+        if let Some(stale) = self
+            .template_prefetch
+            .lock()
+            .expect("template prefetch lock must not be poisoned")
+            .replace(handle)
+        {
+            stale.abort();
+        }
+    }
+
+    /// Takes the pending prefetched template when it is safe to mine from it: zebra answers a fired long poll with an empty provisional block, so the template is consumed only when the mempool is empty, it templates exactly `target_height`, and it carries no transactions.
+    async fn take_prefetched_template(&self, target_height: u32) -> Option<BlockTemplate> {
+        let mut handle = self
+            .template_prefetch
+            .lock()
+            .expect("template prefetch lock must not be poisoned")
+            .take()?;
+        match crate::zebra_rpc::mempool_txids(&self.client).await {
+            Ok(txids) if txids.is_empty() => {}
+            _ => {
+                handle.abort();
+                return None;
+            }
+        }
+        let template =
+            match tokio::time::timeout(Self::PREFETCH_RESOLUTION_CEILING, &mut handle).await {
+                Ok(Ok(Some(template))) => template,
+                Ok(_) => return None,
+                Err(_elapsed) => {
+                    handle.abort();
+                    return None;
+                }
+            };
+        (template.height == target_height && template.transactions.is_empty()).then_some(template)
+    }
+}
 
 impl crate::backend::Backend for Zebrad {
     fn log_text(&self) -> std::io::Result<String> {
@@ -762,17 +817,29 @@ impl Validator for Zebrad {
         const ATTEMPT_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
         for i in 0..n {
             let target_height = chain_height + i + 1;
+            let mut prefetched = self.take_prefetched_template(target_height).await;
             let mut last_response = String::new();
             let mut advanced = false;
             for _ in 0..MAX_ATTEMPTS {
-                let submission =
-                    crate::zebra_rpc::submit_template_block(&self.client, activation_heights)
+                let template = match prefetched.take() {
+                    Some(template) => template,
+                    None => crate::zebra_rpc::fetch_block_template(&self.client)
                         .await
-                        .expect("template block submission should succeed");
+                        .expect("template fetch should succeed"),
+                };
+                let long_poll_id = template.long_poll_id.clone();
+                let submission = crate::zebra_rpc::submit_block_from_template(
+                    &self.client,
+                    &template,
+                    activation_heights,
+                )
+                .await
+                .expect("template block submission should succeed");
                 last_response = submission.response;
 
                 if self.get_chain_height().await >= target_height {
                     advanced = true;
+                    self.spawn_template_prefetch(long_poll_id);
                     break;
                 }
                 tokio::time::sleep(ATTEMPT_INTERVAL).await;
