@@ -273,15 +273,27 @@ where
             }
             tokio::time::sleep(Self::INDEXER_CONVERGENCE_POLL_INTERVAL).await;
         }
-        Err(IndexerSyncError::ConvergenceTimeout {
-            target,
-            last_observed,
-            waited_secs: started.elapsed().as_secs(),
-            log_tail: self
-                .indexer()
-                .stripped_log_tail(15)
-                .unwrap_or_else(|error| format!("<indexer log unreadable: {error}>")),
-        })
+        let waited_secs = started.elapsed().as_secs();
+        let log_tail = self
+            .indexer()
+            .stripped_log_tail(15)
+            .unwrap_or_else(|error| format!("<indexer log unreadable: {error}>"));
+        // A timeout with no marker EVER seen is not a lagging indexer
+        // but a starved observation channel — report it as the
+        // contract violation it is (see `IndexerSyncError::IndexerSilent`).
+        match last_observed {
+            None => Err(IndexerSyncError::IndexerSilent {
+                target,
+                waited_secs,
+                log_tail,
+            }),
+            Some(_) => Err(IndexerSyncError::ConvergenceTimeout {
+                target,
+                last_observed,
+                waited_secs,
+                log_tail,
+            }),
+        }
     }
 
     /// Mine `n` blocks and wait for Indexer convergence: when this

@@ -7,6 +7,14 @@ use crate::{ProcessId, error::LaunchError, logs, utils::executable_finder::EXPEC
 /// Retry budget shared by every daemon's `Process::launch`.
 pub(crate) const MAX_LAUNCH_ATTEMPTS: u32 = 3;
 
+/// How long [`wait`]'s indicator scan runs before giving up with
+/// [`LaunchError::ReadinessTimeout`]. The indicators are log lines, so
+/// an unbounded scan hangs forever on a child whose logging is
+/// silenced (zingolib#2488). Generous, because a container-mode launch
+/// may pull an image inside the same `run` invocation on a cold
+/// machine; a healthy local launch observes its indicator in seconds.
+pub(crate) const READINESS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
 /// A launch config whose listen-port pins the collision-retry helper can
 /// enumerate (for the fast-path bind pre-check) and re-roll. Clearing
 /// always drops *every* pin, not just a conflicting one — partial
@@ -113,7 +121,24 @@ async fn wait(
 
     // wait for stdout log entry that indicates daemon is ready
     let interval = std::time::Duration::from_millis(100);
+    let readiness_deadline = std::time::Instant::now() + READINESS_TIMEOUT;
     loop {
+        // Bounded: the indicators are log lines, so a child whose
+        // logging is silenced would otherwise hang this scan forever
+        // (zingolib#2488). Generous because a container-mode launch
+        // may pull an image inside the same `run` invocation.
+        if std::time::Instant::now() >= readiness_deadline {
+            stdout_log.read_to_string(&mut stdout).unwrap();
+            stderr_log.read_to_string(&mut stderr).unwrap();
+            return Err(LaunchError::ReadinessTimeout {
+                process_name: process.to_string(),
+                waited_secs: READINESS_TIMEOUT.as_secs(),
+                success_indicators: format!("{success_indicators:?}"),
+                stdout,
+                stderr,
+                additional_log: snapshot_additional_log(additional_log_path.as_ref()),
+            });
+        }
         match handle.try_wait() {
             Ok(Some(exit_status)) => {
                 stdout_log.read_to_string(&mut stdout).unwrap();

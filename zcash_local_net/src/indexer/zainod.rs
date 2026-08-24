@@ -34,6 +34,35 @@ const SYNC_MARKER: &str = "Syncing block, ";
 /// The field prefix carrying the block height inside a marker line.
 const SYNC_HEIGHT_FIELD: &str = "height: ";
 
+/// Debug knob for the zainod child's log filter: when set and
+/// non-empty, its value seeds the `RUST_LOG` the launcher pins on the
+/// child (with [`GUARD_DIRECTIVES`] appended so the log contract stays
+/// alive). The harness otherwise pins plain `info` — the ambient
+/// `RUST_LOG` never reaches zainod, because the harness READS the
+/// child's log as an API (both the launch readiness line and
+/// [`SYNC_MARKER`]) and an ambient filter that silences those targets
+/// turns every convergence wait into a hang (zingolib#2488).
+pub const ZAINOD_RUST_LOG_ENV: &str = "ZLN_ZAINOD_RUST_LOG";
+
+/// The tracing directives the log contract depends on, appended after
+/// any [`ZAINOD_RUST_LOG_ENV`] value so they win for their targets:
+/// `zainodlib` emits the launch readiness line ("Zaino Indexer started
+/// successfully.") and `zaino_state` emits the [`SYNC_MARKER`] lines
+/// (module `zaino_state::chain_index::non_finalised_state`, per the
+/// captured line pinned in this file's tests). Both at info level.
+const GUARD_DIRECTIVES: &str = "zainodlib=info,zaino_state=info";
+
+/// The `RUST_LOG` value pinned on the zainod child: `info` by default,
+/// or the debug knob's value with [`GUARD_DIRECTIVES`] appended so no
+/// passthrough filter — however restrictive — can silence the lines
+/// the harness's launch wait and convergence barrier parse.
+fn pinned_rust_log(passthrough: Option<&str>) -> String {
+    match passthrough {
+        Some(value) if !value.trim().is_empty() => format!("{value},{GUARD_DIRECTIVES}"),
+        _ => "info".to_string(),
+    }
+}
+
 /// Remove ANSI escape sequences (CSI `ESC [ … <final>` and two-byte
 /// `ESC <c>`) from a log line. zainod colors its logs even on a piped
 /// stdout, and the escapes sit between a marker line's words, so
@@ -316,12 +345,20 @@ impl Zainod {
         if let Some(cache) = config.chain_cache.as_ref() {
             mounts.push(cache.as_path());
         }
-        let mut command = config.source.command(&crate::container::LaunchSpec {
+        // The launcher owns the child's logging env: the harness reads
+        // zainod's log as an API (readiness line, sync markers), so an
+        // ambient RUST_LOG must never reach the child — a set-but-empty
+        // or restrictive ambient filter silences the contract and turns
+        // the launch wait and every convergence wait into a hang
+        // (zingolib#2488). Debugging goes through the guarded
+        // ZLN_ZAINOD_RUST_LOG knob instead.
+        let rust_log = pinned_rust_log(std::env::var(ZAINOD_RUST_LOG_ENV).ok().as_deref());
+        let mut command = config.source.command(&crate::container::LaunchSpec::daemon(
             executable_name,
-            container_name: container.as_ref().map(|c| c.name()),
-            mounts: &mounts,
-            interactive: false,
-        });
+            container.as_ref(),
+            &mounts,
+            &[("RUST_LOG", rust_log.as_str())],
+        ));
         command.args([
             "start",
             "--config",
@@ -511,6 +548,32 @@ mod tests {
         assert_eq!(
             last_sync_height_in("Zaino Indexer started successfully.\n").unwrap(),
             None
+        );
+    }
+
+    #[test]
+    fn unset_passthrough_pins_plain_info() {
+        assert_eq!(pinned_rust_log(None), "info");
+    }
+
+    #[test]
+    fn empty_or_blank_passthrough_pins_plain_info() {
+        // Set-but-empty is the zingolib#2488 trigger: an empty
+        // EnvFilter has zero directives and silences everything, so it
+        // must never reach the child.
+        assert_eq!(pinned_rust_log(Some("")), "info");
+        assert_eq!(pinned_rust_log(Some("   ")), "info");
+    }
+
+    #[test]
+    fn restrictive_passthrough_keeps_the_guard_directives() {
+        // A wallet-side debug filter must not silence the launch
+        // readiness line (`zainodlib`) or the sync markers
+        // (`zaino_state`); the guard directives are appended after the
+        // passthrough so they win for those targets.
+        assert_eq!(
+            pinned_rust_log(Some("pepper_sync=debug")),
+            "pepper_sync=debug,zainodlib=info,zaino_state=info"
         );
     }
 
