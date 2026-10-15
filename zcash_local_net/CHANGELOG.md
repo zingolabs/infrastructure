@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `zingo_test_vectors` is taken from crates.io at 0.0.2 instead of by path
+  inside this workspace. A consumer that depends on `zcash_local_net` by git
+  and on `zingo_test_vectors` from crates.io resolved two copies of the
+  crate, and the published 0.0.1 dragged `bip0039` 0.12.0 into its graph,
+  a dependency the tree dropped on 2026-07-03. 0.0.2 is the tree as it
+  stands, with no dependencies.
 - **BREAKING: `BlockTemplate` gained a `long_poll_id` field.** The
   field deserializes from `getblocktemplate`'s `longpollid`, so any
   downstream literal construction of `BlockTemplate` must now populate

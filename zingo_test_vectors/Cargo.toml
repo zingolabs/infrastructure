@@ -1,7 +1,7 @@
 [package]
 name = "zingo_test_vectors"
 description = "A crate that provides access to Zingo testvectors."
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 authors = ["Zingolabs <zingo@zingolabs.org>"]
 repository = "https://github.com/zingolabs/infrastructure"
